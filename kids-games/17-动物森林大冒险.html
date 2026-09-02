@@ -236,7 +236,7 @@ function buildBoard(){
     if(r===0&&c===0){d.className='cell start';d.dataset.g=0}
     else if(r===0&&c>0)d.dataset.g=c;
     else if(c===6&&r>0&&r<6)d.dataset.g=6+r;
-    else if(r===6&&c<6)d.dataset.g=12+(6-c);
+    else if(r===6)d.dataset.g=12+(6-c);
     else if(c===0&&r>0&&r<6)d.dataset.g=24-r;
     if(r>=1&&r<=5&&c>=1&&c<=5){d.id='center';d.innerHTML='<div id="center"></div>';}
     else d.className='cell '+BOARD[d.dataset.g].t;
@@ -344,11 +344,11 @@ async function slide(p,step,trigger=false,skipStartBonus=false){
   }
   renderTokens(players.indexOf(p));
 }
-async function rollMove(p,dice,bonus=true){
+async function rollMove(p,dice,skipStart=false){
   $('dice').textContent='🎲';$('dice').classList.add('shake');sDice();
   for(let i=0;i<8;i++){$('dice').textContent='⚀⚁⚂⚃⚄⚅'[rnd(6)];await sleep(90)}
   $('dice').classList.remove('shake');$('dice').textContent=dice;
-  await slide(p,dice,true);
+  await slide(p,dice,true,skipStart);
   return p.pos;
 }
 
@@ -400,7 +400,7 @@ async function resolveCell(p){
     log(p.name+' 走进魔法森林，再掷一次传送！');
     await info(`<div class="dic">🌲✨</div><div class="dt">魔法森林！</div><div class="db">再掷一次骰子，按点数传送到对应格子（不触发效果）。</div>`,1400);
     const d2=1+rnd(6);
-    await rollMove(p,d2,false); /* 传送不触发、不发起点奖励 */
+    await rollMove(p,d2,true); /* 传送不触发格子效果、不发起点奖励 */
     p.pos=(p.pos)%24;
     log(p.name+' 被传送到了 '+BOARD[p.pos].n);
     return;
