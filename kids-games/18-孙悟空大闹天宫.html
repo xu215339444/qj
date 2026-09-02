@@ -118,7 +118,7 @@ const SKILLS=[
 ------------------------------------------------ */
 const LEVELS=[
  {name:'第1关 · 花果山',sky:['#c8ecb0','#a5d8a0'],hill:'#7cb85c',len:2600,
-  ground:[[0,2100],[2180,2600]],plat:[[600,360,130],[1050,300,120],[1500,350,140],[1950,290,130]],
+  ground:[[0,2600]],plat:[[600,360,130],[1050,300,120],[1500,350,140],[1950,290,130]],
   en:[['monkey',700,430],['monkey',1150,430],['flyb',1300,250],['monkey',1650,430],['flyb',1800,220]],
   peach:[[420,380],[860,300],[1000,430],[1330,240],[1600,430],[1780,160],[2050,430],[2120,430]],
   jade:[[520,430],[1420,430],[2000,240]],chest:[[980,290]],cp:[1150,2000],
@@ -200,7 +200,7 @@ let shopUsed={},playPeach=0;
 
 function newPlayer(){return{x:80,y:GY-46,vx:0,vy:0,w:30,h:44,face:1,onG:false,jumps:0,
   hp:save.maxHp,mp:save.maxMp,maxHp:save.maxHp,maxMp:save.maxMp,atk:save.atk,
-  lv:save.level,peach:save.peach,jade:save.jade,hurtT:0,atkT:0,atkDir:1};}
+  lv:save.level,peach:save.peach,jade:save.jade,hurtT:0,atkT:0,atkDir:1,fallHit:false};}
 
 /* ---------------- 粒子/飘字 ---------------- */
 function boom(x,y,color,n=10,spd=4){for(let i=0;i<n;i++)parts.push({x,y,vx:(Math.random()-.5)*spd*2,vy:-Math.random()*spd-1,g:.25,t:26+rnd(14),c:color,r:2+rnd(3)})}
@@ -252,16 +252,18 @@ function mkEnemy(t,x,y){
 }
 
 /* ---------------- 物理 ---------------- */
-function solidAt(x,y){ // 地面
+function solidAt(x,y){ // 是否 x 处有地面顶(y≈GY)
   for(const[a,b]of L.ground)if(x>=a&&x<=b&&Math.abs(y-GY)<2)return true;
   return false;
 }
-function onPlatformTop(e){ // 实体脚底是否在某平台顶
+function groundX(x){for(const[a,b]of L.ground)if(x>=a&&x<=b)return true;return false}
+function landScan(foot0,foot1){
+  if(foot0<=GY&&foot1>=GY&&groundX(P.x+P.w/2))return GY;
   for(const p of (L.plat||[])){
-    if(e.x+e.w/2>p[0]&&e.x+e.w/2<p[0]+p[2]&&Math.abs(e.y+e.h-p[1])<3)return p;
+    if(P.x+P.w/2>p[0]-2&&P.x+P.w/2<p[0]+p[2]+2&&foot0<=p[1]&&foot1>=p[1])return p[1];
   }
   for(const p of (L.mov||[])){
-    if(e.x+e.w/2>p[0]&&e.x+e.w/2<p[0]+p[2]&&Math.abs(e.y+e.h-p[1])<3)return p;
+    if(P.x+P.w/2>p[0]-2&&P.x+P.w/2<p[0]+p[2]+2&&foot0<=p[1]&&foot1>=p[1])return p[1];
   }
   return null;
 }
@@ -284,16 +286,10 @@ function hurtPlayer(dmg){
 }
 function revive(){
   P.hp=P.maxHp;P.mp=P.maxMp;P.x=cpPos.x;P.y=cpPos.y;P.vx=0;P.vy=0;
-  invul=90;gameOn=true;
-  enemies=enemies.filter(e=>!e.boss).map(e=>{if(e.dead)return mkEnemy(e.t,e.home,e.fy);return e});
-  enemies=enemies.filter(e=>!e.dead);
-  L.en.forEach(([t,x,y])=>{ // Boss与小怪重置（Boss重打）
-    if(t==='boss')return;
-  });
-  if(L.boss&&!enemies.some(e=>e.boss)){
-    const b=mkBoss(L.boss.t,L.boss.x);if(b)enemies.push(b);
-  }
-  enemies.forEach(e=>{if(!e.boss&&!e.dead){/* 巡逻怪已在过滤时重置 */}});
+  invul=110;gameOn=true;P.fallHit=false;bullets=[];clones=[];boss=null;
+  enemies=L.en.map(([t,x,y])=>mkEnemy(t,x,y));
+  if(L.boss){const b=mkBoss(L.boss.t,L.boss.x);if(b)enemies.push(b)}
+  floatTxt(P.x+15,P.y-24,'满状态复活！','#43a047');
 }
 function toTitle(){gameOn=false;st='title';$('pads').classList.remove('show');persist();showTitle()}
 
@@ -309,21 +305,23 @@ function updatePlayer(){
     else if(P.jumps<2){P.vy=-10.5;P.jumps=2;sJump()}
   }
   if(!key.J)P.jHold=false;
-  P.vy+=.55;if(P.vy>13)P.vy=13;
+  P.vy+=.55;if(P.vy>15)P.vy=15;
+  const foot0=P.y+P.h;
   P.x+=P.vx;P.y+=P.vy;
   P.x=clamp(P.x,0,L.len-P.w);
-  // 落地判定
+  const foot1=P.y+P.h;
   P.onG=false;
-  if(P.vy>=0){
-    if(P.y+P.h>=GY&&solidAt(P.x+P.w/2,P.y+P.h)){P.y=GY-P.h;P.vy=0;P.onG=true;P.jumps=0}
-    const pl=onPlatformTop(P);
-    if(pl&&!keyDownThrough(P)){P.y=pl[1]-P.h;P.vy=0;P.onG=true;P.jumps=0}
+  if(P.vy>=0&&foot1<=H+40){
+    const landY=landScan(foot0,foot1);
+    if(landY!==null){P.y=landY-P.h;P.vy=0;P.onG=true;P.jumps=0}
   }
-  // 掉进水/坑
   if(P.y>H+40){
-    hurtPlayer(1);
-    if(P.hp>0){P.x=cpPos.x;P.y=cpPos.y;P.vx=0;P.vy=0;invul=90}
-  }
+    if(!P.fallHit){P.fallHit=true;hurtPlayer(1)}
+    if(P.hp>0&&P.y>H+140){
+      P.x=cpPos.x;P.y=cpPos.y-10;P.vx=0;P.vy=-3;invul=110;P.fallHit=false;
+      boom(P.x+15,P.y+20,'#4fc3f7',10,3);
+    }
+  }else P.fallHit=false;
   // 攻击
   if(atkCd>0)atkCd--;
   if(key.A&&!P.aHold&&atkCd<=0){P.aHold=true;P.atkT=14;atkCd=22;P.atkDir=P.face;
@@ -368,7 +366,6 @@ function updatePlayer(){
   // 到达 Boss 且击败 → 过关
   if(L.boss&&boss&&boss.dead&&!stClearing){stClearing=true;levelClear()}
 }
-function keyDownThrough(){return false}
 let stClearing=false;
 
 function checkLevelUp(){
@@ -641,37 +638,94 @@ function draw(){
   cx.globalAlpha=.55;
   clones.forEach(c=>{cx.font='34px serif';cx.textAlign='center';cx.fillText('🐵',c.x-cam,c.y+38)});
   cx.globalAlpha=1;cx.textAlign='left';
-  // 玩家
-  if(P){
-    if(!(invul>0&&frame%8<4)){
+  // 玩家（Q版悟空 + 醒目金箍棒）
+  if(P&&!(invul>0&&frame%8<4)){
+    const ox=P.x+P.w/2-cam,top=P.y,f=P.face,thk=dblT>0?12:9,atk=P.atkT>0;
+    const LEN=dblT>0?80:62;
+    cx.save();
+    if(f<0){cx.translate(ox,0);cx.scale(-1,1);cx.translate(-(ox),0)}
+    // 尾巴
+    cx.strokeStyle='#a5713d';cx.lineWidth=3;cx.lineCap='round';
+    cx.beginPath();cx.moveTo(ox-8,top+40);cx.quadraticCurveTo(ox-19,top+32,ox-14,top+20);cx.stroke();
+    // 待机金箍棒：横扛颈后，两端露肩（不攻击时）
+    if(!atk){
+      const ly=top+14;
       cx.save();
-      if(P.face<0){cx.translate(P.x+P.w/2-cam,0);cx.scale(-1,1);cx.translate(-(P.x+P.w/2-cam),0)}
-      // 身体
-      cx.fillStyle='#e53935';roundRect(P.x-cam+4,P.y+16,P.w-8,P.h-16,9);cx.fill();
-      cx.fillStyle='#ffcc80';cx.beginPath();cx.arc(P.x+P.w/2-cam,P.y+10,13,0,7);cx.fill();
-      cx.fillStyle='#5d4037';cx.beginPath();cx.arc(P.x+P.w/2-cam,P.y+2,11,Math.PI,0);cx.fill();
-      cx.fillStyle='#ffb300';cx.beginPath();cx.arc(P.x+P.w/2-cam,P.y-4,4,0,7);cx.fill();
-      cx.fillStyle='#333';cx.beginPath();cx.arc(P.x+P.w/2-cam+4,P.y+9,2,0,7);cx.arc(P.x+P.w/2-cam-4,P.y+9,2,0,7);cx.fill();
-      // 金箍棒
-      if(P.atkT>0){
-        const prog=1-P.atkT/14,ang=-.9+prog*1.8;
-        const cxp=P.x+P.w/2-cam,cyp=P.y+P.h/2;
-        cx.save();cx.translate(cxp,cyp);cx.rotate(ang*P.face);
-        const len=dblT>0?66:48;
-        cx.fillStyle='#c9a227';roundRect(6,-4,len,8,4);cx.fill();
-        cx.fillStyle='#e6c35c';roundRect(6,-4,len,3,2);cx.fill();
-        cx.restore();
-      }else{
-        cx.fillStyle='#c9a227';roundRect(P.x+P.w/2-cam+(P.face>0?8:-16),P.y+26,24,5,2);cx.fill();
-      }
-      if(shieldT>0){cx.strokeStyle='#4fc3f7cc';cx.lineWidth=4;
-        cx.beginPath();cx.arc(P.x+P.w/2-cam,P.y+P.h/2,32,0,7);cx.stroke()}
+      cx.fillStyle='#d32f2f';roundRect(ox-LEN/2-4,ly-thk/2,LEN+8,thk,thk/2);cx.fill();
+      cx.fillStyle='#ff8a80';roundRect(ox-LEN/2-3,ly-thk/2+1,LEN+6,2.5,1.2);cx.fill();
+      cx.fillStyle='#ffd54f';roundRect(ox-LEN/2-10,ly-thk/2-2,9,thk+4,3);cx.fill();
+      cx.fillStyle='#ffd54f';roundRect(ox+LEN/2+1,ly-thk/2-2,9,thk+4,3);cx.fill();
+      cx.fillStyle='#fff176';roundRect(ox-1.5,ly-thk/2,3,thk,1.5);cx.fill();
       cx.restore();
     }
-    // 攻击范围提示
-    if(P.atkT>6){cx.globalAlpha=.25;cx.fillStyle='#fff';
-      const r=P.lv>=1?58:44;
-      cx.fillRect((P.face>0?P.x+P.w:P.x-r)-cam,P.y+6,r,34);cx.globalAlpha=1}
+    // 猴毛
+    cx.fillStyle='#8a5a2b';cx.beginPath();cx.arc(ox,top+11,13.5,Math.PI,0);cx.fill();
+    cx.beginPath();cx.arc(ox-6,top+4,5,0,7);cx.fill();
+    cx.beginPath();cx.arc(ox+6,top+4,5,0,7);cx.fill();
+    // 紧箍圈
+    cx.strokeStyle='#ffd54f';cx.lineWidth=3.4;cx.lineCap='round';
+    cx.beginPath();cx.arc(ox,top+9,13.9,Math.PI*.7,Math.PI*2.25);cx.stroke();
+    // 耳朵
+    cx.fillStyle='#ffd9a8';cx.beginPath();cx.arc(ox-13.5,top+16,4.8,0,7);cx.fill();
+    cx.beginPath();cx.arc(ox+13.5,top+16,4.8,0,7);cx.fill();
+    cx.fillStyle='#f0a878';cx.beginPath();cx.arc(ox-13.5,top+16,2.2,0,7);cx.fill();
+    cx.beginPath();cx.arc(ox+13.5,top+16,2.2,0,7);cx.fill();
+    // 脸（桃心感）
+    cx.fillStyle='#ffd9a8';cx.beginPath();cx.ellipse(ox,top+21,11.5,13,0,0,7);cx.fill();
+    cx.fillStyle='#ff8a80';cx.globalAlpha=.3;
+    cx.beginPath();cx.ellipse(ox,top+29,8,3.6,0,0,7);cx.fill();cx.globalAlpha=1;
+    // 眼睛（带眼神光，看向面朝方向）
+    const lk=f*1.1;
+    [[-4.8,20],[4.8,20]].forEach(p=>{
+      const ex=p[0],ey=p[1];
+      cx.fillStyle='#fff';cx.beginPath();cx.arc(ox+ex,top+ey,3.6,0,7);cx.fill();
+      cx.fillStyle='#2b2118';cx.beginPath();cx.arc(ox+ex+lk,top+ey,2.1,0,7);cx.fill();
+      cx.fillStyle='#fff';cx.beginPath();cx.arc(ox+ex+lk-.8,top+ey-.8,1,0,7);cx.fill();
+    });
+    // 嘴
+    cx.strokeStyle='#a0562e';cx.lineWidth=1.6;
+    cx.beginPath();cx.arc(ox,top+26,3.6,Math.PI*.18,Math.PI*.82);cx.stroke();
+    // 上身（金领红袍）
+    cx.fillStyle='#e53935';roundRect(ox-10,top+30,20,10,5);cx.fill();
+    cx.fillStyle='#ffd54f';roundRect(ox-10,top+30,20,3,1.6);cx.fill();
+    cx.fillStyle='#fff9e0';cx.beginPath();cx.arc(ox,top+34,2,0,7);cx.fill();
+    // 虎皮裙
+    cx.fillStyle='#ffc34d';
+    cx.beginPath();cx.moveTo(ox-12,top+40);cx.lineTo(ox-9,top+48);cx.lineTo(ox+9,top+48);cx.lineTo(ox+12,top+40);cx.closePath();cx.fill();
+    cx.fillStyle='#7a4a21';
+    [[-7,43],[-1,44.5],[5,43]].forEach(p=>{cx.beginPath();cx.arc(ox+p[0],top+p[1],1.2,0,7);cx.fill()});
+    // 腿脚
+    cx.fillStyle='#f9c57a';roundRect(ox-9,top+46,8,4,2);cx.fill();
+    roundRect(ox+1,top+46,8,4,2);cx.fill();
+    cx.restore();
+    // 攻击金箍棒：从持棒手横扫，带光晕与粒子（不随身体镜像）
+    if(atk){
+      const prog=1-P.atkT/14;
+      const hx=ox+f*5,hy=top+34;
+      const a0=f>0?-1.35:Math.PI+1.35,dir=f>0?1:-1;
+      const ang=a0+dir*prog*1.7;
+      cx.save();cx.translate(hx,hy);cx.rotate(ang);
+      cx.globalAlpha=.45;cx.strokeStyle='#fff';cx.lineWidth=thk+10;cx.lineCap='round';
+      cx.beginPath();cx.moveTo(6,0);cx.lineTo(LEN+6,0);cx.stroke();cx.globalAlpha=1;
+      cx.fillStyle='#d32f2f';roundRect(6,-thk/2,LEN,thk,thk/2);cx.fill();
+      cx.fillStyle='#ff8a80';roundRect(8,-thk/2+1.5,LEN-6,3,1.5);cx.fill();
+      cx.fillStyle='#ffd54f';roundRect(4,-thk/2-2,10,thk+4,4);cx.fill();
+      cx.fillStyle='#ffd54f';roundRect(LEN+2,-thk/2-2,10,thk+4,4);cx.fill();
+      cx.restore();
+      // 棒端星尘
+      if(P.atkT%2===0){
+        const ex2=hx+Math.cos(ang)*(LEN+14),ey2=hy+Math.sin(ang)*(LEN+14);
+        for(let i=0;i<3;i++)parts.push({x:ex2,y:ey2,vx:(Math.random()-.5)*3,vy:(Math.random()-.5)*3-1,g:.15,t:16+rnd(8),c:'#ffe082',r:2.2});
+      }
+    }
+    // 护盾
+    if(shieldT>0){cx.strokeStyle='#4fc3f7cc';cx.lineWidth=4;
+      cx.beginPath();cx.arc(ox,top+P.h/2,34,0,7);cx.stroke();
+      cx.strokeStyle='#b3e5fccc';cx.lineWidth=2;
+      cx.beginPath();cx.arc(ox,top+P.h/2,26,0,7);cx.stroke()}
+    // 无敌闪烁粒子
+    if(P.hurtT>0){P.hurtT--;cx.fillStyle='#fff';cx.globalAlpha=.5;
+      cx.beginPath();cx.arc(ox,top+P.h/2,10,0,7);cx.fill();cx.globalAlpha=1}
   }
   // 子弹
   bullets.forEach(b=>{cx.font='16px serif';cx.fillText('✦',b.x-cam,b.y+14)});
