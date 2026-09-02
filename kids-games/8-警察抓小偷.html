@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="description" content="警察抓小偷 - 按住加速，抓住所有小偷！">
+<title>警察抓小偷</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;overflow:hidden;}
+body{font-family:"PingFang SC","Microsoft YaHei","Noto Sans CJK SC",sans-serif;background:#12304a;color:#fff;user-select:none;-webkit-user-select:none;touch-action:none;overscroll-behavior:none;}
+.screen{position:fixed;top:0;left:0;right:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:16px;background:linear-gradient(180deg,#2f6ea8 0%,#12304a 100%);overflow:hidden;}
+.hidden{display:none!important;}
+.mtitle{font-size:clamp(26px,5.5vw,40px);font-weight:900;color:#ffd23f;text-shadow:0 3px 0 rgba(0,0,0,.25);letter-spacing:2px;}
+.title{font-size:clamp(40px,9vw,72px);letter-spacing:4px;text-shadow:0 4px 0 rgba(0,0,0,.25);color:#ffd23f;}
+.subtitle{font-size:clamp(16px,3vw,22px);opacity:.95;}
+.btn{display:inline-flex;align-items:center;justify-content:center;border:0;border-radius:999px;background:linear-gradient(180deg,#ffb03a,#f97c1c);color:#fff;font-size:clamp(20px,4vw,28px);font-weight:700;padding:16px 40px;box-shadow:0 6px 0 #b05a10,0 12px 22px rgba(0,0,0,.3);cursor:pointer;font-family:inherit;}
+.btn:active{transform:translateY(4px);box-shadow:0 2px 0 #b05a10;}
+.btn2{background:linear-gradient(180deg,#5bc0f0,#2b7fd8);box-shadow:0 6px 0 #1a5490,0 12px 22px rgba(0,0,0,.3);}
+.btn-big{min-width:min(80vw,360px);}
+.btnrow{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;}
+.logo{width:min(70vw,290px);height:auto;animation:float 2.4s ease-in-out infinite;filter:drop-shadow(0 10px 16px rgba(0,0,0,.35));}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+#cards{display:flex;flex-wrap:wrap;justify-content:center;gap:12px;max-width:900px;width:100%;}
+#select{overflow-y:auto;-webkit-overflow-scrolling:touch;justify-content:flex-start;padding:18px 14px 30px;gap:12px;}
+.seltip{font-size:clamp(14px,2.8vw,18px);color:#aee4ff;min-height:24px;text-align:center;}
+.seltip b{color:#ffd23f;}
+.vcard{background:linear-gradient(180deg,#ffffff,#e6edf5);color:#223;border-radius:16px;padding:8px 10px 10px;width:min(44vw,190px);cursor:pointer;border:4px solid transparent;box-shadow:0 6px 14px rgba(0,0,0,.25);transition:transform .15s,border-color .15s,box-shadow .15s;}
+.vcard.sel{border-color:#ffb03a;transform:scale(1.06);box-shadow:0 8px 22px rgba(255,176,58,.45);}
+.vicon{height:82px;display:flex;align-items:center;justify-content:center;}
+.vicon svg{width:100%;height:100%;}
+.vname{font-size:clamp(16px,3.2vw,21px);font-weight:800;text-align:center;margin:2px 0 6px;}
+.vstats{display:flex;flex-direction:column;gap:4px;}
+.srow{display:flex;align-items:center;gap:5px;}
+.slabel{font-size:11px;color:#556;width:28px;text-align:right;flex:none;font-weight:700;}
+.bar{flex:1;height:10px;background:#dfe6ee;border-radius:8px;overflow:hidden;}
+.fill{display:block;height:100%;border-radius:8px;background:linear-gradient(90deg,#ffd23f,#ff9a3c);}
+#goBtn{flex:none;}
+#goBtn:disabled{background:linear-gradient(180deg,#8fa3b8,#6b7f94);box-shadow:0 6px 0 #46586b,0 12px 22px rgba(0,0,0,.3);cursor:not-allowed;}
+#chase{background:#0b1e30;padding:0;overflow:hidden;}
+#game{position:absolute;inset:0;width:100%;height:100%;display:block;}
+#hud{position:absolute;top:0;left:0;right:0;padding:10px 12px;display:flex;justify-content:space-between;align-items:flex-start;pointer-events:none;z-index:5;gap:8px;}
+.hud-box{background:rgba(15,34,51,.6);border-radius:12px;padding:6px 10px;font-size:16px;display:flex;align-items:center;gap:6px;white-space:nowrap;}
+#chip{border-left:6px solid #ffd23f;font-size:15px;}
+#chipName{font-weight:800;}
+#starRow{display:flex;gap:2px;}
+.star{color:#5a6572;font-size:20px;line-height:1;}
+.star.on{color:#ffd23f;text-shadow:0 0 6px rgba(255,210,63,.9);}
+#hearts{display:flex;gap:4px;}
+.heart svg path{fill:#5a6572;}
+.heart.on svg path{fill:#ff5252;}
+#speedBox{position:absolute;left:14px;bottom:110px;background:rgba(15,34,51,.6);border-radius:16px;padding:8px 16px;z-index:5;pointer-events:none;flex-direction:column;align-items:flex-start;}
+#speedNum{font-size:clamp(40px,8vw,62px);font-weight:900;color:#ffd23f;line-height:1;text-shadow:0 3px 0 rgba(0,0,0,.3);}
+.speedUnit{font-size:15px;opacity:.9;margin-top:2px;}
+#boost{position:absolute;right:22px;bottom:110px;width:150px;height:150px;border-radius:50%;border:5px solid #fff;background:radial-gradient(circle at 35% 30%,#7de07a,#2fa03c 72%);box-shadow:0 8px 22px rgba(0,0,0,.4),0 0 0 7px rgba(255,255,255,.22);display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;font-size:30px;font-weight:900;cursor:pointer;z-index:6;touch-action:none;letter-spacing:3px;font-family:inherit;}
+#boost.held{transform:scale(.9);background:radial-gradient(circle at 35% 30%,#9bf09a,#3cb84a 72%);box-shadow:0 2px 10px rgba(0,0,0,.3),0 0 0 10px rgba(255,255,255,.35);}
+#boost .bicon{width:42px;height:42px;margin-bottom:0;}
+#hint{position:absolute;right:36px;bottom:280px;background:rgba(15,34,51,.75);color:#ffd23f;font-size:20px;font-weight:800;padding:8px 16px;border-radius:999px;z-index:6;pointer-events:none;animation:bounce 1s ease-in-out infinite;box-shadow:0 4px 12px rgba(0,0,0,.3);}
+@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+#msg{position:absolute;top:20%;left:50%;transform:translate(-50%,-50%) scale(.4);opacity:0;font-size:clamp(40px,9vw,72px);font-weight:900;text-shadow:0 5px 0 rgba(0,0,0,.3);z-index:8;pointer-events:none;white-space:nowrap;transition:transform .28s cubic-bezier(.2,1.6,.4,1),opacity .28s;}
+#msg.show{transform:translate(-50%,-50%) scale(1);opacity:1;}
+#msg.good{color:#ffd23f;}
+#msg.bad{color:#ff6b6b;}
+#msg.info{color:#aee4ff;font-size:clamp(26px,5.5vw,46px);}
+.homelink{position:fixed;bottom:4px;left:50%;transform:translateX(-50%);z-index:99;color:rgba(255,255,255,.65);font-size:13px;text-decoration:none;background:rgba(0,0,0,.28);padding:4px 14px;border-radius:999px;}
+#win h1,#lose h1{font-size:clamp(38px,8vw,64px);text-shadow:0 4px 0 rgba(0,0,0,.25);color:#ffd23f;}
+#lose h1{color:#ff8c8c;}
+#winStars{display:flex;gap:8px;font-size:clamp(38px,7vw,58px);}
+#winStars .star.on{font-size:1em;}
+.resultp{font-size:clamp(18px,3.4vw,26px);opacity:.95;}
+</style>
+</head>
+<body>
+
+<!-- 开始界面 -->
+<div id="home" class="screen">
+  <div class="logo">
+    <svg viewBox="0 0 200 120">
+      <rect x="18" y="52" width="164" height="34" rx="10" fill="#2b4bd8"/>
+      <rect x="30" y="76" width="140" height="7" rx="3" fill="#f4f6ff"/>
+      <path d="M52 52 L66 30 L134 30 L148 52 Z" fill="#bfe3ff"/>
+      <rect x="78" y="18" width="44" height="14" rx="4" fill="#222"/>
+      <rect x="81" y="21" width="18" height="8" rx="2" fill="#ff3b3b"/>
+      <rect x="101" y="21" width="18" height="8" rx="2" fill="#4d7dff"/>
+      <circle cx="52" cy="92" r="13" fill="#2e2e38"/>
+      <circle cx="148" cy="92" r="13" fill="#2e2e38"/>
+      <circle cx="52" cy="92" r="5" fill="#9aa0aa"/>
+      <circle cx="148" cy="92" r="5" fill="#9aa0aa"/>
+      <circle cx="184" cy="70" r="5" fill="#ffe27a"/>
+    </svg>
+  </div>
+  <h1 class="title">警察抓小偷</h1>
+  <p class="subtitle">按住加速按钮，追上小偷抓住他！</p>
+  <button class="btn btn-big" id="startBtn">开始游戏</button>
+</div>
+
+<!-- 选载具界面 -->
+<div id="select" class="screen hidden">
+  <h2 class="mtitle">选一辆警车</h2>
+  <div id="cards"></div>
+  <div class="seltip" id="selTip">先点一辆警车，再按下面的出发按钮</div>
+  <button class="btn btn-big" id="goBtn" disabled>出发抓小偷！</button>
+</div>
+
+<!-- 追逐界面 -->
+<div id="chase" class="screen hidden">
+  <canvas id="game"></canvas>
+  <div id="hud">
+    <div id="chip" class="hud-box">小偷：<b id="chipName">--</b></div>
+    <div id="starRow" class="hud-box"></div>
+    <div id="hearts" class="hud-box"></div>
+  </div>
+  <div id="speedBox" class="hud-box"><span id="speedNum">0</span><span class="speedUnit">km/h</span></div>
+  <div id="msg"></div>
+  <div id="hint" class="hidden">按住加速！</div>
+  <div id="boost">
+    <svg class="bicon" viewBox="0 0 24 24"><path d="M3 12h15M13 6l6 6-6 6" stroke="#fff" stroke-width="3.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    加速
+  </div>
+</div>
+
+<!-- 过关界面 -->
+<div id="win" class="screen hidden">
+  <h1>太棒啦！</h1>
+  <div id="winStars"></div>
+  <p class="resultp">你抓到了 6 个小偷，是厉害的小警察！</p>
+  <div class="btnrow">
+    <button class="btn" id="againBtn">再来一局</button>
+    <button class="btn btn2" id="reselectBtn">换辆警车</button>
+  </div>
+</div>
+
+<!-- 结束界面 -->
+<div id="lose" class="screen hidden">
+  <h1>小偷跑掉啦</h1>
+  <p class="resultp">机会用完啦，别灰心，再试一次！</p>
+  <div class="btnrow">
+    <button class="btn" id="retryBtn">再来一次</button>
+    <button class="btn btn2" id="reselectBtn2">换辆警车</button>
+  </div>
+</div>
+
+<a class="homelink" href="游戏大厅.html" target="_top">← 游戏大厅</a>
+
+<script>
+(function(){
+'use strict';
+function $(id){return document.getElementById(id);}
+function clamp(v,a,b){return v<a?a:(v>b?b:v);}
+function rand(a,b){return a+Math.random()*(b-a);}
+
+/* ---------- 音效：Web Audio 合成 ---------- */
+var AC=null,master=null;
+function audio(){
+  if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)();master=AC.createGain();master.gain.value=0.5;master.connect(AC.destination);}catch(e){AC=null;}}
+  if(AC&&AC.state==='suspended'){try{AC.resume();}catch(e){}}
+  return AC;
+}
+function tone(freq,dur,type,vol,delay){
+  if(!AC)return;
+  try{
+    var o=AC.createOscillator(),g=AC.createGain(),t0=AC.currentTime+(delay||0);
+    o.type=type||'sine';o.frequency.value=freq;
+    g.gain.setValueAtTime(vol||0.3,t0);
+    g.gain.exponentialRampToValueAtTime(0.001,t0+dur);
+    o.connect(g);g.connect(master);o.start(t0);o.stop(t0+dur+0.02);
+  }catch(e){}
+}
+var sfxClick=function(){tone(640,0.09,'triangle',0.35);};
+var sfxCatch=function(){[523,659,784,1047].forEach(function(f,i){tone(f,0.18,'triangle',0.4,i*0.09);});};
+var sfxLose=function(){[392,330,262,196].forEach(function(f,i){tone(f,0.24,'sine',0.35,i*0.13);});};
+var sfxWin=function(){[523,659,784,1047,1319].forEach(function(f,i){tone(f,0.3,'triangle',0.4,i*0.12);});};
+var sfxBump=function(){tone(150,0.18,'sawtooth',0.28);tone(95,0.24,'square',0.18,0.03);};
+var sfxSkid=function(){tone(240,0.18,'sawtooth',0.24);tone(170,0.26,'sawtooth',0.2,0.05);};
+
+/* ---------- 数据 ---------- */
+var SVG_MC='<svg viewBox="0 0 120 90"><circle cx="32" cy="66" r="13" fill="#3a3a44"/><circle cx="88" cy="66" r="13" fill="#3a3a44"/><circle cx="32" cy="66" r="5" fill="#9aa0aa"/><circle cx="88" cy="66" r="5" fill="#9aa0aa"/><path d="M34 52 L16 66 L96 66 L84 40 L96 34 L96 26 L86 26 L74 40 L60 42 L44 38 Z" fill="#e8443a"/><path d="M84 40 L84 26" stroke="#3a3a44" stroke-width="5" stroke-linecap="round"/><path d="M78 24 L92 20" stroke="#3a3a44" stroke-width="5" stroke-linecap="round"/><rect x="80" y="15" width="10" height="8" rx="2" fill="#ffd23f"/><rect x="62" y="36" width="16" height="9" rx="4" fill="#c22f2a"/><circle cx="98" cy="58" r="4" fill="#ffe27a"/></svg>';
+var SVG_CAR='<svg viewBox="0 0 120 90"><rect x="8" y="44" width="104" height="26" rx="9" fill="#2b4bd8"/><rect x="16" y="60" width="88" height="6" rx="3" fill="#f4f6ff"/><path d="M28 44 L40 30 L78 30 L90 44 Z" fill="#bfe3ff"/><rect x="46" y="20" width="26" height="10" rx="3" fill="#222"/><rect x="48" y="22" width="10" height="6" rx="1" fill="#ff3b3b"/><rect x="60" y="22" width="10" height="6" rx="1" fill="#4d7dff"/><circle cx="30" cy="72" r="10" fill="#2e2e38"/><circle cx="90" cy="72" r="10" fill="#2e2e38"/><circle cx="30" cy="72" r="4" fill="#9aa0aa"/><circle cx="90" cy="72" r="4" fill="#9aa0aa"/><circle cx="112" cy="56" r="4" fill="#ffe27a"/></svg>';
+var SVG_TANK='<svg viewBox="0 0 120 90"><rect x="6" y="58" width="108" height="20" rx="10" fill="#2c5a2c"/><rect x="16" y="42" width="86" height="16" rx="6" fill="#3e9c3e"/><rect x="28" y="26" width="46" height="18" rx="9" fill="#4cb04c"/><circle cx="44" cy="32" r="5" fill="#2c5a2c"/><rect x="70" y="28" width="42" height="9" rx="3" fill="#5b6b62"/><circle cx="112" cy="32" r="4" fill="#3a3a44"/><text x="60" y="54" text-anchor="middle" font-size="12" fill="#fff">★</text></svg>';
+var SVG_PLANE='<svg viewBox="0 0 120 90"><ellipse cx="56" cy="46" rx="44" ry="12" fill="#f2f6ff"/><rect x="24" y="44" width="60" height="4" rx="2" fill="#2b4bd8"/><circle cx="72" cy="41" r="4" fill="#9fc4e8"/><path d="M18 46 L8 26 L30 38 Z" fill="#2b4bd8"/><path d="M26 50 L74 50 L64 66 L34 66 Z" fill="#3b6fe0"/><path d="M14 50 L30 54 L14 58 Z" fill="#2b4bd8"/><rect x="94" y="43" width="6" height="6" rx="1" fill="#3a3a44"/><rect x="98" y="39" width="4" height="14" rx="2" fill="#ff3b3b"/></svg>';
+
+var VEHICLES=[
+  {id:'mc',name:'摩托车',icon:SVG_MC,max:760,min:110,accel:430,decel:240,sp:5,ct:2,st:1,immune:false,fly:false},
+  {id:'car',name:'警车',icon:SVG_CAR,max:600,min:95,accel:390,decel:540,sp:3,ct:4,st:4,immune:false,fly:false},
+  {id:'tank',name:'坦克',icon:SVG_TANK,max:470,min:120,accel:310,decel:620,sp:1,ct:3,st:5,immune:true,fly:false},
+  {id:'plane',name:'飞机',icon:SVG_PLANE,max:660,min:105,accel:410,decel:520,sp:3,ct:3,st:3,immune:true,fly:true}
+];
+var VEHICLES_BY_ID={};VEHICLES.forEach(function(v){VEHICLES_BY_ID[v.id]=v;});
+
+var THIEVES={
+  walk:{name:'步行小偷',speed:140,hat:'#e8443a',shirt:'#ffb03a',vehicle:'walk'},
+  bike:{name:'骑车小偷',speed:260,hat:'#2b6dd8',shirt:'#7ac74f',vehicle:'bike'},
+  car:{name:'开车小偷',speed:420,hat:'#3e9c3e',shirt:'#c97af0',vehicle:'car'},
+  rocket:{name:'火箭小偷',speed:640,hat:'#9b59b6',shirt:'#ff8c69',vehicle:'rocket'},
+  fly:{name:'飞贼',speed:340,hat:'#f5c518',shirt:'#5fb8e8',vehicle:'fly'}
+};
+var ROUND_POOLS=[
+  ['walk'],
+  ['walk','bike','fly'],
+  ['bike','fly','car'],
+  ['car','fly','bike'],
+  ['car','rocket'],
+  ['rocket','car']
+];
+function pickThief(round){
+  var pool=ROUND_POOLS[round],t=THIEVES[pool[Math.random()*pool.length|0]];
+  var speed=Math.round(t.speed*(1+round*0.15));
+  var cap=Math.round(VEHICLE.max*0.82);
+  if(speed>cap)speed=cap;
+  return {id:t.name,name:t.name,hat:t.hat,shirt:t.shirt,vehicle:t.vehicle,speed:speed};
+}
+
+/* ---------- Canvas 设置 ---------- */
+var canvas=$('game'),ctx=canvas.getContext('2d');
+var W=0,H=0,DPR=1,POLICE_X=150,groundY=0;
+function resize(){
+  var r=canvas.parentElement.getBoundingClientRect();
+  W=Math.max(1,r.width);H=Math.max(1,r.height);
+  DPR=Math.min(window.devicePixelRatio||1,2);
+  canvas.width=Math.round(W*DPR);canvas.height=Math.round(H*DPR);
+  canvas.style.width=W+'px';canvas.style.height=H+'px';
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  POLICE_X=Math.min(170,Math.max(88,Math.round(W*0.2)));
+  groundY=Math.round(H*0.8);
+}
+window.addEventListener('resize',resize);
+
+/* ---------- 工具绘制 ---------- */
+function roundRect(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath();}
+function wheel(x,y,r){ctx.fillStyle='#2e2e38';ctx.beginPath();ctx.arc(x,y,r,0,7);ctx.fill();ctx.fillStyle='#9aa0aa';ctx.beginPath();ctx.arc(x,y,r*0.4,0,7);ctx.fill();}
+function headHat(c,x,y,hat){
+  c.fillStyle='#ffd9a0';c.beginPath();c.arc(x,y,8.5,0,7);c.fill();
+  c.fillStyle=hat;c.beginPath();c.ellipse(x,y-5,11,4.5,0,Math.PI,0);c.fill();
+  c.beginPath();c.arc(x,y-7,8,Math.PI,0);c.fill();
+}
+
+/* ---------- 状态 ---------- */
+var phase='home';
+var sub='idle';
+var selected=null,VEHICLE=null;
+var policeSpeed=0,camX=0,elapsed=0,flashT=0,skidT=0,slideDir=0,shake=0;
+var stars=0,chances=3,roundIdx=0;
+var thief=null;
+var hold=false;
+var particles=[],floats=[];
+var layers={},obs=[],obsNext=0;
+var celebrateT=0,lostT=0,msgTimer=null,hintTimer=null;
+
+/* ---------- 背景流生成 ---------- */
+function initLayers(){
+  layers={clouds:{items:[],next:0},bld:{items:[],next:0},houses:{items:[],next:0},trees:{items:[],next:0},lamps:{items:[],next:0}};
+}
+function layerFactor(name){return {clouds:0.25,bld:0.4,houses:0.7,trees:1,lamps:1}[name];}
+function layerGap(name){
+  if(name==='clouds')return rand(180,360);
+  if(name==='bld')return rand(10,40);
+  if(name==='houses')return rand(6,30);
+  if(name==='trees')return rand(240,420);
+  return rand(520,760);
+}
+function genItem(name,x){
+  var it={x:x};
+  if(name==='clouds'){it.y=rand(30,130);it.r=rand(26,52);}
+  else if(name==='bld'){
+    it.w=rand(70,150);it.h=rand(110,260);
+    it.c=['#7d98b4','#86a1bd','#7490ad','#8fa9c2'][Math.random()*4|0];
+    it.windows=[];
+    for(var wy=14;wy<it.h-16;wy+=26)for(var wx=10;wx<it.w-12;wx+=24)if(Math.random()<0.3)it.windows.push([wx,wy]);
+  }
+  else if(name==='houses'){
+    it.w=rand(70,130);it.h=rand(70,120);
+    it.c=['#f2a35c','#f2d05c','#e87b7b','#9bc97a','#7fc4d8'][Math.random()*5|0];
+    it.roof=['#b04a2f','#8a5a3a','#c75b48','#5e8a52'][Math.random()*4|0];
+    it.doorX=Math.round(it.w/2-8);
+    it.win=(Math.random()<0.75)?[10+Math.random()*(it.w-36),14]:null;
+  }
+  else if(name==='trees')it.s=rand(0.8,1.25);
+  return it;
+}
+function ensureLayer(name){
+  var L=layers[name],f=layerFactor(name);
+  while(L.next<camX*f+W+300){L.items.push(genItem(name,L.next));L.next+=layerGap(name);}
+  for(var i=L.items.length-1;i>=0;i--){if(L.items[i].x-camX*f<-220)L.items.splice(i,1);}
+}
+
+/* ---------- 背景绘制 ---------- */
+function drawSky(){
+  var g=ctx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,'#6fc3f0');g.addColorStop(0.6,'#a8dcf7');g.addColorStop(1,'#d8f0ff');
+  ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='#fff3b0';ctx.beginPath();ctx.arc(W-70,64,34,0,7);ctx.fill();
+  ctx.fillStyle='rgba(255,240,160,0.45)';ctx.beginPath();ctx.arc(W-70,64,48,0,7);ctx.fill();
+}
+function drawClouds(){
+  var f=0.25;
+  ctx.fillStyle='rgba(255,255,255,0.92)';
+  layers.clouds.items.forEach(function(o){
+    var sx=o.x-camX*f;if(sx<-220||sx>W+220)return;
+    ctx.beginPath();ctx.arc(sx,o.y,o.r,0,7);ctx.arc(sx+o.r*0.9,o.y-8,o.r*0.7,0,7);ctx.arc(sx+o.r*1.7,o.y,o.r*0.55,0,7);ctx.fill();
+  });
+}
+function drawBuildings(){
+  var f=0.4,base=Math.round(H*0.62);
+  layers.bld.items.forEach(function(o){
+    var sx=o.x-camX*f;if(sx<-220||sx>W+220)return;
+    ctx.fillStyle=o.c;ctx.fillRect(sx,base-o.h,o.w,o.h);
+    ctx.fillStyle='rgba(255,245,180,0.85)';
+    for(var i=0;i<o.windows.length;i++){var wnd=o.windows[i];ctx.fillRect(sx+wnd[0],base-o.h+wnd[1],10,14);}
+  });
+}
+function drawHouses(){
+  var f=0.7,base=Math.round(H*0.7);
+  layers.houses.items.forEach(function(o){
+    var sx=o.x-camX*f;if(sx<-220||sx>W+220)return;
+    ctx.fillStyle=o.c;ctx.fillRect(sx,base-o.h,o.w,o.h);
+    ctx.fillStyle=o.roof;ctx.beginPath();ctx.moveTo(sx-6,base-o.h);ctx.lineTo(sx+o.w/2,base-o.h-26);ctx.lineTo(sx+o.w+6,base-o.h);ctx.closePath();ctx.fill();
+    ctx.fillStyle='#7a4a2a';ctx.fillRect(sx+o.doorX,base-22,16,22);
+    if(o.win){
+      ctx.fillStyle='#bfe3ff';ctx.fillRect(sx+o.win[0],base-o.h+o.win[1],16,16);
+      ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.strokeRect(sx+o.win[0],base-o.h+o.win[1],16,16);
+    }
+  });
+}
+function drawRoad(){
+  var roadTop=Math.round(H*0.74),sTop=roadTop-10;
+  ctx.fillStyle='#cbbfa8';ctx.fillRect(0,sTop,W,10);
+  ctx.fillStyle='#9aa0aa';ctx.fillRect(0,sTop-2,W,3);
+  ctx.fillStyle='#5b6672';ctx.fillRect(0,roadTop,W,H-roadTop);
+  var dashY=(roadTop+H)/2-3,off=-(camX%72);
+  ctx.fillStyle='#e8ecf2';
+  for(var x=off;x<W;x+=72){roundRect(ctx,x,dashY,36,6,3);ctx.fill();}
+  var so=-(camX%140);
+  ctx.fillStyle='rgba(255,255,255,0.4)';
+  for(var x2=so;x2<W;x2+=140)ctx.fillRect(x2,sTop,2,10);
+}
+function drawTrees(){
+  var base=Math.round(H*0.74);
+  layers.trees.items.forEach(function(o){
+    var sx=o.x-camX;if(sx<-120||sx>W+120)return;
+    var s=o.s;
+    ctx.fillStyle='#8a5a3a';ctx.fillRect(sx-3,base-24*s,6,24*s);
+    ctx.fillStyle='#4f9e4f';
+    ctx.beginPath();ctx.arc(sx-8*s,base-32*s,11*s,0,7);ctx.arc(sx+7*s,base-34*s,13*s,0,7);ctx.arc(sx,base-44*s,12*s,0,7);ctx.fill();
+  });
+}
+function drawLamps(){
+  var base=Math.round(H*0.74);
+  layers.lamps.items.forEach(function(o){
+    var sx=o.x-camX;if(sx<-80||sx>W+80)return;
+    ctx.strokeStyle='#4a5460';ctx.lineWidth=5;ctx.lineCap='round';
+    ctx.beginPath();ctx.moveTo(sx,base);ctx.lineTo(sx,base-72);ctx.lineTo(sx+26,base-72);ctx.stroke();
+    ctx.fillStyle='#ffe27a';ctx.beginPath();ctx.arc(sx+26,base-72,8,0,7);ctx.fill();
+    ctx.fillStyle='rgba(255,226,122,0.25)';ctx.beginPath();ctx.arc(sx+26,base-72,20,0,7);ctx.fill();
+  });
+}
+function spawnObs(){
+  while(obsNext<camX+W+200){obs.push({x:obsNext,type:(Math.random()<0.5?'roadblock':'banana'),hit:false});obsNext+=rand(480,820);}
+  for(var i=obs.length-1;i>=0;i--){if(obs[i].x-camX<-220)obs.splice(i,1);}
+}
+function drawObs(){
+  obs.forEach(function(o){
+    var sx=o.x-camX;if(sx<-100||sx>W+100)return;
+    if(o.type==='roadblock'){
+      ctx.fillStyle='#f2711c';
+      ctx.beginPath();ctx.moveTo(sx-15,groundY);ctx.lineTo(sx,groundY-34);ctx.lineTo(sx+15,groundY);ctx.closePath();ctx.fill();
+      ctx.save();ctx.beginPath();ctx.moveTo(sx-15,groundY);ctx.lineTo(sx,groundY-34);ctx.lineTo(sx+15,groundY);ctx.closePath();ctx.clip();
+      ctx.fillStyle='#fff';
+      ctx.beginPath();ctx.moveTo(sx-30,groundY-26);ctx.lineTo(sx-18,groundY-26);ctx.lineTo(sx+6,groundY);ctx.lineTo(sx-6,groundY);ctx.closePath();ctx.fill();
+      ctx.beginPath();ctx.moveTo(sx-8,groundY-32);ctx.lineTo(sx+6,groundY-32);ctx.lineTo(sx+26,groundY);ctx.lineTo(sx+12,groundY);ctx.closePath();ctx.fill();
+      ctx.restore();
+      ctx.fillStyle='#333';ctx.fillRect(sx-18,groundY-6,36,6);
+    }else{
+      ctx.strokeStyle='#ffd93a';ctx.lineWidth=9;ctx.lineCap='round';
+      ctx.beginPath();ctx.moveTo(sx-12,groundY-2);ctx.quadraticCurveTo(sx+2,groundY-20,sx+12,groundY-2);ctx.stroke();
+      ctx.fillStyle='#a05a2c';
+      ctx.beginPath();ctx.arc(sx-13,groundY-3,2.4,0,7);ctx.arc(sx+13,groundY-3,2.4,0,7);ctx.fill();
+    }
+  });
+}
+
+/* ---------- 警车绘制 ---------- */
+function drawMc(sx,sy){
+  wheel(sx-26,sy-13,13);wheel(sx+26,sy-13,13);
+  ctx.fillStyle='#e8443a';
+  ctx.beginPath();ctx.moveTo(sx-24,sy-8);ctx.lineTo(sx-6,sy-30);ctx.lineTo(sx+16,sy-30);ctx.lineTo(sx+24,sy-14);ctx.lineTo(sx+26,sy-6);ctx.lineTo(sx-24,sy-6);ctx.closePath();ctx.fill();
+  ctx.fillStyle='#2e2e38';ctx.fillRect(sx-10,sy-36,16,6);
+  ctx.strokeStyle='#2e2e38';ctx.lineWidth=4;ctx.lineCap='round';
+  ctx.beginPath();ctx.moveTo(sx+24,sy-14);ctx.lineTo(sx+34,sy-26);ctx.stroke();
+  ctx.fillStyle='#ffe27a';ctx.beginPath();ctx.arc(sx+27,sy-6,5,0,7);ctx.fill();
+  if(flashT%0.5<0.25)ctx.fillStyle='#ff4444';else ctx.fillStyle='#4488ff';
+  ctx.fillRect(sx+6,sy-42,7,6);
+}
+function drawCar(sx,sy){
+  ctx.fillStyle='#2b4bd8';roundRect(ctx,sx-50,sy-22,100,18,9);ctx.fill();
+  ctx.fillStyle='#f4f6ff';roundRect(ctx,sx-40,sy-7,80,5,3);ctx.fill();
+  ctx.fillStyle='#bfe3ff';
+  ctx.beginPath();ctx.moveTo(sx-26,sy-22);ctx.lineTo(sx-16,sy-36);ctx.lineTo(sx+16,sy-36);ctx.lineTo(sx+26,sy-22);ctx.closePath();ctx.fill();
+  ctx.fillStyle='#222';roundRect(ctx,sx-12,sy-44,26,8,3);ctx.fill();
+  if(flashT%0.5<0.25){ctx.fillStyle='#ff3b3b';ctx.fillRect(sx-10,sy-43,9,6);ctx.fillStyle='#4d7dff';ctx.fillRect(sx+1,sy-43,9,6);}
+  else{ctx.fillStyle='#4d7dff';ctx.fillRect(sx-10,sy-43,9,6);ctx.fillStyle='#ff3b3b';ctx.fillRect(sx+1,sy-43,9,6);}
+  wheel(sx-30,sy-9,9);wheel(sx+30,sy-9,9);
+  ctx.fillStyle='#ffe27a';ctx.beginPath();ctx.arc(sx+50,sy-14,4,0,7);ctx.fill();
+}
+function drawTank(sx,sy){
+  ctx.fillStyle='#2c5a2c';roundRect(ctx,sx-48,sy-20,96,20,10);ctx.fill();
+  ctx.strokeStyle='#1d3f1d';ctx.lineWidth=3;
+  ctx.beginPath();ctx.moveTo(sx-48,sy-10);ctx.lineTo(sx+48,sy-10);ctx.moveTo(sx-48,sy-14);ctx.lineTo(sx+48,sy-14);ctx.stroke();
+  ctx.fillStyle='#3e9c3e';roundRect(ctx,sx-38,sy-38,76,18,6);ctx.fill();
+  ctx.fillStyle='#4cb04c';roundRect(ctx,sx-16,sy-54,40,18,8);ctx.fill();
+  ctx.fillStyle='#2c5a2c';ctx.beginPath();ctx.arc(sx-2,sy-44,6,0,7);ctx.fill();
+  ctx.fillStyle='#5b6b62';ctx.fillRect(sx+22,sy-52,38,8);
+  ctx.fillStyle='#3a3a44';ctx.fillRect(sx+56,sy-50,6,4);
+  ctx.fillStyle='#fff';ctx.font='bold 11px sans-serif';ctx.textAlign='center';ctx.fillText('★',sx+6,sy-26);
+}
+function drawPlane(sx,sy){
+  ctx.fillStyle='#f2f6ff';ctx.beginPath();ctx.ellipse(sx,sy-30,44,12,0,0,7);ctx.fill();
+  ctx.fillStyle='#2b4bd8';roundRect(ctx,sx-30,sy-32,58,4,2);ctx.fill();
+  ctx.fillStyle='#9fc4e8';ctx.beginPath();ctx.arc(sx+16,sy-38,5,0,7);ctx.fill();
+  ctx.fillStyle='#2b4bd8';ctx.beginPath();ctx.moveTo(sx-40,sy-32);ctx.lineTo(sx-46,sy-58);ctx.lineTo(sx-30,sy-36);ctx.closePath();ctx.fill();
+  ctx.fillStyle='#3b6fe0';ctx.beginPath();ctx.moveTo(sx-8,sy-26);ctx.lineTo(sx+26,sy-26);ctx.lineTo(sx+18,sy-12);ctx.lineTo(sx-12,sy-14);ctx.closePath();ctx.fill();
+  var a=elapsed*40;
+  ctx.strokeStyle='#3a3a44';ctx.lineWidth=3;ctx.lineCap='round';
+  ctx.beginPath();ctx.moveTo(sx+42+Math.cos(a)*9,sy-30+Math.sin(a)*9);ctx.lineTo(sx+44-Math.cos(a)*9,sy-30-Math.sin(a)*9);ctx.stroke();
+  if(flashT%0.5<0.25)ctx.fillStyle='#ff3b3b';else ctx.fillStyle='#4d7dff';
+  ctx.fillRect(sx-4,sy-46,8,6);
+}
+function drawPolice(){
+  var sx=POLICE_X,sy=groundY;
+  ctx.save();
+  ctx.fillStyle='rgba(0,0,0,0.18)';ctx.beginPath();ctx.ellipse(sx,sy,44,8,0,0,7);ctx.fill();
+  if(VEHICLE.fly)sy-=18+Math.sin(elapsed*4)*7;
+  if(skidT>0){ctx.translate(sx,sy);ctx.rotate(slideDir*0.16);ctx.translate(-sx,-sy);}
+  if(VEHICLE.id==='mc')drawMc(sx,sy);
+  else if(VEHICLE.id==='car')drawCar(sx,sy);
+  else if(VEHICLE.id==='tank')drawTank(sx,sy);
+  else drawPlane(sx,sy);
+  ctx.restore();
+}
+
+/* ---------- 小偷绘制 ---------- */
+function drawWalkThief(sx,gy,t){
+  var c=ctx,sw=Math.sin(t*5)*5;
+  c.save();c.translate(sx,gy);c.scale(1.25,1.25);
+  c.strokeStyle='#3a3a4a';c.lineWidth=3.5;c.lineCap='round';
+  c.beginPath();c.moveTo(-4,-15);c.lineTo(-6,-3+sw);c.moveTo(4,-15);c.lineTo(6,-3-sw);c.stroke();
+  c.fillStyle=thief.shirt;roundRect(c,-9,-30,18,17,6);c.fill();
+  c.strokeStyle=thief.shirt;c.lineWidth=3.5;
+  c.beginPath();c.moveTo(-6,-24);c.lineTo(-14,-18+sw);c.moveTo(6,-24);c.lineTo(14,-18-sw);c.stroke();
+  headHat(c,0,-40,thief.hat);
+  c.restore();
+}
+function drawBikeThief(sx,gy,t){
+  var c=ctx,a=t*10;
+  c.save();c.translate(sx,gy);
+  c.fillStyle='#2e2e38';c.beginPath();c.arc(-16,-10,9,0,7);c.arc(16,-10,9,0,7);c.fill();
+  c.fillStyle='#9aa0aa';c.beginPath();c.arc(-16,-10,4,0,7);c.arc(16,-10,4,0,7);c.fill();
+  c.strokeStyle='#444';c.lineWidth=3;c.lineCap='round';
+  c.beginPath();c.moveTo(-16,-10);c.lineTo(0,-6);c.lineTo(4,-24);c.lineTo(16,-10);c.lineTo(20,-18);c.moveTo(4,-24);c.lineTo(-6,-16);c.stroke();
+  var f1x=Math.cos(a)*8,f1y=-6+Math.sin(a)*8,f2x=-f1x,f2y=-6-f1y;
+  c.strokeStyle='#3a3a4a';c.lineWidth=3.5;
+  c.beginPath();c.moveTo(2,-32);c.lineTo(f1x,f1y);c.moveTo(2,-32);c.lineTo(f2x,f2y);c.stroke();
+  c.fillStyle=thief.shirt;roundRect(c,-5,-40,16,15,6);c.fill();
+  c.strokeStyle=thief.shirt;c.lineWidth=3.5;
+  c.beginPath();c.moveTo(8,-34);c.lineTo(20,-18);c.stroke();
+  headHat(c,4,-52,thief.hat);
+  c.restore();
+}
+function drawCarThief(sx,gy,t){
+  var c=ctx;
+  c.save();c.translate(sx,gy);c.scale(1.15,1.15);
+  c.fillStyle='#e05252';roundRect(c,-28,-14,56,20,7);c.fill();
+  c.fillStyle='#f4f6ff';roundRect(c,-26,-12,52,5,3);c.fill();
+  c.fillStyle='#bfe3ff';c.beginPath();c.moveTo(-18,-14);c.lineTo(-10,-26);c.lineTo(10,-26);c.lineTo(18,-14);c.closePath();c.fill();
+  wheel(-18,2,7);wheel(18,2,7);
+  headHat(c,0,-34,thief.hat);
+  c.restore();
+}
+function drawRocketThief(sx,gy,t){
+  var c=ctx,fl=0.8+Math.random()*0.4;
+  c.save();c.translate(sx,gy);
+  c.fillStyle='#ff9a2a';c.beginPath();c.moveTo(-30,-6);c.quadraticCurveTo(-48,fl*6,-30,6);c.closePath();c.fill();
+  c.fillStyle='#ffd23f';c.beginPath();c.moveTo(-30,-3);c.quadraticCurveTo(-42,fl*4,-30,3);c.closePath();c.fill();
+  c.fillStyle='#d8dde8';roundRect(c,-30,-12,46,24,6);c.fill();
+  c.fillStyle='#ff5252';c.fillRect(-30,-4,46,8);
+  c.fillStyle='#ff5252';
+  c.beginPath();c.moveTo(-30,-12);c.lineTo(-44,-20);c.lineTo(-30,-2);c.closePath();c.fill();
+  c.beginPath();c.moveTo(-30,12);c.lineTo(-44,20);c.lineTo(-30,2);c.closePath();c.fill();
+  c.beginPath();c.moveTo(16,-12);c.lineTo(34,0);c.lineTo(16,12);c.closePath();c.fill();
+  c.fillStyle='#9fc4e8';c.beginPath();c.arc(-6,0,6,0,7);c.fill();
+  c.fillStyle=thief.shirt;roundRect(c,-8,-26,16,14,6);c.fill();
+  c.strokeStyle='#3a3a4a';c.lineWidth=3.5;c.lineCap='round';
+  c.beginPath();c.moveTo(-4,-14);c.lineTo(-8,-4);c.moveTo(4,-14);c.lineTo(8,-4);c.stroke();
+  headHat(c,0,-34,thief.hat);
+  c.restore();
+}
+function drawFlyThief(sx,sy,t){
+  var c=ctx,flap=Math.sin(t*10)*0.5;
+  c.save();c.translate(sx,sy);
+  c.fillStyle='rgba(255,255,255,0.85)';
+  c.save();c.rotate(-0.35-flap*0.4);c.beginPath();c.ellipse(-16,-24,17,7,0,0,7);c.fill();c.restore();
+  c.save();c.rotate(0.35+flap*0.4);c.beginPath();c.ellipse(-16,-16,17,7,0,0,7);c.fill();c.restore();
+  c.strokeStyle='#3a3a4a';c.lineWidth=3.5;c.lineCap='round';
+  c.beginPath();c.moveTo(-4,-8);c.lineTo(-6,6);c.moveTo(4,-8);c.lineTo(6,6);c.stroke();
+  c.fillStyle=thief.shirt;roundRect(c,-8,-26,16,18,6);c.fill();
+  c.strokeStyle=thief.shirt;c.lineWidth=3.5;
+  c.beginPath();c.moveTo(-6,-20);c.lineTo(-14,-26);c.moveTo(6,-20);c.lineTo(14,-26);c.stroke();
+  headHat(c,0,-38,thief.hat);
+  c.restore();
+}
+function drawThief(){
+  if(!thief)return;
+  var sx=thief.sx;
+  if(thief.vehicle==='fly')drawFlyThief(sx,groundY-62+Math.sin(elapsed*3)*6,elapsed);
+  else if(thief.vehicle==='bike')drawBikeThief(sx,groundY,elapsed);
+  else if(thief.vehicle==='car')drawCarThief(sx,groundY,elapsed);
+  else if(thief.vehicle==='rocket')drawRocketThief(sx,groundY,elapsed);
+  else drawWalkThief(sx,groundY,elapsed);
+}
+
+/* ---------- 粒子与飘字 ---------- */
+function burst(x,y,n,colors){
+  for(var i=0;i<n;i++){
+    var a=Math.random()*Math.PI*2,sp=60+Math.random()*220;
+    particles.push({x:x,y:y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-60,g:320,life:0.9+Math.random()*0.6,t:0,color:colors[Math.random()*colors.length|0],r:2+Math.random()*3,star:Math.random()<0.25});
+  }
+}
+function updateParticles(dt){
+  for(var i=particles.length-1;i>=0;i--){
+    var p=particles[i];p.t+=dt;
+    if(p.t>=p.life){particles.splice(i,1);continue;}
+    p.vy+=p.g*dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.vx*=0.99;
+  }
+}
+function drawParticles(){
+  particles.forEach(function(p){
+    var a=1-p.t/p.life;
+    ctx.globalAlpha=a;ctx.fillStyle=p.color;
+    ctx.beginPath();ctx.arc(p.x,p.y,p.r*(0.6+a*0.5),0,7);ctx.fill();
+    if(p.star){
+      ctx.strokeStyle=p.color;ctx.lineWidth=2;
+      ctx.beginPath();ctx.moveTo(p.x-p.r*2.4,p.y);ctx.lineTo(p.x+p.r*2.4,p.y);ctx.moveTo(p.x,p.y-p.r*2.4);ctx.lineTo(p.x,p.y+p.r*2.4);ctx.stroke();
+    }
+  });
+  ctx.globalAlpha=1;
+}
+function addFloat(text,x,y,color){floats.push({text:text,x:x,y:y,t:0,life:1.2,color:color||'#fff'});}
+function updateFloats(dt){
+  for(var i=floats.length-1;i>=0;i--){var f=floats[i];f.t+=dt;f.y-=42*dt;if(f.t>f.life)floats.splice(i,1);}
+}
+function drawFloats(){
+  floats.forEach(function(f){
+    var a=1-f.t/f.life;
+    ctx.globalAlpha=a;
+    ctx.font='bold 26px "PingFang SC","Microsoft YaHei",sans-serif';
+    ctx.textAlign='center';
+    ctx.lineWidth=6;ctx.strokeStyle='rgba(0,0,0,0.35)';
+    ctx.strokeText(f.text,f.x,f.y);
+    ctx.fillStyle=f.color;ctx.fillText(f.text,f.x,f.y);
+  });
+  ctx.globalAlpha=1;
+}
+
+/* ---------- 主循环 ---------- */
+function update(dt){
+  elapsed+=dt;flashT+=dt;
+  if(shake>0)shake=Math.max(0,shake-dt);
+  if(sub==='celebrate'){
+    celebrateT-=dt;updateParticles(dt);
+    if(celebrateT<=0)afterCelebrate();
+    return;
+  }
+  if(sub==='lost'){
+    lostT-=dt;updateParticles(dt);
+    if(lostT<=0)afterLost();
+    return;
+  }
+  if(hold)policeSpeed=Math.min(policeSpeed+VEHICLE.accel*dt,VEHICLE.max);
+  else policeSpeed=Math.max(policeSpeed-VEHICLE.decel*dt,VEHICLE.min);
+  if(skidT>0){skidT-=dt;if(Math.random()<0.15)slideDir=(Math.random()<0.5?-1:1);}
+  else slideDir=0;
+  camX+=policeSpeed*dt;
+  thief.sx+=(thief.speed-policeSpeed)*dt;
+  spawnObs();
+  var pw=camX+POLICE_X;
+  obs.forEach(function(o){
+    if(!o.hit&&o.x>=pw-55&&o.x<=pw+55){
+      o.hit=true;
+      if(!VEHICLE.immune){
+        if(o.type==='roadblock'){policeSpeed=Math.max(policeSpeed*0.45,70);skidT=1.1;sfxBump();addFloat('哎呀!',POLICE_X,groundY-70,'#ffd23f');shake=0.3;}
+        else{policeSpeed=Math.max(policeSpeed*0.6,70);skidT=0.9;sfxSkid();addFloat('打滑啦!',POLICE_X,groundY-70,'#7ad0ff');shake=0.25;}
+      }else if(VEHICLE.id==='tank'&&o.type==='roadblock'){
+        addFloat('碾过去!',POLICE_X,groundY-70,'#9fe07a');
+      }
+    }
+  });
+  updateFloats(dt);
+  updateParticles(dt);
+  $('speedNum').textContent=Math.round(policeSpeed*0.22);
+  if(thief.sx-POLICE_X<80)doCatch();
+  else if(thief.sx>W+60)doRunAway();
+}
+function draw(){
+  var ox=0,oy=0;
+  if(shake>0){ox=(Math.random()-0.5)*shake*30;oy=(Math.random()-0.5)*shake*30;}
+  ctx.save();ctx.translate(ox,oy);
+  drawSky();
+  ensureLayer('clouds');ensureLayer('bld');ensureLayer('houses');ensureLayer('trees');ensureLayer('lamps');
+  drawClouds();drawBuildings();drawHouses();
+  drawRoad();
+  drawTrees();drawLamps();
+  drawObs();
+  drawThief();
+  drawPolice();
+  drawParticles();
+  drawFloats();
+  ctx.restore();
+}
+var last=0;
+function frame(ts){
+  requestAnimationFrame(frame);
+  if(!last)last=ts;
+  var dt=Math.min((ts-last)/1000,1/30);
+  last=ts;
+  if(phase==='chase'){update(dt);draw();}
+}
+requestAnimationFrame(frame);
+
+/* ---------- 流程 ---------- */
+function showMsg(text,cls){
+  var m=$('msg');
+  clearTimeout(msgTimer);
+  m.className='msg';
+  void m.offsetWidth;
+  m.textContent=text;
+  m.classList.add(cls,'show');
+  msgTimer=setTimeout(function(){m.classList.remove('show');},1500);
+}
+function updateHUD(){
+  var sr=$('starRow');sr.innerHTML='';
+  for(var i=0;i<6;i++){var s=document.createElement('span');s.className='star'+(i<stars?' on':'');s.textContent='★';sr.appendChild(s);}
+  var h=$('hearts');h.innerHTML='';
+  var HEART='<svg viewBox="0 0 24 24" width="24" height="24"><path d="M12 21C7 16 3 12.8 3 8.8 3 6.2 5 4 7.5 4c1.7 0 3.4 1 4.5 2.6C13.1 5 14.8 4 16.5 4 19 4 21 6.2 21 8.8c0 4-4 7.2-9 12.2z"/></svg>';
+  for(var j=0;j<3;j++){var d=document.createElement('span');d.className='heart'+(j<chances?' on':'');d.innerHTML=HEART;h.appendChild(d);}
+}
+function startRound(){
+  var info=pickThief(roundIdx);
+  thief={name:info.name,hat:info.hat,shirt:info.shirt,vehicle:info.vehicle,speed:info.speed};
+  var gap=clamp(Math.round(W*0.72-roundIdx*40),150,W-POLICE_X-30);
+  thief.sx=POLICE_X+gap;
+  policeSpeed=VEHICLE.min;
+  skidT=0;slideDir=0;shake=0;
+  obs=[];obsNext=camX+W+200;
+  floats=[];
+  sub='chasing';
+  $('chipName').textContent=thief.name;
+  $('chip').style.borderColor=thief.hat;
+  showMsg(thief.name+' 来啦','info');
+  if(roundIdx===0){
+    $('hint').classList.remove('hidden');
+    clearTimeout(hintTimer);
+    hintTimer=setTimeout(function(){$('hint').classList.add('hidden');},6000);
+  }else{$('hint').classList.add('hidden');}
+  if(window.__game)window.__game.lastEvent='round';
+  updateHUD();
+}
+function doCatch(){
+  sub='celebrate';celebrateT=1.6;
+  stars++;
+  sfxCatch();
+  burst(thief.sx,groundY-60,44,['#ff5252','#ffd23f','#5bd66b','#4d7dff','#ff8c6b','#e07aff']);
+  showMsg('抓住了!','good');
+  updateHUD();
+  if(window.__game)window.__game.lastEvent='catch';
+}
+function afterCelebrate(){
+  if(stars>=6){phase='win';showWin();return;}
+  roundIdx++;
+  startRound();
+}
+function doRunAway(){
+  sub='lost';lostT=1.6;
+  chances--;
+  sfxLose();
+  addFloat('跑掉啦!',POLICE_X+40,groundY-90,'#ff6b6b');
+  showMsg('跑掉啦','bad');
+  updateHUD();
+  if(window.__game)window.__game.lastEvent='lose';
+}
+function afterLost(){
+  if(chances<=0){phase='lose';showLose();return;}
+  startRound();
+}
+function showChase(){
+  phase='chase';sub='idle';
+  $('home').classList.add('hidden');$('select').classList.add('hidden');
+  $('win').classList.add('hidden');$('lose').classList.add('hidden');
+  $('chase').classList.remove('hidden');
+  resize();
+  initLayers();
+  camX=0;stars=0;chances=3;roundIdx=0;
+  particles=[];floats=[];obs=[];obsNext=W+200;
+  policeSpeed=VEHICLE.min;
+  updateHUD();
+  startRound();
+}
+function showWin(){
+  $('chase').classList.add('hidden');
+  $('win').classList.remove('hidden');
+  var ws=$('winStars');ws.innerHTML='';
+  for(var i=0;i<6;i++){var s=document.createElement('span');s.className='star on';s.textContent='★';ws.appendChild(s);}
+  sfxWin();
+}
+function showLose(){
+  $('chase').classList.add('hidden');
+  $('lose').classList.remove('hidden');
+  sfxLose();
+}
+function toSelect(){
+  $('win').classList.add('hidden');$('lose').classList.add('hidden');
+  $('select').classList.remove('hidden');
+  if(selected){var v=VEHICLES_BY_ID[selected];$('selTip').innerHTML='已选中：<b>'+v.name+'</b>，按下面的出发按钮！';$('goBtn').disabled=false;}
+  else{$('selTip').innerHTML='先点一辆警车，再按下面的出发按钮';$('goBtn').disabled=true;}
+}
+function buildCards(){
+  var wrap=$('cards');wrap.innerHTML='';
+  VEHICLES.forEach(function(v){
+    var d=document.createElement('div');
+    d.className='vcard';d.dataset.id=v.id;
+    d.innerHTML='<div class="vicon">'+v.icon+'</div><div class="vname">'+v.name+'</div>'+
+      '<div class="vstats">'+statRow('速度',v.sp)+statRow('操控',v.ct)+statRow('稳定',v.st)+'</div>';
+    d.addEventListener('click',function(){audio();sfxClick();selectCard(v.id);});
+    wrap.appendChild(d);
+  });
+}
+function statRow(label,val){
+  return '<div class="srow"><span class="slabel">'+label+'</span><div class="bar"><i class="fill" style="width:'+val*20+'%"></i></div></div>';
+}
+function selectCard(id){
+  selected=id;
+  var cards=document.querySelectorAll('.vcard');
+  for(var i=0;i<cards.length;i++)cards[i].classList.toggle('sel',cards[i].dataset.id===id);
+  var v=VEHICLES_BY_ID[id];
+  $('selTip').innerHTML='已选中：<b>'+v.name+'</b>，按下面的出发按钮！';
+  $('goBtn').disabled=false;
+}
+
+/* ---------- 事件绑定 ---------- */
+$('startBtn').addEventListener('click',function(){
+  audio();sfxClick();
+  $('home').classList.add('hidden');
+  $('select').classList.remove('hidden');
+  buildCards();
+});
+$('goBtn').addEventListener('click',function(){
+  audio();sfxClick();
+  if(!selected){showMsg('先点一辆警车哦','info');return;}
+  VEHICLE=VEHICLES_BY_ID[selected];
+  showChase();
+});
+$('againBtn').addEventListener('click',function(){audio();sfxClick();showChase();});
+$('retryBtn').addEventListener('click',function(){audio();sfxClick();showChase();});
+$('reselectBtn').addEventListener('click',function(){audio();sfxClick();toSelect();});
+$('reselectBtn2').addEventListener('click',function(){audio();sfxClick();toSelect();});
+
+var boost=$('boost');
+boost.addEventListener('pointerdown',function(e){e.preventDefault();hold=true;boost.classList.add('held');audio();$('hint').classList.add('hidden');});
+function boostUp(){hold=false;boost.classList.remove('held');}
+window.addEventListener('pointerup',boostUp);
+boost.addEventListener('pointercancel',boostUp);
+boost.addEventListener('pointerleave',boostUp);
+window.addEventListener('keydown',function(e){
+  if(e.key===' '||e.key==='ArrowUp'){
+    if(phase==='chase'){hold=true;boost.classList.add('held');$('hint').classList.add('hidden');}
+    e.preventDefault();
+  }
+});
+window.addEventListener('keyup',function(e){
+  if(e.key===' '||e.key==='ArrowUp'){hold=false;boost.classList.remove('held');}
+});
+document.addEventListener('contextmenu',function(e){e.preventDefault();});
+resize();
+
+/* ---------- 测试钩子 ---------- */
+window.__game={
+  get phase(){return phase;},
+  get sub(){return sub;},
+  get speed(){return Math.round(policeSpeed);},
+  get dist(){return thief?Math.round(thief.sx-POLICE_X):null;},
+  get stars(){return stars;},
+  get chances(){return chances;},
+  get hold(){return hold;},
+  get vehicle(){return VEHICLE?VEHICLE.id:null;},
+  get thiefType(){return thief?thief.name:null;},
+  set lastEvent(v){window.__lastEvent=v;},
+  get evt(){return window.__lastEvent;}
+};
+})();
+</script>
+</body>
+</html>
