@@ -118,7 +118,7 @@ const SKILLS=[
 ------------------------------------------------ */
 const LEVELS=[
  {name:'第1关 · 花果山',sky:['#c8ecb0','#a5d8a0'],hill:'#7cb85c',len:2600,
-  ground:[[0,2600]],plat:[[600,360,130],[1050,300,120],[1500,350,140],[1950,290,130]],
+  ground:[[0,2600]],plat:[[560,372,150],[960,255,150],[1340,372,160],[1800,255,150],[2140,372,150]],
   en:[['monkey',700,430],['monkey',1150,430],['flyb',1300,250],['monkey',1650,430],['flyb',1800,220]],
   peach:[[420,380],[860,300],[1000,430],[1330,240],[1600,430],[1780,160],[2050,430],[2120,430]],
   jade:[[520,430],[1420,430],[2000,240]],chest:[[980,290]],cp:[1150,2000],
@@ -190,6 +190,7 @@ $('pP').addEventListener('pointerdown',()=>{if(gameOn)togglePause()});
 
 /* ---------------- 游戏状态 ---------------- */
 let st='title';            // title|select|play|shop|win|clear
+let introT=0;              // 关卡目标横幅倒计时帧
 let P=null;                // 玩家
 let lvlIdx=0,L=null;       // 当前关卡
 let cam=0,frame=0,shakeT=0;
@@ -231,7 +232,7 @@ function hidePanel(){$('ovl').classList.remove('show')}
 
 /* ---------------- 关卡加载 ---------------- */
 function startLevel(i,fromShop){
-  lvlIdx=i;L=LEVELS[i];st='play';gameOn=true;paused=false;
+  lvlIdx=i;L=LEVELS[i];st='play';gameOn=true;paused=false;introT=210;
   if(!fromShop){wave={};}
   P=P||newPlayer();
   P.x=80;P.y=GY-P.h;P.vx=0;P.vy=0;P.hp=P.maxHp;P.mp=P.maxMp;
@@ -358,9 +359,9 @@ function updatePlayer(){
     return true;
   });
   // Boss 触发
-  if(L.boss&&!boss&&P.x>L.boss.x-380&&P.x<L.boss.x+60){
-    boss=enemies.find(e=>e.boss);
-    if(boss){boss.awake=true;sBoss();
+  if(L.boss&&!boss&&P.x>L.boss.x-430&&P.x<L.boss.x+80){
+    boss=mkBoss(L.boss.t,L.boss.x);
+    if(boss){enemies.push(boss);boss.awake=true;sBoss();shakeT=12;
       floatTxt(boss.x,boss.y-30,boss.d.n+' 来了！','#d32f2f')}
   }
   // 到达 Boss 且击败 → 过关
@@ -591,10 +592,10 @@ function draw(){
   g.addColorStop(0,L?L.sky[0]:'#c8ecb0');g.addColorStop(1,L?L.sky[1]:'#a5d8a0');
   cx.fillStyle=g;cx.fillRect(-10,-10,W+20,H+20);
   if(!L){cx.restore();return}
-  // 远景装饰（emoji）
-  cx.globalAlpha=.5;cx.font='64px serif';
-  for(let i=0;i<6;i++){const dx=(i*520-cam*.3)%(L.len*.5);
-    cx.fillText(i%2?'☁️':'🌸',dx,90+((i*53)%80))}
+  // 远景：淡色山丘（只作背景，不可踩，避免误导）
+  cx.globalAlpha=.18;cx.fillStyle=L.hill;
+  for(let i=0;i<12;i++){const dx=i*230-cam*.18;
+    cx.beginPath();cx.arc(dx,GY-6,52+(i%3)*30,Math.PI,0);cx.fill();}
   cx.globalAlpha=1;
   // 地面
   cx.fillStyle=L.hill;
@@ -605,39 +606,69 @@ function draw(){
   if(L.water){cx.fillStyle='#4fc3f7cc';
     L.water.forEach(([a,b])=>{cx.fillRect(a-cam,GY+14,b-a,H-GY);
       cx.fillStyle='#81d4fa';cx.fillRect(a-cam,GY+14,b-a,6);cx.fillStyle='#4fc3f7cc';})}
-  // 平台
+  // 平台：蘑菇云站台（绿=可踩；紫=移动平台）
   (L.plat||[]).forEach(([x,y,w])=>{
-    cx.fillStyle='#ffffffd0';roundRect(x-cam,y,w,14,7);cx.fill();
-    cx.fillStyle='#00000022';roundRect(x-cam,y+10,w,4,2);cx.fill();});
+    cx.fillStyle='#00000030';roundRect(x-cam+3,y+9,w,5,2);cx.fill();
+    cx.fillStyle='#66a844';roundRect(x-cam,y,w,17,8);cx.fill();
+    cx.fillStyle='#8bc34a';roundRect(x-cam,y+2,w,9,6);cx.fill();
+    cx.fillStyle='#e8f5e9cc';roundRect(x-cam+4,y+3,w-8,3,1.5);cx.fill();
+    cx.fillStyle='#ffffff';cx.font='15px sans-serif';cx.fillText('☁',x-cam+w-16,y+13);});
   (L.mov||[]).forEach(([x,y,w,dx])=>{
     const mx=x+Math.sin(frame*.012)*dx*8;
-    cx.fillStyle='#b39ddbcc';roundRect(mx-cam,y,w,14,7);cx.fill();});
-  // 存档点旗
+    cx.fillStyle='#00000030';roundRect(mx-cam+3,y+9,w,5,2);cx.fill();
+    cx.fillStyle='#8e6fd0';roundRect(mx-cam,y,w,17,8);cx.fill();
+    cx.fillStyle='#b39ddb';roundRect(mx-cam,y+2,w,9,6);cx.fill();});
+  // 存档点旗（矢量）
   (L.cp||[]).forEach(x=>{
-    cx.font='30px serif';cx.fillText('🚩',x-cam-12,GY-2)});
-  // 拾取物
+    const fx=x-cam,fr=GY-4;
+    cx.strokeStyle='#6d4c41';cx.lineWidth=3;
+    cx.beginPath();cx.moveTo(fx,fr);cx.lineTo(fx,fr-30);cx.stroke();
+    cx.fillStyle='#ef5350';
+    cx.beginPath();cx.moveTo(fx,fr-30);cx.lineTo(fx+20,fr-25);cx.lineTo(fx,fr-20);cx.closePath();cx.fill();
+    cx.fillStyle='#fff';cx.font='bold 10px sans-serif';cx.fillText('存',fx+6,fr-22);});
+  // 拾取物（矢量：桃/仙玉/宝箱）
   pickups.forEach(p=>{
-    const bob=Math.sin(frame*.09+p.x)*4;
-    cx.font=(p.t==='chest'?'30px':'24px')+' serif';
-    cx.fillText(p.t==='peach'?'🍑':p.t==='jade'?'💎':'🎁',p.x-cam,p.y+22+bob)});
-  // 敌人
+    const bob=Math.sin(frame*.09+p.x)*3,bx=p.x-cam+12,by=p.y+16+bob;
+    if(p.t==='peach'){
+      cx.fillStyle='#ff5d8f';cx.beginPath();cx.arc(bx,by,9,0,7);cx.fill();
+      cx.beginPath();cx.ellipse(bx+8,by-7,8.5,7,-.4,0,7);cx.fill();
+      cx.fillStyle='#ff9dbb';cx.beginPath();cx.arc(bx-2.5,by-3.5,3.4,0,7);cx.fill();
+      cx.strokeStyle='#4e7d26';cx.lineWidth=2;
+      cx.beginPath();cx.moveTo(bx-1,by-12);cx.quadraticCurveTo(bx+4,by-18,bx+11,by-16);cx.stroke();
+      cx.fillStyle='#66bb6a';cx.beginPath();cx.ellipse(bx+11,by-16,5,3,0.3,0,7);cx.fill();
+    }else if(p.t==='jade'){
+      const gy=by-4;
+      cx.fillStyle='#37b6ff';cx.beginPath();
+      cx.moveTo(bx,gy-11);cx.lineTo(bx+9,gy-2);cx.lineTo(bx,gy+9);cx.lineTo(bx-9,gy-2);cx.closePath();cx.fill();
+      cx.fillStyle='#a9e4ff';cx.beginPath();
+      cx.moveTo(bx-2,gy-8);cx.lineTo(bx+3,gy-2);cx.lineTo(bx-4,gy-2);cx.closePath();cx.fill();
+      cx.fillStyle='#fff';cx.beginPath();cx.arc(bx+3.4,gy-3.6,1.4,0,7);cx.fill();
+    }else{
+      cx.fillStyle='#8d6e63';roundRect(bx-13,by-10,26,21,4);cx.fill();
+      cx.fillStyle='#a1887f';roundRect(bx-13,by-10,26,4,2);cx.fill();
+      cx.fillStyle='#ffd54f';roundRect(bx-13,by-8,26,3.4,1.7);cx.fill();
+      cx.fillStyle='#ffd54f';roundRect(bx-2,by-12,4,24,2);cx.fill();
+      cx.fillStyle='#fff59d';cx.beginPath();cx.arc(bx,by-6,1.6,0,7);cx.fill();
+    }});
+  // 敌人（全矢量绘制，稳定可见）
   enemies.forEach(e=>{
     if(e.dead)return;
     cx.save();
-    if(e.hitT>0){cx.globalAlpha=.6}
-    cx.font=(e.boss?Math.round(e.w*.9):Math.round(e.w*.95))+'px serif';
-    cx.textAlign='center';
-    cx.fillText(e.d.ic,e.x+e.w/2-cam,e.y+e.h-4);
-    cx.textAlign='left';
+    if(e.hitT>0)cx.globalAlpha=.75;
+    drawCreature(e);
     if(e.boss&&e.awake){ // Boss 血条
-      cx.fillStyle='#00000055';roundRect(e.x-cam-6,e.y-20,e.w+12,10,5);cx.fill();
-      cx.fillStyle='#ef5350';roundRect(e.x-cam-6,e.y-20,(e.w+12)*e.hp/e.base,10,5);cx.fill();}
+      const bw=e.w+14;
+      cx.fillStyle='#00000066';roundRect(e.x+e.w/2-cam-bw/2,e.y-24,bw,11,5);cx.fill();
+      cx.fillStyle='#ffb300';roundRect(e.x+e.w/2-cam-bw/2,e.y-24,bw*e.hp/e.base,11,5);cx.fill();
+      cx.fillStyle='#fff';cx.font='bold 10px sans-serif';cx.textAlign='center';
+      cx.fillText(e.d.n,e.x+e.w/2-cam,e.y-26);cx.textAlign='left';}
     cx.restore();
   });
-  // 分身
-  cx.globalAlpha=.55;
-  clones.forEach(c=>{cx.font='34px serif';cx.textAlign='center';cx.fillText('🐵',c.x-cam,c.y+38)});
-  cx.globalAlpha=1;cx.textAlign='left';
+  // 分身（矢量小猴）
+  cx.globalAlpha=.6;
+  clones.forEach(c=>{const tmp={x:c.x,y:c.y+8,w:30,h:34,face:0};
+    cx.save();drawCreature(tmp,'monkey');cx.restore()});
+  cx.globalAlpha=1;
   // 玩家（Q版悟空 + 醒目金箍棒）
   if(P&&!(invul>0&&frame%8<4)){
     const ox=P.x+P.w/2-cam,top=P.y,f=P.face,thk=dblT>0?12:9,atk=P.atkT>0;
@@ -736,23 +767,161 @@ function draw(){
     else{cx.fillStyle=p.c;cx.beginPath();cx.arc(p.x-cam,p.y,p.r,0,7);cx.fill()}
     cx.globalAlpha=1});
   cx.restore();
+  // 关卡目标横幅（开场渐隐，全文字无 emoji 依赖）
+  if(st==='play'&&introT>0){
+    introT--;
+    const a=Math.min(1,introT/55);
+    cx.globalAlpha=a;
+    cx.fillStyle='#1b5e20cc';roundRect(W/2-258,46,516,58,15);cx.fill();
+    cx.fillStyle='#ffd54f';cx.font='bold 19px sans-serif';cx.textAlign='center';
+    cx.fillText('目标：一路向右，打败 '+(L.boss?BOSS_DEF[L.boss.t].n:'大妖怪')+'！',W/2,72);
+    cx.fillStyle='#fff';cx.font='13px sans-serif';
+    cx.fillText('踩绿色站台前进 · 收集桃子升级 · 红旗是存档点',W/2,92);
+    cx.textAlign='left';cx.globalAlpha=1;
+  }
+  // 右上角常驻 Boss 引导
+  if(st==='play'&&P&&L.boss&&!boss){
+    cx.fillStyle='#00000066';roundRect(W-200,6,194,21,11);cx.fill();
+    cx.fillStyle='#ffd54f';cx.font='bold 13px sans-serif';cx.textAlign='center';
+    cx.fillText('→ 找 '+BOSS_DEF[L.boss.t].n,W-103,20);
+    cx.textAlign='left';
+  }
+  // 关卡目标横幅（开场渐隐，全文字无 emoji 依赖）
+  if(st==='play'&&introT>0){
+    introT--;
+    const a=Math.min(1,introT/55);
+    cx.globalAlpha=a;
+    cx.fillStyle='#1b5e20cc';roundRect(W/2-258,46,516,58,15);cx.fill();
+    cx.fillStyle='#ffd54f';cx.font='bold 19px sans-serif';cx.textAlign='center';
+    cx.fillText('目标：一路向右，打败 '+(L.boss?BOSS_DEF[L.boss.t].n:'大妖怪')+'！',W/2,72);
+    cx.fillStyle='#fff';cx.font='13px sans-serif';
+    cx.fillText('踩绿色站台前进 · 收集桃子升级 · 红旗是存档点',W/2,92);
+    cx.textAlign='left';cx.globalAlpha=1;
+  }
+  // 右上角常驻 Boss 引导
+  if(st==='play'&&P&&L.boss&&!boss){
+    cx.fillStyle='#00000066';roundRect(W-200,6,194,21,11);cx.fill();
+    cx.fillStyle='#ffd54f';cx.font='bold 13px sans-serif';cx.textAlign='center';
+    cx.fillText('→ 找 '+BOSS_DEF[L.boss.t].n,W-103,20);
+    cx.textAlign='left';
+  }
   // HUD
   if(P&&(st==='play')){
-    for(let i=0;i<P.maxHp;i++){cx.font='19px serif';
-      cx.fillText(i<P.hp?'❤️':'🖤',10+i*24,28)}
+    for(let i=0;i<P.maxHp;i++){heart(20+i*24,25,i<P.hp?'#ef5350':'#37474f',10)}
     for(let i=0;i<P.maxMp;i++){
       cx.fillStyle=i<P.mp?'#4fc3f7':'#cfd8dc';
-      roundRect(10+i*17,38,13,13,4);cx.fill()}
-    cx.font='16px serif';
-    cx.fillText('🍑'+P.peach+'  💎'+P.jade,10,72);
-    cx.font='bold 13px sans-serif';cx.fillStyle='#333';
-    cx.fillText(L.name+'  Lv'+P.lv,10,92);
-    if(dblT>0){cx.fillStyle='#f57c00';cx.fillText('棒变'+Math.ceil(dblT/60)+'s',10,110)}
-    if(shieldT>0){cx.fillStyle='#0288d1';cx.fillText('护盾'+Math.ceil(shieldT/60)+'s',10,110)}
+      roundRect(10+i*17,40,13,13,4);cx.fill()}
+    peach(22,64,7);
+    cx.fillStyle='#fff';cx.font='bold 13px sans-serif';
+    cx.fillText('x'+P.peach,31,69);
+    gem(90,66,6);
+    cx.fillText('x'+P.jade,100,69);
+    cx.fillStyle='#4a2f00';cx.font='bold 12px sans-serif';
+    cx.fillText('Lv'+P.lv,132,69);
+    if(dblT>0){cx.fillStyle='#f57c00';cx.fillText('棒变大 '+Math.ceil(dblT/60)+'s',10,88)}
+    if(shieldT>0){cx.fillStyle='#0288d1';cx.fillText('护盾 '+Math.ceil(shieldT/60)+'s',10,88)}
   }
 }
 function roundRect(x,y,w,h,r){cx.beginPath();cx.moveTo(x+r,y);cx.arcTo(x+w,y,x+w,y+h,r);
   cx.arcTo(x+w,y+h,x,y+h,r);cx.arcTo(x,y+h,x,y,r);cx.arcTo(x,y,x+w,y,r);cx.closePath()}
+function heart(x,y,c,s){cx.fillStyle=c;cx.save();cx.translate(x,y);cx.scale(s/10,s/10);
+  cx.beginPath();cx.moveTo(0,4);
+  cx.bezierCurveTo(-8,-3,-4,-11,0,-5);
+  cx.bezierCurveTo(4,-11,8,-3,0,4);cx.closePath();cx.fill();cx.restore()}
+function peach(x,y,s){cx.save();cx.translate(x,y);cx.scale(s/8,s/8);
+  cx.fillStyle='#ff5d8f';cx.beginPath();cx.arc(0,0,8,0,7);cx.fill();
+  cx.beginPath();cx.ellipse(7,-6,7.5,6.5,-.4,0,7);cx.fill();
+  cx.fillStyle='#ff9dbb';cx.beginPath();cx.arc(-2,-3,3,0,7);cx.fill();
+  cx.strokeStyle='#4e7d26';cx.lineWidth=1.6;
+  cx.beginPath();cx.moveTo(-1,-10);cx.quadraticCurveTo(3,-15,10,-13);cx.stroke();
+  cx.fillStyle='#66bb6a';cx.beginPath();cx.ellipse(10,-13,4,2.4,.3,0,7);cx.fill();cx.restore()}
+function gem(x,y,s){cx.save();cx.translate(x,y);cx.scale(s/6,s/6);
+  cx.fillStyle='#37b6ff';cx.beginPath();
+  cx.moveTo(0,-11);cx.lineTo(9,-2);cx.lineTo(0,9);cx.lineTo(-9,-2);cx.closePath();cx.fill();
+  cx.fillStyle='#a9e4ff';cx.beginPath();cx.moveTo(-2,-8);cx.lineTo(3,-2);cx.lineTo(-4,-2);cx.closePath();cx.fill();
+  cx.restore()}
+/* 敌人矢量配色与造型参数（不依赖 emoji 字形） */
+const EN_COLOR={monkey:'#c08552',flyb:'#b06ab3',shield:'#4f7fd9',tree:'#55a94f',fish:'#3fa6ef',
+  crane:'#e8eef2',archer:'#2ba99a',whirl:'#ff8f3c',elite:'#3a4fb0',dog:'#a4703c',
+  hunshun:'#7d4ea8',qixian:'#ee6da1',juling:'#8fa0ad',nezha:'#e5503a',erlang:'#d9a520'};
+const EN_LOOK={monkey:{ear:1},flyb:{wing:1,type:'flyb'},shield:{type:'shield'},tree:{type:'tree'},
+  fish:{type:'fish'},crane:{type:'crane'},archer:{type:'archer'},whirl:{type:'whirl'},
+  elite:{type:'shield',dark:1},dog:{ear:1,type:'dog'},
+  hunshun:{horn:1,big:1.8},qixian:{wing:1,halo:1,big:1.7},juling:{type:'shield',big:2},
+  nezha:{type:'ring',big:1.7},erlang:{horn:1,eye3:1,big:1.8}};
+function drawCreature(e,tf){
+  const t=(tf||e.t)||'monkey';
+  const color=EN_COLOR[t]||'#aaa',o=EN_LOOK[t]||{};
+  const sc=o.big||1;
+  const w=e.w,cy=e.y+e.h/2;
+  const bx=w/2*sc,by=(e.h/2)*sc;
+  cx.save();
+  cx.translate(e.x+w/2-cam,cy);
+  // 地面影
+  cx.fillStyle='rgba(0,0,0,.16)';
+  cx.beginPath();cx.ellipse(0,(e.h/2)*sc+1,bx*.7,4,0,0,7);cx.fill();
+  // 翅膀（飞行类）
+  if(o.wing){cx.fillStyle='rgba(255,255,255,.7)';
+    cx.beginPath();cx.ellipse(-bx*.85,-by*.25,bx*.5,by*.4,-.7,0,7);cx.fill();
+    cx.beginPath();cx.ellipse(bx*.85,-by*.25,bx*.5,by*.4,.7,0,7);cx.fill();}
+  // 角
+  if(o.horn){cx.fillStyle='#fff3c4';
+    cx.beginPath();cx.moveTo(-bx*.45,-by*.8);cx.lineTo(-bx*.3,-by*1.5);cx.lineTo(-bx*.12,-by*.8);cx.closePath();cx.fill();
+    cx.beginPath();cx.moveTo(bx*.45,-by*.8);cx.lineTo(bx*.3,-by*1.5);cx.lineTo(bx*.12,-by*.8);cx.closePath();cx.fill();}
+  // 耳
+  if(o.ear){cx.fillStyle=color;
+    cx.beginPath();cx.arc(-bx*.75,-by*.28,bx*.3,0,7);cx.fill();
+    cx.beginPath();cx.arc(bx*.75,-by*.28,bx*.3,0,7);cx.fill();
+    cx.fillStyle='#ffd9a8';
+    cx.beginPath();cx.arc(-bx*.75,-by*.28,bx*.15,0,7);cx.fill();
+    cx.beginPath();cx.arc(bx*.75,-by*.28,bx*.15,0,7);cx.fill();}
+  // 身体
+  cx.fillStyle=color;
+  cx.beginPath();cx.ellipse(0,0,bx,by,0,0,7);cx.fill();
+  // 亮面
+  cx.fillStyle='rgba(255,255,255,.16)';
+  cx.beginPath();cx.ellipse(-bx*.3,-by*.3,bx*.5,by*.4,-.3,0,7);cx.fill();
+  // 肚皮
+  cx.fillStyle='rgba(255,255,255,.88)';
+  cx.beginPath();cx.ellipse(0,by*.42,bx*.55,by*.36,0,0,7);cx.fill();
+  // 类型特征
+  if(o.type==='shield'){cx.strokeStyle='#c9d6ff';cx.lineWidth=bx*.14;
+    cx.beginPath();cx.arc(0,-by*.02,bx*.5,0,7);cx.stroke();
+    cx.fillStyle='#ffd54f';cx.beginPath();cx.arc(0,-by*.02,bx*.1,0,7);cx.fill();}
+  if(o.type==='tree'){cx.fillStyle='#2e7d32';
+    cx.beginPath();cx.arc(-bx*.45,-by*.6,bx*.4,0,7);cx.fill();
+    cx.beginPath();cx.arc(bx*.45,-by*.6,bx*.4,0,7);cx.fill();
+    cx.beginPath();cx.arc(0,-by*.95,bx*.5,0,7);cx.fill();}
+  if(o.type==='fish'){cx.fillStyle=color;
+    cx.beginPath();cx.moveTo(bx,-by*.22);cx.lineTo(bx*1.75,0);cx.lineTo(bx,by*.22);cx.closePath();cx.fill();}
+  if(o.type==='crane'){cx.fillStyle='#ff8f3c';
+    cx.beginPath();cx.moveTo(bx*.25,-by*.18);cx.lineTo(bx*.95,-by*.1);cx.lineTo(bx*.25,by*.1);cx.closePath();cx.fill();
+    cx.strokeStyle='#b3c2cf';cx.lineWidth=bx*.1;
+    cx.beginPath();cx.moveTo(-bx*.5,-by*.3);cx.lineTo(bx*.35,-by*.9);cx.stroke();}
+  if(o.type==='archer'){cx.strokeStyle='#7a4a21';cx.lineWidth=bx*.16;
+    cx.beginPath();cx.arc(bx*.72,0,bx*.5,Math.PI*.15,Math.PI*1.2);cx.stroke();
+    cx.strokeStyle='rgba(255,255,255,.8)';
+    cx.beginPath();cx.moveTo(bx*.72-bx*.42,0);cx.lineTo(bx*.72+bx*.42,0);cx.stroke();}
+  if(o.type==='whirl'){cx.strokeStyle='rgba(255,255,255,.55)';cx.lineWidth=bx*.09;
+    cx.beginPath();cx.ellipse(0,0,bx*.62,by*.6,0,0,7);cx.stroke();}
+  if(o.type==='flyb'){cx.fillStyle='#ffe082';
+    cx.beginPath();cx.arc(0,by*.35,bx*.16,0,7);cx.fill();}
+  if(o.type==='ring'){cx.strokeStyle='#ffd54f';cx.lineWidth=bx*.2;
+    cx.beginPath();cx.arc(bx*.6,-by*.6,bx*.45,0,7);cx.stroke();}
+  if(o.dark){cx.fillStyle='rgba(0,0,0,.14)';
+    cx.beginPath();cx.ellipse(0,-by*.55,bx*.7,by*.4,0,0,7);cx.fill();}
+  if(o.halo){cx.strokeStyle='#ffd54f';cx.lineWidth=3;
+    cx.beginPath();cx.arc(0,-by*1.05,bx*.24,Math.PI,0);cx.stroke();}
+  if(o.eye3){cx.fillStyle='#ffd54f';
+    cx.beginPath();cx.ellipse(0,-by*.18,bx*.17,by*.05,0,0,7);cx.fill();}
+  // 眼睛
+  const look=1;
+  [[-bx*.32,-by*.28],[bx*.32,-by*.28]].forEach(p=>{
+    cx.fillStyle='#fff';cx.beginPath();cx.arc(p[0],p[1],bx*.18,0,7);cx.fill();
+    cx.fillStyle='#261f18';cx.beginPath();cx.arc(p[0]+bx*.06,p[1],bx*.1,0,7);cx.fill();
+    cx.fillStyle='#fff';cx.beginPath();cx.arc(p[0]+bx*.06-bx*.04,p[1]-bx*.04,bx*.04,0,7);cx.fill();});
+  cx.restore();
+}
 
 /* ---------------- 主循环 ---------------- */
 function loop(){
