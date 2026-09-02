@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WorkBuddy 产物页</title>
+<style>
+body{font-family:system-ui,-apple-system,sans-serif;max-width:640px;margin:40px auto;padding:0 16px;color:#222}
+h1{font-size:20px;border-bottom:2px solid #eee;padding-bottom:8px}
+ul{list-style:none;padding:0}
+li{padding:10px 12px;margin:6px 0;background:#f6f8fa;border-radius:8px}
+a{color:#0f6e56;text-decoration:none}
+.pending{color:#999}
+</style>
+</head>
+<body>
+<h1>WorkBuddy 产物页</h1>
+<p>这里展示通过同步桥上传的网页产物（游戏等）。</p>
+<ul id="list">
+<li class="pending">暂无产物。手机端 push 后自动出现在这里。</li>
+</ul>
+<script>
+fetch('list.json').then(r=>r.json()).then(data=>{
+  if(data && data.files && data.files.length){
+    var html='';
+    data.files.forEach(f=>{ html+='<li><a href="'+f+'">'+f+'</a></li>'; });
+    document.getElementById('list').innerHTML=html;
+  }
+}).catch(function(){});
+</script>
+</body>
+</html>
