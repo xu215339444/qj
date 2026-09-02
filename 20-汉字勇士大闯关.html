@@ -1,0 +1,1174 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>汉字勇士大闯关 · 6~8岁识字冒险</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    font-family: "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB", sans-serif;
+    background: linear-gradient(180deg, #7fc4f5 0%, #b9dcff 45%, #ffd9e8 100%);
+    overflow: hidden; user-select: none;
+  }
+  body { display: flex; align-items: center; justify-content: center; }
+  #app {
+    position: relative; width: 100%; max-width: 1100px; height: 100%; max-height: 920px;
+    display: flex; flex-direction: column; padding: 8px 10px 10px; gap: 6px;
+  }
+
+  .topbar { flex: none; display: flex; align-items: center; gap: 8px; }
+  .topbar .ttl { font-size: 17px; font-weight: 900; color: #fff;
+    text-shadow: 0 2px 0 rgba(60,90,160,.5); flex: 1; white-space: nowrap; overflow: hidden; }
+  .iconbtn { flex: none; border: none; cursor: pointer; background: #fff; color: #5b4b8a;
+    font-size: 13px; font-weight: 800; border-radius: 12px; padding: 6px 10px;
+    box-shadow: 0 3px 0 rgba(120,90,180,.28); }
+  .iconbtn:active { transform: translateY(2px); box-shadow: none; }
+
+  .hud { flex: none; display: flex; align-items: center; gap: 10px; background: rgba(255,255,255,.65);
+    border-radius: 16px; padding: 6px 12px; box-shadow: 0 3px 10px rgba(60,80,150,.14); flex-wrap: wrap; }
+  .hud .hearts { display: flex; gap: 2px; }
+  .hud .hearts svg { width: 20px; height: 20px; display: block; }
+  .hud .info { font-size: 13px; font-weight: 900; color: #5b4b8a; white-space: nowrap; }
+  .hud .info b { color: #e08a12; }
+  .hud .right { margin-left: auto; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .itemchip { font-size: 12px; font-weight: 900; background: #fff; color: #5b4b8a;
+    border-radius: 11px; padding: 3px 8px; cursor: pointer; border: none; white-space: nowrap; }
+  .itemchip:disabled { opacity: .45; cursor: default; }
+  .itemchip.act { background: #ffd34d; }
+
+  #cvwrap { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; position: relative; }
+  canvas#cv { touch-action: none; border-radius: 14px; box-shadow: 0 6px 18px rgba(40,60,140,.22); display: block; }
+
+  #touchPad { position: absolute; left: 6px; bottom: 6px; z-index: 4; display: none; gap: 6px; }
+  #touchPad button { width: 54px; height: 54px; border-radius: 50%; border: none; font-size: 22px; font-weight: 900;
+    background: rgba(255,255,255,.5); color: #5b4b8a; box-shadow: 0 3px 0 rgba(120,90,180,.25); }
+  #touchPad button:active { background: #ffd34d; }
+  #touchJump { position: absolute; right: 10px; bottom: 6px; z-index: 4; display: none;
+    width: 62px; height: 62px; border-radius: 50%; border: none; font-size: 16px; font-weight: 900;
+    background: rgba(255,255,255,.6); color: #5b4b8a; box-shadow: 0 3px 0 rgba(120,90,180,.25); }
+  @media (hover:none){ #touchPad { display: flex; } #touchJump { display: block; } }
+
+  .overlay { position: absolute; inset: 0; z-index: 20; display: none; align-items: center; justify-content: center;
+    background: rgba(30,40,90,.5); border-radius: 14px; }
+  .overlay.show { display: flex; }
+  .panel { background: #fff; border-radius: 22px; padding: 18px 22px; text-align: center; max-width: 92%;
+    box-shadow: 0 10px 30px rgba(20,30,80,.35); max-height: 94%; overflow-y: auto; }
+  .panel h1 { margin: 0 0 4px; font-size: 23px; color: #5b4b8a; }
+  .panel .sub { color: #8a7ba8; font-size: 13px; margin-bottom: 6px; line-height: 1.6; }
+  .bigbtn { display: block; width: 100%; border: none; cursor: pointer; font-family: inherit; border-radius: 14px;
+    padding: 11px; font-size: 16px; font-weight: 900; color: #fff; margin-top: 8px;
+    background: linear-gradient(#7ad46b,#3e9a4e); box-shadow: 0 4px 0 rgba(0,0,0,.16); }
+  .bigbtn:active { transform: translateY(3px); box-shadow: none; }
+  .bigbtn.blue { background: linear-gradient(#5fb2f0,#3a6fd8); }
+  .bigbtn.gray { background: linear-gradient(#b9b3d6,#8f86b0); }
+
+  #qCard { background: linear-gradient(#fff,#f7f3ff); border: 4px solid #dcd2f0; border-radius: 22px;
+    padding: 12px 14px 14px; text-align: center; width: min(420px, 94%); box-shadow: 0 12px 30px rgba(30,40,90,.4); }
+  #qCard .qtag { display:inline-block; font-size: 12px; font-weight: 900; color:#fff; background:#8a5fc9;
+    border-radius:10px; padding:3px 10px; margin-bottom:5px; }
+  #qCard .qbig { font-size: 38px; font-weight: 900; color: #3a4a8a; line-height: 1.3; min-height: 54px;
+    display:flex; align-items:center; justify-content:center; gap:8px; flex-wrap:wrap; }
+  #qCard .qsub { font-size: 16px; font-weight: 800; color: #7a6a9a; margin: 2px 0 6px; line-height:1.5; }
+  #qCard img.icon { width: 72px; height: 72px; object-fit: contain; }
+  #qCard .opts { display: flex; gap: 8px; margin-top: 6px; }
+  #qCard .opt { flex:1; border:none; cursor:pointer; font-family:inherit; border-radius:14px; padding:11px 0 10px;
+    font-size: 24px; font-weight:900; color:#fff; position:relative; box-shadow:0 4px 0 rgba(0,0,0,.16);
+    min-height:54px; display:flex; align-items:center; justify-content:center; }
+  #qCard .opt .k { position:absolute; left:7px; top:5px; font-size:11px; font-style:normal; opacity:.85;
+    background:rgba(255,255,255,.25); border-radius:6px; padding:1px 5px; }
+  #qCard .opt.o0{background:linear-gradient(#66c05c,#3e9a4e);}
+  #qCard .opt.o1{background:linear-gradient(#5fb2f0,#3a6fd8);}
+  #qCard .opt.o2{background:linear-gradient(#ffae5c,#ff8a3c);}
+  #qCard .opt:disabled{filter:grayscale(.7) brightness(1.1); opacity:.55;}
+  #qCard .qfoot { display:flex; justify-content:center; gap:8px; margin-top:8px; }
+  #qCard .mini { border:none; cursor:pointer; background:#efe9fb; color:#5b4b8a; font-weight:900; font-size:12px;
+    border-radius:10px; padding:5px 12px; }
+  #qCard .mini:disabled { opacity:.4; cursor:default; }
+  #qCard.wrong { animation: qshake .4s; }
+  @keyframes qshake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-8px)} 40%{transform:translateX(8px)} 60%{transform:translateX(-6px)} 80%{transform:translateX(5px)} }
+
+  #toast { position:absolute; left:50%; top:42%; transform:translateX(-50%); z-index:30; pointer-events:none;
+    background:rgba(40,50,100,.88); color:#fff; font-size:16px; font-weight:900; padding:8px 16px;
+    border-radius:14px; opacity:0; transition:opacity .2s; text-align:center; max-width:92%; }
+  #toast.show { opacity:1; }
+
+  .shoprow { display:flex; align-items:center; gap:8px; background:#f6f3ff; border-radius:13px;
+    padding:6px 10px; margin-top:6px; text-align:left; }
+  .shoprow .nm { font-weight:900; color:#5b4b8a; font-size:13px; flex:1; }
+  .shoprow .ds { color:#8a7ba8; font-size:11px; display:block; }
+  .shoprow button { border:none; cursor:pointer; border-radius:10px; padding:6px 10px; font-weight:900; color:#fff;
+    background:linear-gradient(#5fb2f0,#3a6fd8); }
+  .shoprow button:disabled { filter:grayscale(.8); opacity:.5; cursor:default; }
+  .herolist { display:flex; gap:8px; justify-content:center; margin:8px 0; }
+  .herobtn { flex:none; border:3px solid #dcd6ee; background:#f6f3ff; border-radius:16px; padding:6px 14px;
+    cursor:pointer; font-family:inherit; width:96px; }
+  .herobtn b { display:block; font-size:14px; color:#5b4b8a; margin-top:3px; }
+  .herobtn span { font-size:10px; color:#8a7ba8; }
+  .herobtn.cur { border-color:#ff9a3d; background:#fff6e8; }
+  .herobtn.lock { opacity:.6; filter:grayscale(.6); }
+  #bossBar { position:absolute; left:50%; transform:translateX(-50%); top:8px; z-index:3;
+    background:rgba(40,20,60,.75); border-radius:12px; padding:5px 12px; text-align:center; min-width:200px; }
+  #bossBar div:first-child { color:#fff; font-size:13px; font-weight:900; white-space:nowrap; }
+  #bossBar .hpwrap { height:9px; background:rgba(255,255,255,.25); border-radius:6px; margin-top:4px; overflow:hidden; }
+  #bossHp { height:100%; width:100%; background:linear-gradient(90deg,#ff5f7a,#ff9a3d); border-radius:6px; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="topbar">
+    <div class="ttl">🐒 汉字勇士大闯关</div>
+    <button class="iconbtn" id="voiceBtn">🔊读题</button>
+    <button class="iconbtn" id="sndBtn">🔊音</button>
+    <button class="iconbtn" id="backBtn">返回大厅</button>
+  </div>
+
+  <div class="hud">
+    <span class="hearts" id="heartsBox"></span>
+    <span class="info">金币<b id="coinTxt">0</b></span>
+    <span class="info">碎片<b id="fragTxt">0</b></span>
+    <span class="info" id="lvlTxt">第1关</span>
+    <span class="right">
+      <button class="itemchip" id="chipHint" disabled>💡提示×0</button>
+      <button class="itemchip" id="chipShield" disabled>🛡无</button>
+      <button class="itemchip" id="chipDouble">💰x2</button>
+    </span>
+  </div>
+
+  <div id="cvwrap">
+    <canvas id="cv" width="960" height="540"></canvas>
+    <div id="touchPad"><button id="btnL">◀</button><button id="btnR">▶</button></div>
+    <button id="touchJump">⬆跳</button>
+    <div id="toast"></div>
+    <div id="bossBar" style="display:none"><div id="bossName"></div><div class="hpwrap"><div id="bossHp"></div></div></div>
+
+    <div class="overlay" id="qOv">
+      <div id="qCard">
+        <span class="qtag" id="qTag">答题</span>
+        <div class="qbig" id="qBig"></div>
+        <div class="qsub" id="qSub"></div>
+        <div class="opts" id="qOpts"></div>
+        <div class="qfoot">
+          <button class="mini" id="qVoice">🔊 读题</button>
+          <button class="mini" id="qHint" disabled>💡 提示</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="overlay show" id="menuOv">
+      <div class="panel">
+        <h1>🐒 汉字勇士大闯关</h1>
+        <div class="sub">跳过平台、答对汉字题，<br>开门、打怪、打败三大魔王！</div>
+        <div style="font-size:12px;font-weight:800;color:#8a7ba8">选一位小勇士</div>
+        <div class="herolist" id="heroList"></div>
+        <div class="sub" style="font-size:11px">集齐 5 个🧩碎片可解锁「哪吒」</div>
+        <button class="bigbtn" id="startBtn">🚀 出发闯关！</button>
+        <button class="bigbtn gray" id="backBtn2">返回大厅</button>
+      </div>
+    </div>
+
+    <div class="overlay" id="clearOv">
+      <div class="panel">
+        <h1 id="clearTitle">🎉 过关啦！</h1>
+        <div class="sub" id="clearInfo"></div>
+        <div id="shopBox"></div>
+        <button class="bigbtn" id="nextBtn">下一关 ➡️</button>
+        <button class="bigbtn gray" id="clearBack">返回大厅</button>
+      </div>
+    </div>
+
+    <div class="overlay" id="winOv">
+      <div class="panel">
+        <h1>🏆 汉字大英雄！</h1>
+        <div class="sub" id="winInfo"></div>
+        <div style="font-size:20px;font-weight:900;color:#e08a12" id="winFrag"></div>
+        <button class="bigbtn" id="againBtn">🔄 再玩一次</button>
+        <button class="bigbtn gray" id="winBack">返回大厅</button>
+      </div>
+    </div>
+
+    <div class="overlay" id="overOv">
+      <div class="panel">
+        <h1>😢 小勇士累倒了</h1>
+        <div class="sub">再试一次！答对题就能打败怪物～</div>
+        <button class="bigbtn orange" id="retryBtn">🔄 重新挑战</button>
+        <button class="bigbtn gray" id="overBack">返回大厅</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+'use strict';
+/* ==================== 工具 ==================== */
+const $ = id => document.getElementById(id);
+const rnd = n => Math.floor(Math.random()*n);
+const pick = a => a[rnd(a.length)];
+const clamp = (v,a,b)=> v<a?a:(v>b?b:v);
+let muted=false, voiceOn=false, AC=null;
+function beep(f,d,type,v){ if(muted) return; try{
+  AC=AC||new (window.AudioContext||window.webkitAudioContext)();
+  const o=AC.createOscillator(),g=AC.createGain();
+  o.type=type||'sine'; o.frequency.value=f; g.gain.value=v||0.1;
+  o.connect(g); g.connect(AC.destination); o.start();
+  g.gain.exponentialRampToValueAtTime(.0001,AC.currentTime+d); o.stop(AC.currentTime+d);
+}catch(e){} }
+function noise(d,vol){ if(muted) return; try{
+  AC=AC||new (window.AudioContext||window.webkitAudioContext)();
+  const n=Math.max(1,Math.floor(AC.sampleRate*d)),buf=AC.createBuffer(1,n,AC.sampleRate),ch=buf.getChannelData(0);
+  for(let i=0;i<n;i++) ch[i]=(Math.random()*2-1)*(1-i/n);
+  const s=AC.createBufferSource(); s.buffer=buf;
+  const g=AC.createGain(); g.gain.value=vol||.18;
+  s.connect(g); g.connect(AC.destination); s.start();
+}catch(e){} }
+const S={
+  ok(){ beep(880,.09); setTimeout(()=>beep(1320,.12),80); },
+  bad(){ beep(200,.2,'sawtooth',.08); },
+  jump(){ beep(500,.07,'sine',.05); },
+  coin(){ beep(1046,.08); setTimeout(()=>beep(1568,.11),75); },
+  frag(){ [660,880,1100,1320].forEach((f,i)=>setTimeout(()=>beep(f,.12),i*80)); },
+  hurt(){ beep(130,.3,'sawtooth',.16); noise(.16,.14); },
+  open(){ beep(392,.13); setTimeout(()=>beep(523,.18),110); },
+  buy(){ beep(880,.09); setTimeout(()=>beep(1175,.12),80); },
+  hit(){ beep(180,.13,'sawtooth',.1); noise(.1,.08); },
+  bossIn(){ [196,233,294,392].forEach((f,i)=>setTimeout(()=>beep(f,.2,'sawtooth',.1),i*150)); },
+  win(){ [523,659,784,1046,1318].forEach((f,i)=>setTimeout(()=>beep(f,.26),i*120)); }
+};
+function toggleSnd(){ muted=!muted; $('sndBtn').textContent=muted?'🔇音':'🔊音'; }
+function toggleVoice(){ voiceOn=!voiceOn; $('voiceBtn').textContent=voiceOn?'🔊读题':'🔇读题'; try{localStorage.setItem('hzVoice',voiceOn?'1':'0');}catch(e){} }
+function goLobby(){ try{ if(window.parent&&window.parent.goHome){ window.parent.goHome(); return; } }catch(e){} location.href='游戏大厅.html'; }
+function vibrate(ms){ try{ if(navigator.vibrate) navigator.vibrate(ms); }catch(e){} }
+function speak(txt){
+  if(!voiceOn||!txt) return;
+  try{
+    const u=new SpeechSynthesisUtterance(txt); u.lang='zh-CN'; u.rate=.8;
+    speechSynthesis.cancel(); speechSynthesis.speak(u);
+  }catch(e){}
+}
+function store(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
+function load(k,d){ try{ const v=localStorage.getItem(k); return v===null?d:v; }catch(e){ return d; } }
+let skinUnlock=false;
+try{ skinUnlock=(parseInt(load('hzUnlock','0'),10)||0)>=1; }catch(e){}
+
+/* ==================== 题库 ==================== */
+const POOL={
+  l1:[  // 汉字 + 拼音（L1 认字：大字选拼音）
+    {z:'日',py:'rì'},{z:'月',py:'yuè'},{z:'山',py:'shān'},{z:'水',py:'shuǐ'},
+    {z:'火',py:'huǒ'},{z:'木',py:'mù'},{z:'田',py:'tián'},{z:'石',py:'shí'},
+    {z:'人',py:'rén'},{z:'口',py:'kǒu'},{z:'手',py:'shǒu'},{z:'大',py:'dà'},
+    {z:'小',py:'xiǎo'},{z:'云',py:'yún'},{z:'雨',py:'yǔ'},{z:'土',py:'tǔ'}
+  ],
+  l2w:[ // 补全词语
+    {q:'大（　）',a:'象',bad:['鱼','羊']},{q:'（　）花',a:'红',bad:['江','虹']},
+    {q:'（　）云',a:'白',bad:['百','日']},{q:'（　）头',a:'石',bad:['右','左']},
+    {q:'（　）山',a:'高',bad:['告','马']},{q:'（　）水',a:'河',bad:['可','何']},
+    {q:'火（　）',a:'车',bad:['东','乐']},{q:'（　）天',a:'雨',bad:['两','用']},
+    {q:'（　）子',a:'孩',bad:['该','刻']},{q:'（　）月',a:'明',bad:['朋','那']},
+    {q:'（　）鸟',a:'小',bad:['少','水']},{q:'（　）门',a:'开',bad:['井','升']}
+  ],
+  l2pic:[ // 看图选词
+    {w:'苹果',bad:['桃子','西瓜'],s:'<svg viewBox="0 0 48 48"><circle cx="24" cy="30" r="14" fill="#e33"/><path d="M18 24c0-8 6-12 6-12s6 4 6 12" fill="#c22" opacity=".5"/><path d="M24 18c0-3 2-5 5-6" stroke="#5a5" stroke-width="3" fill="none"/><rect x="21" y="10" width="5" height="8" fill="#5a5"/><circle cx="22" cy="29" r="4" fill="#ffb3b3" opacity=".7"/></svg>'},
+    {w:'太阳',bad:['月亮','星星'],s:'<svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="11" fill="#ffd34d"/><circle cx="20" cy="20" r="3" fill="#fff" opacity=".6"/><g stroke="#ff9a3d" stroke-width="4" stroke-linecap="round"><line x1="24" y1="4" x2="24" y2="9"/><line x1="24" y1="39" x2="24" y2="44"/><line x1="4" y1="24" x2="9" y2="24"/><line x1="39" y1="24" x2="44" y2="24"/><line x1="10" y1="10" x2="13.5" y2="13.5"/><line x1="34.5" y1="34.5" x2="38" y2="38"/><line x1="38" y1="10" x2="34.5" y2="13.5"/><line x1="13.5" y1="34.5" x2="10" y2="38"/></g></svg>'},
+    {w:'月亮',bad:['太阳','星星'],s:'<svg viewBox="0 0 48 48"><path d="M30 5a20 20 0 1 0 13 27A16 16 0 0 1 30 5z" fill="#ffd34d"/><circle cx="21" cy="19" r="3" fill="#fff" opacity=".5"/></svg>'},
+    {w:'鱼',bad:['鸟','虾'],s:'<svg viewBox="0 0 48 48"><path d="M4 24C12 8 26 10 32 13c-2-5 2-9 2-9s4 3 2 8c6 2 7 11 1 13 1 5-3 9-3 9s-5-6-3-10c-7 3-20 3-27 0z" fill="#4db8ff"/><circle cx="13" cy="22" r="2.5" fill="#fff"/><circle cx="14" cy="22" r="1.2" fill="#333"/></svg>'},
+    {w:'鸟',bad:['鱼','虫'],s:'<svg viewBox="0 0 48 48"><ellipse cx="20" cy="27" rx="11" ry="8" fill="#5bb8ff"/><circle cx="13" cy="21" r="4.5" fill="#5bb8ff"/><circle cx="12.5" cy="20" r="1.4" fill="#333"/><path d="M9 21l-8-5 7-2z" fill="#ff9a3d"/><path d="M21 33l6 9-6-3z" fill="#ff9a3d"/><path d="M30 22l10 4-10 4z" fill="#8a5fc9"/></svg>'},
+    {w:'花',bad:['草','树'],s:'<svg viewBox="0 0 48 48"><ellipse cx="24" cy="7" rx="6" ry="9" fill="#ff6a9a"/><ellipse cx="12" cy="14" rx="6" ry="9" fill="#ff8fb0" transform="rotate(-40 12 14)"/><ellipse cx="36" cy="14" rx="6" ry="9" fill="#ff8fb0" transform="rotate(40 36 14)"/><ellipse cx="12" cy="25" rx="6" ry="9" fill="#ff5f7a" transform="rotate(40 12 25)"/><ellipse cx="36" cy="25" rx="6" ry="9" fill="#ff5f7a" transform="rotate(-40 36 25)"/><circle cx="24" cy="21" r="6" fill="#ffd34d"/><rect x="22.5" y="30" width="3" height="14" fill="#5a5"/><path d="M22 34l-6 4 6-2zM26 34l6 4-6-2z" fill="#5a5"/></svg>'}
+  ],
+  l3py:[ // 拼音选字
+    {py:'mā',z:'妈',bad:['马','骂']},{py:'shān',z:'山',bad:['三','伞']},
+    {py:'hé',z:'河',bad:['喝','和']},{py:'huǒ',z:'火',bad:['伙','货']},
+    {py:'yún',z:'云',bad:['运','韵']},{py:'yǔ',z:'雨',bad:['语','与']},
+    {py:'yuè',z:'月',bad:['越','阅']},{py:'shí',z:'石',bad:['十','时']},
+    {py:'dà',z:'大',bad:['打','达']},{py:'mù',z:'木',bad:['目','墓']}
+  ],
+  fan:[ // 反义词
+    {q:'“高兴”的反义词',a:'伤心',bad:['开心','得意']},
+    {q:'“大”的反义词',a:'小',bad:['尖','太']},
+    {q:'“白”的反义词',a:'黑',bad:['百','红']},
+    {q:'“上”的反义词',a:'下',bad:['卡','不']},
+    {q:'“来”的反义词',a:'去',bad:['云','丢']},
+    {q:'“快”的反义词',a:'慢',bad:['块','变']},
+    {q:'“冷”的反义词',a:'热',bad:['执','拉']},
+    {q:'“开”的反义词',a:'关',bad:['天','并']}
+  ],
+  sent:[ // 句子填空
+    {q:'小鸟在（　）上飞',a:'天',bad:['大','人']},
+    {q:'我（　）苹果',a:'吃',bad:['乞','气']},
+    {q:'小鱼在水里（　）',a:'游',bad:['放','他']},
+    {q:'妈妈（　）饭',a:'做',bad:['故','作']},
+    {q:'弟弟在（　）步',a:'跑',bad:['泡','包']},
+    {q:'小明（　）书',a:'看',bad:['着','目']},
+    {q:'我们爱（　）国',a:'祖',bad:['阻','姐']},
+    {q:'花儿真（　）',a:'美',bad:['关','羊']}
+  ]
+};
+function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=rnd(i+1); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+function toQ(level){
+  /* 按关卡随机生成一题，返回 {tag,big,sub,icon?,opts,ans,say} */
+  const pickBad=(bads,n)=>{
+    const got=[], pool=bads.slice();
+    for(let i=0;i<n&&pool.length;i++){
+      const j=rnd(pool.length);
+      if(!got.includes(pool[j])) got.push(pool[j]);
+      pool.splice(j,1);
+    }
+    return got;
+  };
+  if(level===0){
+    const o=pick(POOL.l1);
+    const bads=shuffle(POOL.l1.filter(x=>x.z!==o.z)).slice(0,2).map(x=>x.py);
+    // 防干扰项重复
+    const b=[];
+    POOL.l1.forEach(x=>{ if(x.z!==o.z && x.py!==o.py && !b.includes(x.py)) b.push(x.py); });
+    while(b.length>2) b.pop();
+    const opts=shuffle([o.py].concat(b));
+    return {tag:'认字 · 读拼音',big:o.z,sub:'这个字读什么？',opts,ans:opts.indexOf(o.py),say:o.z+'，读什么？'};
+  }
+  if(level===1){
+    if(Math.random()<.55){
+      const o=pick(POOL.l2w);
+      const opts=shuffle([o.a].concat(pickBad(o.bad,2)));
+      return {tag:'补全词语',big:o.q,sub:'选一个字填进去',opts,ans:opts.indexOf(o.a),say:o.q+'，选哪个字？'};
+    }
+    const o=pick(POOL.l2pic);
+    const opts=shuffle([o.w].concat(o.bad));
+    return {tag:'看图选词',big:'',sub:'图上画的是什么？',icon:o.s,opts,ans:opts.indexOf(o.w),say:'看图选词'};
+  }
+  const t=rnd(3);
+  if(t===0){
+    const o=pick(POOL.l3py);
+    const b=[]; POOL.l3py.forEach(x=>{ if(x.z!==o.z&&x.py!==o.py&&!b.includes(x.z)) b.push(x.z); });
+    while(b.length>2) b.pop();
+    const opts=shuffle([o.z].concat(b));
+    return {tag:'看拼音选字',big:o.py,sub:'选汉字',opts,ans:opts.indexOf(o.z),say:o.py+'，选哪个字？'};
+  }
+  if(t===1){
+    const o=pick(POOL.fan);
+    const opts=shuffle([o.a].concat(o.bad));
+    return {tag:'反义词',big:o.q,sub:'选反义词',opts,ans:opts.indexOf(o.a),say:o.q};
+  }
+  const o=pick(POOL.sent);
+  const opts=shuffle([o.a].concat(o.bad));
+  return {tag:'句子填空',big:o.q,sub:'选字填进去',opts,ans:opts.indexOf(o.a),say:o.q+'，选哪个字？'};
+}
+
+/* ==================== 地图（每关一个世界） ==================== */
+const GY=470;                    // 地面顶
+const LEVELS=[
+  {name:'汉字森林', len:3200, theme:'forest',
+   plats:[ // 站在上面的悬浮台（含部分垫脚）
+     {x:300,y:398,w:120},{x:520,y:330,w:110},{x:760,y:408,w:120},
+     {x:1040,y:360,w:110},{x:1300,y:310,w:110},{x:1620,y:400,w:110},
+     {x:1900,y:330,w:110},{x:2260,y:408,w:120},{x:2580,y:360,w:110}
+   ],
+   en:[[330],[560],[900],[1500],[2050],[2400],[2800]], // 地面敌人位置
+   gate:[1250,2150],
+   chest:[780,2350],  // 地面宝箱 x
+   frag:[ [560,330],[1320,310],[1930,330],[2820,470],[3050,470] ], // 高处放平台上的碎片 [x,平台y]
+   boss:3030
+  },
+  {name:'词语山谷', len:3400, theme:'hill',
+   plats:[
+     {x:300,y:398,w:120},{x:560,y:330,w:110},{x:820,y:408,w:110},
+     {x:1120,y:340,w:110},{x:1400,y:300,w:120},{x:1760,y:400,w:110},
+     {x:2060,y:330,w:110},{x:2440,y:408,w:120},{x:2760,y:350,w:110},{x:3000,y:400,w:110}
+   ],
+   en:[[420],[640],[1500],[1950],[2350],[2650],[3050]],
+   gate:[1250,2150],
+   chest:[900,2900],
+   frag:[ [580,330],[1420,300],[2080,330],[3200,470],[3300,470] ],
+   boss:3230
+  },
+  {name:'拼音城堡', len:3600, theme:'castle',
+   plats:[
+     {x:280,y:398,w:120},{x:540,y:320,w:110},{x:800,y:408,w:110},
+     {x:1100,y:340,w:110},{x:1400,y:300,w:110},{x:1700,y:398,w:110},
+     {x:2000,y:320,w:110},{x:2380,y:408,w:120},{x:2700,y:350,w:110},{x:3000,y:398,w:110}
+   ],
+   en:[[380],[720],[1500],[1900],[2450],[2750],[3150]],
+   gate:[1250,2220],
+   chest:[980,2900],
+   frag:[ [570,320],[1420,300],[2020,320],[3400,470],[3500,470] ],
+   boss:3430
+  }
+];
+const BOSS={
+  0:{name:'森林老树精',need:3, say:'答对3题打败老树精！'},
+  1:{name:'山谷巨龙',  need:5, say:'答对5题打败巨龙！'},
+  2:{name:'城堡女王',  need:6, say:'答对6题打败女王！'}
+};
+
+/* ==================== 运行时状态 ==================== */
+const cv=$('cv'),ctx=cv.getContext('2d');
+let cw=960,ch=540,scaleCss=1;
+function resize(){
+  const wrap=$('cvwrap');
+  const aw=wrap.clientWidth||640, ah=wrap.clientHeight||400;
+  const aspect=aw/ah;
+  cw = clamp(Math.round(ah*Math.min(2.0,Math.max(.9,aspect))), 640, 1200);
+  ch = Math.round(cw/(Math.min(2.0,Math.max(.9,aspect))));
+  if(ch>ah){ ch=ah; cw=Math.round(ch*Math.min(2.0,Math.max(.9,aspect))); }
+  cv.width=cw; cv.height=ch;
+  scaleCss=Math.min(aw/cw, ah/ch);
+  cv.style.width=(cw*scaleCss)+'px'; cv.style.height=(ch*scaleCss)+'px';
+}
+window.addEventListener('resize',resize);
+window.addEventListener('orientationchange',resize);
+
+let state='menu', level=0, heroSel='wk';
+let hearts=3, coins=0, frags=0, hintCards=0, hasShield=false, doubleT=0;
+let player=null, camX=0, world=null;
+let boss=null, curQ=null, questSrc=null;
+let parts=[], floats=[];
+let running=false, lockInput=false, lastT=0;
+
+const KEYS={};
+
+/* ==================== 世界构建（统一 AABB，y 为顶） ==================== */
+function buildWorld(lv){
+  const L=LEVELS[lv];
+  const ground={x:-200, y:GY, w:L.len+400, h:1000};
+  const plats=L.plats.map(p=>({x:p.x, y:p.y, w:p.w, h:22}));
+  const frags=L.frag.map(f=>{
+    const onGround = (f[1]>=GY-2);
+    const py = onGround? GY-30 : f[1]-30;
+    return {x:f[0]-14, y:py, w:28, h:28, taken:false};
+  });
+  const gates=L.gate.map(g=>({x:g, open:false}));
+  const chests=L.chest.map(c=>({x:c-22, y:GY-48, w:44, h:48, opened:false}));
+  const enemies=L.en.map((e,i)=>{
+    const kind=lv;
+    if(kind===2){ // 蝙蝠：空中飞，浮动范围
+      return {kind, baseX:e[0], x:e[0], y:GY-130, w:52, h:44, alive:true, t:rnd(10), speed:80};
+    }
+    if(kind===1){ // 石头人：贴地走
+      return {kind, baseX:e[0], x:e[0], y:GY-64, w:60, h:64, alive:true, t:rnd(10), speed:45};
+    }
+    return {kind, baseX:e[0], x:e[0], y:GY-58, w:54, h:58, alive:true, t:rnd(10), speed:55};
+  });
+  return {L, ground, plats, frags, gates, chests, enemies, camMin:0};
+}
+function hero(){ return player; }
+
+/* ==================== 玩家物理 ==================== */
+const GRAV=2500, JUMPV=-1080, MV=430, MAXFALL=1600;
+function stepPlayer(dt){
+  const p=player;
+  if(!p) return;
+  let mv=0;
+  if(KEYS.left||KEYS.a) mv-=1;
+  if(KEYS.right||KEYS.d) mv+=1;
+  const acc=(p.onGround? 3400: 2200);
+  if(mv!==0) p.vx=clamp(p.vx+mv*acc*dt, -MV, MV);
+  else p.vx*=Math.pow(0.0004,dt);
+  if(p.vx>-.5&&p.vx<.5) p.vx=0;
+  if(mv!==0) p.face=mv;
+  if(KEYS.up&&p.onGround){ p.vy=JUMPV; p.onGround=false; S.jump(); }
+  p.vy=Math.min(MAXFALL,p.vy+GRAV*dt);
+  // X
+  p.x+=p.vx*dt;
+  const solids=[world.ground].concat(world.plats);
+  for(const pl of solids){
+    if(p.x+p.w<=pl.x||p.x>=pl.x+pl.w) continue;
+    const prevB=p.y+p.h-p.vy*dt;
+    if(prevB<=pl.y+1 && p.y+p.h>=pl.y){ // 已落上台
+      p.y=pl.y-p.h; p.onGround=true; if(p.vy>0) p.vy=0;
+    }
+  }
+  // 平台只能从上面落（单向），再跑一次更稳的落地判定
+  let landing=false;
+  p.y+=p.vy*dt;
+  for(const pl of world.plats.concat([world.ground])){
+    if(p.x+p.w<=pl.x||p.x>=pl.x+pl.w) continue;
+    const prevB=p.y+p.h-p.vy*dt;
+    if(p.vy>=0 && prevB<=pl.y+2 && p.y+p.h>=pl.y){
+      p.y=pl.y-p.h; p.vy=0; p.onGround=true; landing=true; break;
+    }
+    if(p.vy<0 && p.y<=pl.y+pl.h && p.y+p.h>=pl.y){ // 头顶撞平台
+      p.y=pl.y+pl.h; p.vy=0;
+    }
+  }
+  if(!landing){
+    // 离开平台检测
+    let any=false;
+    for(const pl of world.plats.concat([world.ground])){
+      if(p.y+p.h<=pl.y+2 && p.y+p.h>=pl.y-2 && p.x+p.w>pl.x+2 && p.x<pl.x+pl.w-2){ any=true; break; }
+    }
+    if(!any) p.onGround=false;
+  }
+  p.x=clamp(p.x,0,world.L.len-40);
+  // 相机
+  const target=p.x+p.w/2-cw*.5;
+  camX=clamp(target,0,world.L.len-cw);
+}
+
+/* ==================== 触碰判定 ==================== */
+function touchEnemy(){
+  const p=player;
+  for(const e of world.enemies){
+    if(!e.alive) continue;
+    if(rectHit(p,e) && !lockInput && state==='play'){
+      startQuest('enemy', e);
+      return;
+    }
+  }
+}
+function rectHit(a,b){ return a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y; }
+function touchItems(){
+  const p=player;
+  for(const f of world.frags){
+    if(f.taken) continue;
+    if(rectHit(p,f)){ f.taken=true; frags++; S.frag(); pop(f.x+14,f.y+14,'frag'); checkSkin(); renderHUD();
+      floats.push({x:f.x+14-camX,y:f.y-10,txt:'🧩+1',t:1,col:'#ffd34d'}); }
+  }
+  for(const c of world.chests){
+    if(c.opened) continue;
+    if(rectHit(p,c)){ startQuest('chest', c); return; }
+  }
+}
+function checkSkin(){
+  if(frags>=5){ skinUnlock=true; store('hzUnlock','1'); }
+}
+
+/* ==================== 答题流程 ==================== */
+function startQuest(type, src){
+  if(lockInput) return;
+  if(type==='enemy'&&!src.alive) return;
+  lockInput=true; running=false; questSrc={type,src};
+  const q=toQ(level);
+  curQ=q;
+  showCard(type,q);
+}
+function showCard(type,q){
+  state='quest';
+  const tag = type==='enemy'?('📕 '+world.L.name+' · 打败'+'小怪'):
+             type==='gate'?'🚪 汉字门 · 答对开门':
+             type==='chest'?'🎁 宝箱 · 答对得宝':('👑 '+boss.name);
+  $('qTag').textContent=tag;
+  const big=$('qBig');
+  big.innerHTML='';
+  if(q.icon){ const im=document.createElement('img'); im.className='icon';
+    im.src='data:image/svg+xml;utf8,'+encodeURIComponent(q.icon); big.appendChild(im); }
+  else big.textContent=q.big;
+  $('qSub').textContent=q.sub;
+  const box=$('qOpts'); box.innerHTML='';
+  q.opts.forEach((o,i)=>{
+    const b=document.createElement('button');
+    b.className='opt o'+i;
+    b.innerHTML='<i class="k">'+(i+1)+'</i>'+o;
+    b.onclick=()=>answerQ(i);
+    box.appendChild(b);
+  });
+  $('qCard').className='';
+  $('qHint').textContent='💡 提示'+(hintCards>0?'×'+hintCards:'');
+  $('qHint').disabled=hintCards<=0;
+  showOv('qOv',true);
+  if(voiceOn) setTimeout(()=>speak(q.say||q.big+'，'+(q.sub||'')),150);
+}
+function answerQ(i){
+  if(!curQ||state!=='quest'||!questSrc) return;   // 修复: questSrc 缺失时兜底
+  const q=curQ, right=(i===q.ans);
+  const box=$('qOpts');
+  [...box.children].forEach((b,j)=>{ b.disabled=true; if(j===q.ans) b.style.border='4px solid #7ad46b'; else b.style.opacity=.35; });
+  const cardEl=$('qCard');
+  if(right){
+    cardEl.classList.add('right');
+    S.ok();
+    const t=questSrc.type, src=questSrc.src;
+    if(t==='enemy'){
+      src.alive=false; pop(src.x+src.w/2, src.y+src.h/2,'poof');
+      const n=doubleT>0?4:2; coins+=n; S.coin();
+      floats.push({x:src.x+src.w/2-camX,y:src.y-20,txt:'+'+n+'🪙',t:1,col:'#ffd34d'});
+      if(Math.random()<.2){ hintCards++; updateChips(); floats.push({x:src.x+src.w/2-camX,y:src.y-42,txt:'💡+1',t:1.2,col:'#a97fe0'}); }
+    } else if(t==='gate'){
+      src.open=true; S.open(); coins+=doubleT>0?2:1;
+      floats.push({x:src.x-camX,y:300,txt:'门开啦！',t:1,col:'#5fb2f0'});
+    } else if(t==='chest'){
+      src.opened=true; S.open();
+      const n=doubleT>0?6:3; coins+=n; S.coin();
+      floats.push({x:src.x+22-camX,y:src.y-10,txt:'+'+n+'🪙',t:1.1,col:'#ffd34d'});
+      if(Math.random()<.5){ frags++; pop(src.x+22,src.y-10,'frag'); checkSkin(); floats.push({x:src.x+22-camX,y:src.y-30,txt:'🧩+1',t:1.2,col:'#ffd34d'}); }
+    } else if(t==='boss'){
+      boss.hp--; S.hit(); pop(boss.x+boss.w/2,boss.y,'hit');
+      $('bossHp').style.width=Math.max(0,boss.hp/boss.need*100)+'%';
+      if(boss.hp<=0){ bossWin(); return; }
+      // 下一题
+      curQ=null;
+      const q2=toQ(level); curQ=q2; showCard('boss',q2);
+      return;
+    }
+    renderHUD();
+    setTimeout(()=>{ closeQ(); },480);
+  } else {
+    cardEl.classList.add('wrong');
+    S.bad(); vibrate(60);
+    // 答错处理
+    const t=questSrc.type;
+    if(t==='boss'){
+      if(!hasShield){ hearts--; S.hurt(); vibrate(120); pop(boss.x+boss.w/2,boss.y+30,'fire'); renderHUD();
+        if(hearts<=0){ curQ=null; state='over'; running=false; setTimeout(()=>{ showOv('overOv',true); $('bossBar').style.display='none'; },500); return; } }
+      else { hasShield=false; updateChips(); toast('🛡 护盾挡住啦'); S.open(); }
+      curQ=null;
+      const q2=toQ(level); curQ=q2; showCard('boss',q2);
+      return;
+    }
+    if(t==='chest'){ // 宝箱答错不扣血，直接关
+      toast('打不开宝箱…再试试别的路');
+      setTimeout(()=>{ closeQ(); },700);
+      return;
+    }
+    // enemy/gate 答错扣一颗心并弹开
+    loseHeart();
+    if(state==='over'){ return; }
+    toast('再想想哦～');
+    const p=player; p.x-=50; p.vx=-140; if(p.onGround) p.vy=-260;
+    curQ=null;
+    const q2=toQ(level); curQ=q2; showCard('enemy',q2);
+  }
+}
+function loseHeart(){
+  if(hasShield){ hasShield=false; updateChips(); toast('🛡 护盾挡住啦'); S.open(); return; }
+  hearts--; renderHUD(); S.hurt(); vibrate(120);
+  if(hearts<=0){ state='over'; running=false; showOv('overOv',true); }
+}
+function closeQ(){
+  showOv('qOv',false);
+  curQ=null; questSrc=null; lockInput=false;
+  state='play'; running=true;
+}
+function bossWin(){
+  S.win(); state='clear';
+  const B=boss; boss=null;
+  $('bossBar').style.display='none';
+  coins+=5; frags++; checkSkin(); renderHUD();
+  pop(B.x+B.w/2, B.y+B.h/2,'boom');
+  floats.push({x:B.x+B.w/2-camX,y:140,txt:'🏆 打败 '+BOSS[level].name+'！',t:1.6,col:'#ffd34d'});
+  setTimeout(()=>{ levelClear(); },1000);
+}
+
+/* ==================== Boss ==================== */
+function startBoss(){
+  const L=world.L, Bc=world.L.boss;
+  const conf=BOSS[level];
+  boss={x:Bc-90, y:GY-170, w:180, h:170, hp:conf.need, need:conf.need};
+  lockInput=true; running=false; state='quest';
+  questSrc={type:'boss',src:boss};   // 修复: boss 答题也必须登记 questSrc
+  S.bossIn();
+  $('bossName').textContent='👑 '+conf.name;
+  $('bossHp').style.width='100%';
+  $('bossBar').style.display='block';
+  toast(conf.say);
+  const q=toQ(level); curQ=q; showCard('boss',q);
+}
+function levelClear(){
+  const L=LEVELS[level];
+  $('clearTitle').textContent='🎉 '+L.name+' 通过！';
+  $('clearInfo').textContent='碎片 '+frags+' · 金币 '+coins;
+  renderShop();
+  $('nextBtn').textContent = level<2? '继续闯关 ➡️':'🏆 通关结算';
+  showOv('clearOv',true);
+}
+function renderShop(){
+  const sb=$('shopBox');
+  sb.innerHTML='<div style="font-size:12px;font-weight:900;color:#8a7ba8">🏪 小卖部 · 金币 '+coins+'</div>'+
+    '<div class="shoprow"><span class="nm">💡 提示卡<em class="ds">答题时排除一个错误选项</em></span><button data-k="hint">2🪙</button></div>'+
+    '<div class="shoprow"><span class="nm">🛡 护盾<em class="ds">挡住一次伤害</em></span><button data-k="shield">3🪙</button></div>'+
+    '<div class="shoprow"><span class="nm">💰 双倍金币<em class="ds">10秒内答对金币×2</em></span><button data-k="db">2🪙</button></div>';
+  sb.querySelectorAll('button').forEach(btn=>{
+    btn.onclick=()=>{
+      const k=btn.dataset.k;
+      const cost = k==='shield'?3:2;
+      if(coins<cost){ toast('金币不够哦'); return; }
+      coins-=cost; S.buy(); renderHUD();
+      if(k==='hint') hintCards++;
+      else if(k==='shield') hasShield=true;
+      else doubleT=10;
+      updateChips(); renderShop();
+    };
+  });
+}
+
+/* ==================== 特效/渲染辅助 ==================== */
+function pop(x,y,kind){
+  const cols=['#ffd34d','#ff9a3d','#fff','#ff8fa3','#7ad46b'];
+  const n = kind==='boom'?36:(kind==='fire'?18:12);
+  for(let i=0;i<n;i++){
+    parts.push({x,y,life:.5+rnd(6)/10,vx:(Math.random()-.5)*360,vy:-rnd(300)-60,col:pick(cols)});
+  }
+}
+function toast(t){
+  const el=$('toast'); el.textContent=t; el.classList.add('show');
+  clearTimeout(toast._t); toast._t=setTimeout(()=>el.classList.remove('show'),1600);
+}
+function showOv(id,on){ $(id).classList.toggle('show',on); }
+function renderHUD(){
+  let h='';
+  for(let i=0;i<3;i++){ const on=i<hearts;
+    h+='<svg viewBox="0 0 24 24"><path d="M12 21s-8-5.3-10.4-10C.2 7.6 2.6 4.3 6 4.3c2.1 0 3.8 1.2 4.7 3 0-1.8 1.3-3 3.4-3 2.8 0 5 2.6 4.3 5.6C17.2 15.7 12 21 12 21z" fill="'+(on?'#ff4d6d':'#d9d4e8')+'"/></svg>';
+  }
+  $('heartsBox').innerHTML=h;
+  $('coinTxt').textContent=coins;
+  $('fragTxt').textContent=frags;
+  $('lvlTxt').textContent='第'+(level+1)+'关·'+LEVELS[level].name;
+  updateChips();
+}
+function updateChips(){
+  $('chipHint').textContent='💡提示×'+hintCards;
+  $('chipHint').disabled=hintCards<=0;
+  $('chipShield').textContent='🛡'+(hasShield?'有':'无');
+  $('chipShield').disabled=false;
+  $('chipDouble').textContent='💰x2'+(doubleT>0?' '+Math.ceil(doubleT)+'s':'');
+  $('chipDouble').classList.toggle('act',doubleT>0);
+}
+
+/* ==================== 绘制 ==================== */
+function drawScene(){
+  ctx.clearRect(0,0,cw,ch);
+  drawSky();
+  drawPropsBack();
+  drawPlats();
+  drawChestsFrags();
+  drawGates();
+  world.enemies.forEach(e=>{ if(e.alive) drawEnemy(e); });
+  drawBossFig();
+  drawHeroFig();
+  drawParts();
+}
+function drawSky(){
+  const th=level;
+  let top,mid,bot;
+  if(th===0){ top='#87c7f0'; mid='#c9ecff'; bot='#d9f3c8'; }
+  else if(th===1){ top='#a8c8f5'; mid='#ddeeff'; bot='#d8c8e8'; }
+  else { top='#1d2350'; mid='#35327a'; bot='#6a4a9a'; }
+  const g=ctx.createLinearGradient(0,0,0,ch);
+  g.addColorStop(0,top); g.addColorStop(.62,mid); g.addColorStop(1,bot);
+  ctx.fillStyle=g; ctx.fillRect(0,0,cw,ch);
+  ctx.save(); ctx.translate(-camX*.35,0);
+  if(th===0){
+    ctx.fillStyle='rgba(255,255,255,.85)';
+    for(let i=0;i<14;i++){ const x=(i*230+60)%3600,y=40+(i*37)%120;
+      ctx.beginPath(); ctx.arc(x,y,20,0,7); ctx.arc(x+22,y+5,14,0,7); ctx.arc(x-20,y+5,14,0,7); ctx.fill(); }
+  } else if(th===1){
+    ctx.fillStyle='rgba(120,150,200,.45)';
+    for(let i=0;i<6;i++){ const x=i*560-120; ctx.beginPath();
+      ctx.moveTo(x,ch); ctx.lineTo(x+260,ch-240); ctx.lineTo(x+560,ch); ctx.fill(); }
+  } else {
+    ctx.fillStyle='rgba(255,255,255,.85)';
+    for(let i=0;i<70;i++){ const x=(i*173)%4000, y=(i*97)%250; ctx.fillRect(x,y,2,2); }
+    ctx.fillStyle='rgba(255,255,255,.25)'; ctx.fillRect(0,0,cw,ch);
+  }
+  ctx.restore();
+  if(th===2){
+    ctx.fillStyle='rgba(20,16,60,.5)';
+    for(let i=0;i<7;i++){ const x=i*480-140-camX*.4;
+      ctx.fillRect(x,ch-230,120,230); ctx.fillRect(x+26,ch-290,68,60); }
+  }
+}
+function drawPropsBack(){
+  // 中景装饰
+  const th=level;
+  ctx.save(); ctx.translate(-camX*.7,0);
+  if(th===0){
+    for(let i=0;i<10;i++){ const x=i*300+60,y=GY;
+      if(x<camX-300||x>camX+cw+300) continue;
+      ctx.fillStyle='#7a5230'; ctx.fillRect(x+16,y-60,12,60);
+      ctx.fillStyle='#4f9e58'; ctx.beginPath(); ctx.arc(x+22,y-84,34,0,7); ctx.fill();
+      ctx.fillStyle='#63b96c'; ctx.beginPath(); ctx.arc(x+2,y-70,22,0,7); ctx.fill(); }
+  } else if(th===1){
+    for(let i=0;i<16;i++){ const x=i*220+30,y=GY;
+      if(x<camX-220||x>camX+cw+220) continue;
+      ctx.fillStyle='rgba(120,110,140,.55)'; ctx.beginPath();
+      ctx.arc(x, y-22, 16+(i%3)*6, 0, 7); ctx.fill(); }
+  } else {
+    for(let i=0;i<8;i++){ const x=i*460+120,y=GY;
+      if(x<camX-300||x>camX+cw+300) continue;
+      ctx.fillStyle='#e8b84a'; ctx.fillRect(x, y-170, 8, 170);
+      ctx.fillStyle='#ff8a3c'; ctx.beginPath(); ctx.arc(x+4,y-186,14,0,7); ctx.fill();
+      ctx.fillStyle='#ffd34d'; ctx.beginPath(); ctx.arc(x+4,y-186,8,0,7); ctx.fill(); }
+  }
+  ctx.restore();
+}
+function drawPlats(){
+  const th=level;
+  const topCol=['#5fa852','#9a6a48','#7a7090'][th];
+  const bodyCol=['#79c06e','#b98a5c','#6e6690'][th];
+  ctx.save(); ctx.translate(-camX,0);
+  // 地面
+  const gd=world.ground;
+  ctx.fillStyle=bodyCol; ctx.fillRect(gd.x,gd.y,gd.w,gd.h);
+  ctx.fillStyle=topCol; ctx.fillRect(gd.x,gd.y,gd.w,16);
+  if(th===0){ ctx.fillStyle='#4f9e58';
+    for(let x=Math.max(0,camX);x<Math.min(gd.x+gd.w,camX+cw);x+=22){ ctx.beginPath();
+      ctx.moveTo(x,gd.y); ctx.lineTo(x+6,gd.y-9); ctx.lineTo(x+12,gd.y); ctx.fill(); } }
+  else if(th===2){ ctx.strokeStyle='rgba(0,0,0,.14)'; ctx.lineWidth=1;
+    for(let x=Math.max(0,camX);x<Math.min(gd.x+gd.w,camX+cw);x+=26){ ctx.beginPath(); ctx.moveTo(x,gd.y); ctx.lineTo(x,gd.y+14); ctx.stroke(); } }
+  // 悬浮台
+  for(const pl of world.plats){
+    if(pl.x+pl.w<camX||pl.x>camX+cw) continue;
+    ctx.fillStyle=bodyCol; ctx.fillRect(pl.x,pl.y,pl.w,pl.h);
+    ctx.fillStyle=topCol; ctx.fillRect(pl.x,pl.y,pl.w,8);
+  }
+  ctx.restore();
+}
+function drawChestsFrags(){
+  ctx.save(); ctx.translate(-camX,0);
+  for(const c of world.chests){
+    if(c.opened) continue;
+    if(c.x+c.w<camX||c.x>camX+cw) continue;
+    ctx.fillStyle='#9a5a28'; ctx.fillRect(c.x+2,c.y+16,c.w-4,30); // 箱体
+    ctx.fillStyle='#c98a3f'; ctx.fillRect(c.x,c.y+8,c.w,14);      // 盖
+    ctx.fillStyle='#ffd34d'; ctx.fillRect(c.x+c.w/2-3,c.y+4,6,34); // 锁
+    ctx.strokeStyle='#7a4a20'; ctx.lineWidth=2; ctx.strokeRect(c.x,c.y+8,c.w,38);
+  }
+  for(const f of world.frags){
+    if(f.taken) continue;
+    if(f.x+f.w<camX||f.x>camX+cw) continue;
+    const tw=Math.sin(Date.now()/360+f.x)*.15;
+    ctx.save(); ctx.translate(f.x+f.w/2,f.y+f.h/2);
+    ctx.rotate(tw);
+    ctx.fillStyle='#ffd34d'; ctx.beginPath();
+    ctx.moveTo(0,-11); ctx.lineTo(8,-5); ctx.lineTo(0,-1); ctx.lineTo(-8,-5); ctx.closePath(); ctx.fill();
+    ctx.fillStyle='#fff'; ctx.font='bold 12px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('字',0,-4);
+    ctx.restore();
+  }
+  ctx.restore();
+}
+function drawGates(){
+  ctx.save(); ctx.translate(-camX,0);
+  for(const g of world.gates){
+    if(g.x<camX-100||g.x>camX+cw+100) continue;
+    const x=g.x,y=GY;
+    if(g.open){
+      ctx.globalAlpha=.5;
+      ctx.fillStyle='#8a5a2f'; ctx.fillRect(x-26,y-170,52,170);
+      ctx.globalAlpha=1;
+      ctx.fillStyle='rgba(255,255,255,.5)'; ctx.font='bold 15px sans-serif'; ctx.textAlign='center';
+      ctx.fillText('已开门',x,y-60);
+      continue;
+    }
+    ctx.fillStyle='#7a5230'; ctx.fillRect(x-6,y-176,12,176);   // 侧柱
+    ctx.fillStyle='#9a6a3f'; ctx.fillRect(x+30,y-176,12,176);
+    ctx.fillStyle='#b98a5c'; ctx.fillRect(x-40,y-200,90,24);   // 门楣
+    ctx.fillStyle='#5a3a20'; ctx.fillRect(x-26,y-176,50,176);  // 门板
+    ctx.fillStyle='#3a2410'; ctx.font='bold 52px serif'; ctx.textAlign='center'; ctx.textBaseline='alphabetic';
+    ctx.fillText('门',x,y-60);
+    ctx.strokeStyle='#ffd34d'; ctx.lineWidth=3;
+    ctx.strokeRect(x-34,y-212,74,32);
+    ctx.font='bold 16px sans-serif'; ctx.fillStyle='#fff';
+    ctx.fillText('答题开门',x,y-228);
+  }
+  ctx.restore();
+}
+function drawEnemy(e){
+  ctx.save();
+  const x=e.x-camX, y=e.y;
+  if(e.kind===2){
+    const fl=Math.sin(e.t*4)*10;
+    ctx.translate(x+e.w/2,y+e.h/2+fl*0);
+    ctx.fillStyle='#6a3fa0'; ctx.beginPath(); ctx.arc(0,-4,14,0,7); ctx.fill();
+    ctx.fillStyle='#8a5fc9';
+    ctx.beginPath(); ctx.moveTo(-20,-8); ctx.quadraticCurveTo(-36,-22,-30,-38); ctx.lineTo(-14,-14); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(20,-8); ctx.quadraticCurveTo(36,-22,30,-38); ctx.lineTo(14,-14); ctx.closePath(); ctx.fill();
+    ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(-6,-8,3.4,0,7); ctx.fill(); ctx.arc(6,-8,3.4,0,7); ctx.fill();
+    ctx.fillStyle='#333'; ctx.beginPath(); ctx.arc(-6,-8,1.7,0,7); ctx.fill(); ctx.arc(6,-8,1.7,0,7); ctx.fill();
+    ctx.fillStyle='#fff'; ctx.font='bold 12px sans-serif'; ctx.textAlign='center';
+    ctx.fillText('蝠',0,-26);
+  } else if(e.kind===1){
+    ctx.translate(x+e.w/2,y+e.h);
+    const hop=Math.abs(Math.sin(e.t*2))*0; // 停顿走路感
+    ctx.fillStyle='#a8a8b0'; ctx.beginPath();
+    ctx.moveTo(-30,-18); ctx.lineTo(30,-18); ctx.lineTo(26,-64); ctx.lineTo(-26,-64); ctx.closePath(); ctx.fill();
+    ctx.fillStyle='#8e8e98'; ctx.beginPath();
+    ctx.moveTo(-30,-18); ctx.lineTo(-44,-6); ctx.lineTo(-24,0); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(30,-18); ctx.lineTo(44,-6); ctx.lineTo(24,0); ctx.closePath(); ctx.fill();
+    ctx.fillStyle='#333'; ctx.beginPath(); ctx.arc(-9,-52,3.6,0,7); ctx.fill(); ctx.arc(9,-52,3.6,0,7); ctx.fill();
+    ctx.strokeStyle='#555'; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(0,-42,6,0,3.4); ctx.stroke();
+    ctx.fillStyle='#5b8fd9'; ctx.font='bold 24px sans-serif'; ctx.textAlign='center';
+    ctx.fillText('石',0,-30);
+    ctx.fillStyle='#c8c8d0'; ctx.font='bold 9px sans-serif'; ctx.fillText('答题打败',0,-74);
+  } else {
+    ctx.translate(x+e.w/2,y+e.h);
+    ctx.fillStyle='#8a5fc9'; ctx.beginPath(); ctx.arc(0,-30,24,0,7); ctx.fill();
+    ctx.fillStyle='#a97fe0'; ctx.beginPath(); ctx.arc(-13,-42,9,0,7); ctx.fill(); ctx.arc(13,-42,9,0,7); ctx.fill();
+    ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(-8,-50,3.4,0,7); ctx.fill(); ctx.arc(8,-50,3.4,0,7); ctx.fill();
+    ctx.fillStyle='#333'; ctx.beginPath(); ctx.arc(-8,-50,1.8,0,7); ctx.fill(); ctx.arc(8,-50,1.8,0,7); ctx.fill();
+    ctx.strokeStyle='#6a3fa0'; ctx.lineWidth=2.5;
+    ctx.beginPath(); ctx.moveTo(-20,-56); ctx.quadraticCurveTo(-28,-72,-34,-70); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(20,-56); ctx.quadraticCurveTo(28,-72,34,-70); ctx.stroke();
+    ctx.fillStyle='#fff'; ctx.font='bold 16px sans-serif'; ctx.textAlign='center';
+    ctx.fillText('妖',0,-18);
+  }
+  ctx.restore();
+}
+function drawBossFig(){
+  if(!boss) return;
+  const bx=boss.x+boss.w/2-camX, by=boss.y;
+  const th=level;
+  ctx.save(); ctx.translate(bx,by);
+  if(th===0){ // 老树精
+    ctx.fillStyle='#7a4a2a'; ctx.fillRect(-34,-30,68,170);
+    ctx.fillStyle='#5a8a4a';
+    for(let i=0;i<5;i++){ ctx.beginPath(); ctx.arc(-36+i*18,-46,26,0,7); ctx.fill(); }
+    ctx.fillStyle='#9a7a5a'; ctx.beginPath(); ctx.arc(0,-70,42,0,7); ctx.fill();
+    ctx.fillStyle='#333'; ctx.beginPath(); ctx.arc(-15,-80,5,0,7); ctx.fill(); ctx.arc(15,-80,5,0,7); ctx.fill();
+    ctx.strokeStyle='#5a3a20'; ctx.lineWidth=3;
+    ctx.beginPath(); ctx.moveTo(-14,-56); ctx.quadraticCurveTo(-6,-48,-14,-40); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(14,-56); ctx.quadraticCurveTo(6,-48,14,-40); ctx.stroke();
+    ctx.fillStyle='#fff'; ctx.font='bold 15px sans-serif'; ctx.textAlign='center';
+    ctx.fillText('老树精',0,-120);
+  } else if(th===1){ // 巨龙
+    ctx.fillStyle='#2e7a48'; ctx.fillRect(-40,-40,80,180);
+    ctx.fillStyle='#43a55e';
+    for(let i=0;i<9;i++){ ctx.beginPath(); ctx.moveTo(-40+i*10,-40); ctx.lineTo(-36+i*10,-54+((i%2)?0:-8)); ctx.lineTo(-30+i*10,-40); ctx.closePath(); ctx.fill(); }
+    ctx.fillStyle='#1f5c36'; ctx.beginPath(); ctx.arc(0,-86,40,0,7); ctx.fill();
+    ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(-14,-96,7,0,7); ctx.fill(); ctx.arc(14,-96,7,0,7); ctx.fill();
+    ctx.fillStyle='#333'; ctx.beginPath(); ctx.arc(-14,-96,3.6,0,7); ctx.fill(); ctx.arc(14,-96,3.6,0,7); ctx.fill();
+    ctx.fillStyle='#ff5f5f'; ctx.beginPath(); ctx.moveTo(-10,-82); ctx.lineTo(10,-82); ctx.lineTo(0,-70); ctx.closePath(); ctx.fill();
+    ctx.fillStyle='#fff'; ctx.font='bold 15px sans-serif'; ctx.textAlign='center';
+    ctx.fillText('山谷巨龙',0,-146);
+  } else { // 城堡女王
+    ctx.fillStyle='#4a3a8a'; ctx.fillRect(-34,-40,68,180);
+    ctx.fillStyle='#6a55b0'; ctx.beginPath(); ctx.moveTo(-34,-40); ctx.lineTo(-46,-90); ctx.lineTo(-18,-60); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(34,-40); ctx.lineTo(46,-90); ctx.lineTo(18,-60); ctx.closePath(); ctx.fill();
+    ctx.fillStyle='#ffd9b3'; ctx.beginPath(); ctx.arc(0,-56,30,0,7); ctx.fill();
+    ctx.fillStyle='#ffd34d'; ctx.beginPath(); ctx.arc(0,-92,16,0,7); ctx.fill();
+    ctx.fillStyle='#333'; ctx.beginPath(); ctx.arc(-11,-60,4.4,0,7); ctx.fill(); ctx.arc(11,-60,4.4,0,7); ctx.fill();
+    ctx.fillStyle='#c96a55'; ctx.beginPath(); ctx.arc(0,-48,4,0,3.3); ctx.fill();
+    ctx.fillStyle='#fff'; ctx.font='bold 15px sans-serif'; ctx.textAlign='center';
+    ctx.fillText('城堡女王',0,-118);
+  }
+  ctx.restore();
+}
+function drawHeroFig(){
+  const p=player; if(!p) return;
+  const hx=p.x+p.w/2-camX, hy=p.y+p.h;
+  if(p.hurtT>0 && Math.floor(p.hurtT*14)%2===0) return; // 受伤闪烁
+  ctx.save(); ctx.translate(hx,hy);
+  if(p.face<0) ctx.scale(-1,1);
+  const isN=heroSel==='nz';
+  const body=isN?'#ff6a6a':'#ffd34d';
+  const legSwing= p.onGround? Math.sin(p.anim*10)*3 : 4;
+  // 脚
+  ctx.fillStyle='#3a4a8a';
+  ctx.fillRect(-14,legSwing-2,8,16-legSwing);
+  ctx.fillRect(6,-legSwing-2,8,16+legSwing);
+  // 身体
+  ctx.fillStyle=body; ctx.beginPath(); ctx.roundRect(-15,-56,30,40,8); ctx.fill();
+  ctx.fillStyle='rgba(255,255,255,.3)'; ctx.fillRect(-12,-52,8,30);
+  // 尾巴/披风
+  if(isN){ ctx.fillStyle='#e8443a'; ctx.beginPath(); ctx.moveTo(15,-40); ctx.lineTo(34,-28); ctx.lineTo(15,-16); ctx.closePath(); ctx.fill(); }
+  else { ctx.fillStyle='#d33'; ctx.fillRect(6,-74,4,40); }
+  // 头
+  ctx.fillStyle='#ffd9b3'; ctx.beginPath(); ctx.arc(0,-64,13,0,7); ctx.fill();
+  // 眼
+  ctx.fillStyle='#333'; ctx.beginPath(); ctx.arc(5,-66,2.6,0,7); ctx.fill();
+  // 头发/紧箍
+  if(isN){
+    ctx.fillStyle='#e8443a'; ctx.beginPath(); ctx.arc(0,-80,7,0,7); ctx.fill();
+    ctx.strokeStyle='#ff5f7a'; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(-7,-80); ctx.quadraticCurveTo(-14,-86,-18,-80); ctx.stroke();
+  } else {
+    ctx.strokeStyle='#e0a020'; ctx.lineWidth=3.4; ctx.beginPath(); ctx.arc(0,-65,14,2.4,4.2); ctx.stroke();
+  }
+  ctx.restore();
+}
+function drawParts(){
+  parts.forEach(pr=>{
+    const x=pr.x-camX;
+    ctx.globalAlpha=Math.min(1,pr.life*2);
+    ctx.fillStyle=pr.col; ctx.beginPath(); ctx.arc(x,pr.y,4,0,7); ctx.fill();
+  });
+  ctx.globalAlpha=1;
+  floats.forEach(f=>{
+    if(f.t<=0) return;
+    ctx.globalAlpha=Math.min(1,f.t*2);
+    ctx.font='bold 17px sans-serif'; ctx.textAlign='center';
+    ctx.fillStyle='rgba(0,0,0,.35)'; ctx.fillText(f.txt,f.x+1.2,f.y+1.2);
+    ctx.fillStyle=f.col; ctx.fillText(f.txt,f.x,f.y);
+  });
+  ctx.globalAlpha=1;
+}
+
+/* ==================== 主循环 ==================== */
+function frame(ts){
+  requestAnimationFrame(frame);
+  if(!lastT) lastT=ts;
+  const dt=Math.min(.033,(ts-lastT)/1000); lastT=ts;
+  if(!world){ if(state==='menu') drawLogo(); return; }
+  // 特效总是在动
+  parts.forEach(pr=>{ pr.life-=dt; pr.x+=pr.vx*dt; pr.y+=pr.vy*dt; pr.vy+=700*dt; });
+  parts=parts.filter(pr=>pr.life>0);
+  floats.forEach(f=>{ f.t-=dt; f.y-=34*dt; });
+  floats=floats.filter(f=>f.t>0);
+  if(player){ player.anim+=dt; if(player.hurtT>0) player.hurtT-=dt; }
+  if(state==='play'&&!lockInput&&running){
+    stepPlayer(dt);
+    // 敌人动
+    world.enemies.forEach(e=>{
+      if(!e.alive) return;
+      if(e.kind===2){ e.t+=dt; e.x=e.baseX+Math.sin(e.t*1.3)*130; }
+      else { e.t+=dt; const dir=e.baseX>camX+ (e.x>=e.baseX)?1:-1;
+        e.x+=e.speed*dir*dt;
+        if(Math.abs(e.x-e.baseX)>150) e.speed*=-1;
+      }
+    });
+    touchEnemy();
+    touchItems();
+    // 门检测：撞到未开的门 → 答题
+    const p=player;
+    for(const g of world.gates){
+      if(g.open) continue;
+      if(p.x+p.w>=g.x-4 && p.x<=g.x+26 && state==='play'&&!lockInput){
+        startQuest('gate', g); break;
+      }
+    }
+    if(!lockInput && state==='play'){
+      const bx=world.L.boss;
+      if(p.x+p.w>=bx-10) startBoss();
+    }
+  }
+  if(state==='play'&&doubleT>0){ doubleT-=dt; if(doubleT<=0){ doubleT=0; updateChips(); } }
+  drawScene();
+}
+function drawLogo(){
+  ctx.clearRect(0,0,cw,ch);
+  const g=ctx.createLinearGradient(0,0,0,ch);
+  g.addColorStop(0,'#87c7f0'); g.addColorStop(1,'#d9f3c8');
+  ctx.fillStyle=g; ctx.fillRect(0,0,cw,ch);
+  ctx.fillStyle='rgba(90,70,140,.85)';
+  ctx.textAlign='center';
+  ctx.font='900 '+Math.min(42,ch*.12)+'px "PingFang SC",sans-serif';
+  ctx.fillText('🐒 汉字勇士大闯关',cw/2,ch*.42);
+  ctx.font='700 '+Math.min(20,ch*.06)+'px "PingFang SC",sans-serif';
+  ctx.fillText('识字 · 拼词 · 拼音 · 冒险',cw/2,ch*.55);
+}
+
+/* ==================== 输入 ==================== */
+document.addEventListener('keydown',e=>{
+  const k=e.key;
+  if(k==='ArrowLeft'||k==='a'||k==='A') KEYS.left=true;
+  else if(k==='ArrowRight'||k==='d'||k==='D') KEYS.right=true;
+  else if(k==='ArrowUp'||k==='w'||k==='W'||k===' ') KEYS.up=true;
+  else if(k==='1'&&state==='quest') answerQ(0);
+  else if(k==='2'&&state==='quest') answerQ(1);
+  else if(k==='3'&&state==='quest') answerQ(2);
+  if(['ArrowLeft','ArrowRight','ArrowUp',' '].includes(k)) e.preventDefault();
+});
+document.addEventListener('keyup',e=>{
+  const k=e.key;
+  if(k==='ArrowLeft'||k==='a'||k==='A') KEYS.left=false;
+  else if(k==='ArrowRight'||k==='d'||k==='D') KEYS.right=false;
+  else if(k==='ArrowUp'||k==='w'||k==='W'||k===' ') KEYS.up=false;
+});
+function bindTouch(id,key){
+  const el=$(id);
+  const dn=ev=>{ KEYS[key]=true; ev.preventDefault(); };
+  const up=()=>{ KEYS[key]=false; };
+  el.addEventListener('pointerdown',dn);
+  el.addEventListener('pointerup',up);
+  el.addEventListener('pointercancel',up);
+  el.addEventListener('pointerleave',up);
+}
+bindTouch('btnL','left'); bindTouch('btnR','right'); bindTouch('touchJump','up');
+
+/* ==================== 菜单/流程 ==================== */
+function heroMini(who){
+  const s=who==='wk'?
+    '<svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="15" fill="#ffd9b3"/><path d="M6 26a15 15 0 0 1 28 0z" fill="#ffd34d"/><circle cx="15" cy="18" r="2.6" fill="#333"/><circle cx="25" cy="18" r="2.6" fill="#333"/><path d="M15 27q5 4 10 0" stroke="#c96a55" stroke-width="2" fill="none"/><path d="M20 26l5-2v4z" fill="#333"/></svg>':
+    '<svg viewBox="0 0 40 40"><circle cx="20" cy="22" r="13" fill="#ffd9b3"/><circle cx="15" cy="20" r="2.6" fill="#333"/><circle cx="25" cy="20" r="2.6" fill="#333"/><path d="M15 28q5 4 10 0" stroke="#c96a55" stroke-width="2" fill="none"/><path d="M6 26a14 14 0 0 0 28 0z" fill="#ff6a6a"/><circle cx="20" cy="4" r="4" fill="#ffd9b3"/><path d="M15 5q5-6 10 0" stroke="#ff5f7a" stroke-width="2" fill="none"/><rect x="8" y="26" width="24" height="6" rx="3" fill="#e8443a" transform="rotate(-8 20 29)"/></svg>';
+  return '<div style="width:60px;height:60px;margin:auto">'+s+'</div>';
+}
+function renderHeroList(){
+  const hl=$('heroList'); hl.innerHTML='';
+  const list=[['wk','悟空','汉字勇士'],['nz','哪吒', skinUnlock?'已解锁':'需5🧩']];
+  list.forEach(o=>{
+    const b=document.createElement('button');
+    b.className='herobtn'+(heroSel===o[0]?' cur':'')+(o[1]==='哪吒'&&!skinUnlock?' lock':'');
+    b.innerHTML=heroMini(o[0])+'<b>'+o[1]+'</b><span>'+o[2]+'</span>';
+    b.onclick=()=>{ if(o[0]==='nz'&&!skinUnlock){ toast('集齐 5 个🧩碎片解锁哪吒！'); return; } heroSel=o[0]; renderHeroList(); };
+    hl.appendChild(b);
+  });
+}
+function startRun(){
+  showOv('menuOv',false);
+  level=0; hearts=3; coins=0; frags=0; hintCards=0; hasShield=false; doubleT=0;
+  updateChips();
+  beginLevel();
+}
+function beginLevel(){
+  world=buildWorld(level);
+  player={x:60,y:GY-80,w:40,h:56,vx:0,vy:0,onGround:false,face:1,anim:0,hurtT:0};
+  camX=0; lockInput=false; running=true; boss=null; curQ=null;
+  $('bossBar').style.display='none';
+  showOv('overOv',false); showOv('clearOv',false); showOv('qOv',false); showOv('winOv',false);
+  state='play'; lastT=0;
+  renderHUD();
+  toast('📕 '+LEVELS[level].name+'！'+'答对题开门打怪，收齐🧩碎片！');
+  if(level===0) setTimeout(()=>{ if(state==='play') toast('← → 移动，⬆ 跳，碰到小怪答题'); },1400);
+}
+function levelNext(){
+  showOv('clearOv',false);
+  if(level<2){ level++; hearts=3; renderHUD(); beginLevel(); }
+  else { finishGame(); }
+}
+function finishGame(){
+  state='win'; running=false;
+  $('winInfo').textContent='你打败了三位大王，真勇敢！';
+  $('winFrag').textContent='🧩 碎片 '+frags+' /15'+(frags>=5?'（🎉 哪吒已解锁！）':'（集齐5🧩解锁哪吒）');
+  if(frags>=5){ skinUnlock=true; store('hzUnlock','1'); }
+  S.win();
+  showOv('winOv',true);
+}
+function retryLevel(){ showOv('overOv',false); hearts=3; renderHUD(); beginLevel(); }
+
+/* ==================== 初始化 ==================== */
+function init(){
+  renderHeroList();
+  try{ voiceOn=load('hzVoice','1')==='1'; $('voiceBtn').textContent=voiceOn?'🔊读题':'🔇读题'; }catch(e){}
+  $('sndBtn').onclick=toggleSnd;
+  $('voiceBtn').onclick=toggleVoice;
+  $('backBtn').onclick=goLobby;
+  $('backBtn2').onclick=goLobby;
+  $('startBtn').onclick=startRun;
+  $('retryBtn').onclick=retryLevel;
+  $('againBtn').onclick=()=>{ showOv('winOv',false); startRun(); };
+  $('winBack').onclick=goLobby;
+  $('overBack').onclick=goLobby;
+  $('clearBack').onclick=goLobby;
+  $('nextBtn').onclick=levelNext;
+  $('qHint').onclick=()=>{
+    if(!curQ||hintCards<=0||state!=='quest') return;
+    hintCards--; updateChips();
+    const bads=[0,1,2].filter(i=>i!==curQ.ans);
+    const rm=bads[rnd(bads.length)];
+    const kids=$('qOpts').children;
+    kids[rm].disabled=true; kids[rm].style.opacity=.25;
+    $('qHint').disabled=hintCards<=0; $('qHint').textContent='💡 提示×'+hintCards;
+    S.open();
+  };
+  $('qVoice').onclick=()=>{ if(curQ) speak(curQ.say||curQ.big); };
+  $('chipHint').onclick=()=>{ if(hintCards>0) toast('💡 答题时按“提示”按钮使用'); };
+  $('chipShield').onclick=()=>{ toast(hasShield?'🛡 护盾已就位':'🛡 暂无护盾，去小卖部买一个'); };
+  $('chipDouble').onclick=()=>{ if(coins>=2&&doubleT<=0){ coins-=2; doubleT=10; S.buy(); renderHUD(); updateChips(); toast('💰 10秒双倍金币！'); } else if(doubleT>0) toast('已经生效中'); else toast('金币不够(需2)'); };
+  // 测试钩子
+  if(window.__TEST__){
+    window.__T={startRun,beginLevel,answerQ,startQuest,toQ,buildWorld,getState:()=>({state,world,player,hearts,coins,frags,hintCards,hasShield,boss,level}),
+      key:(k,v)=>{KEYS[k]=v;}, goRight:()=>{KEYS.right=true;KEYS.left=false;}, stop:()=>{KEYS.right=false;KEYS.left=false;KEYS.up=false;}, jump:()=>KEYS.up=true, jumpOff:()=>KEYS.up=false,
+      answer:(i)=>answerQ(i), curQ:()=>curQ, move:()=>stepPlayer(1/60), step:()=>frame2(1/60), resize, levelClear, finishGame};
+    // 供测试逐帧
+    window.__T.frame=()=>{ const dt=1/60; if(state==='play'&&!lockInput&&running){ stepPlayer(dt); } };
+  }
+  resize();
+  requestAnimationFrame(frame);
+}
+function frame2(dt){ if(state==='play'&&!lockInput&&running){ stepPlayer(dt); } }
+
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', init);
+else init();
+})();
+</script>
+</body>
+</html>
