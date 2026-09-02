@@ -285,7 +285,7 @@ function renderPlayers(){
     `<div class="pcard${i===turnIdx&&!over?' cur':''}${p.bankrupt?' dead':''}">
       ${p.rest&&!p.bankrupt?'<span class="zzz">😴</span>':''}
       <div class="av">${p.ic}</div><div class="pn">${p.name}${p.ai?' 🤖':''}</div>
-      <div class="st"><span class="c">🪙${p.coins}</span> <span class="s">⭐${p.stars}</span></div>
+      <div class="st"><span class="c">💰${p.coins}</span> <span class="s">⭐${p.stars}</span></div>
     </div>`).join('');
 }
 function log(m){$('log').innerHTML=m}
@@ -308,7 +308,7 @@ function info(html,ms=1400){$('dlg').innerHTML=html;$('mask').classList.add('sho
 
 /* ================= 金币星星 ================= */
 function gain(p,c,s){
-  if(c){p.coins+=c;fly('+'+c+'🪙');sCoin()}
+  if(c){p.coins+=c;fly('+'+c+'💰');sCoin()}
   if(s){p.stars+=s;fly('+'+s+'⭐');sStar()}
   renderPlayers();renderBoard();
 }
@@ -318,7 +318,7 @@ async function pay(payer,amount,receiver){
   while(payer.coins<amount&&payer.stars>0){
     let use=true;
     if(!payer.ai){
-      use=await waitDlg(`<div class="dic">🪙</div><div class="dt">金币不够啦！</div>
+      use=await waitDlg(`<div class="dic">💰</div><div class="dt">金币不够啦！</div>
         <div class="db">${payer.name} 要付 ${amount} 金币，现在只有 ${payer.coins} 个。<br>用 1 颗星星换 3 个金币吗？<br>（现在有 ${payer.stars} 颗星星）</div>`,
         [{t:'⭐ 换金币',c:'b-up',v:true},{t:'不用了',c:'b-no',v:false}]);
     }
@@ -328,7 +328,7 @@ async function pay(payer,amount,receiver){
   const real=Math.min(payer.coins,amount);
   payer.coins-=real;
   if(receiver)receiver.coins+=real;
-  if(real>0)fly('-'+real+'🪙');
+  if(real>0)fly('-'+real+'💰');
   sBad();renderPlayers();renderBoard();
   return payer.coins>=0&&payer.coins+real>=amount;
 }
@@ -347,7 +347,7 @@ async function slide(p,step,trigger=false,skipStartBonus=false){
   let dir=step>0?1:-1,left=Math.abs(step);
   while(left-->0){
     p.pos=(p.pos+dir+24)%24;
-    if(dir>0&&p.pos===0&&!skipStartBonus){p.coins+=2;fly('+2🪙');sCoin();renderPlayers();}
+    if(dir>0&&p.pos===0&&!skipStartBonus){p.coins+=2;fly('+2💰');sCoin();renderPlayers();}
     renderTokens(players.indexOf(p));beep(500,.04);
     await sleep(200);
   }
@@ -355,7 +355,7 @@ async function slide(p,step,trigger=false,skipStartBonus=false){
 }
 async function rollMove(p,dice,skipStart=false){
   $('dice').textContent='🎲';$('dice').classList.add('shake');sDice();
-  for(let i=0;i<8;i++){$('dice').textContent='⚀⚁⚂⚃⚄⚅'[rnd(6)];await sleep(90)}
+  for(let i=0;i<8;i++){$('dice').textContent=1+rnd(6);await sleep(90)}
   $('dice').classList.remove('shake');$('dice').textContent=dice;
   await slide(p,dice,true,skipStart);
   return p.pos;
@@ -417,11 +417,11 @@ async function resolveCell(p){
   if(b.t==='bridge'){
     const d=1+rnd(6);
     $('dice').textContent=d;sDice();await sleep(600);
-    if(d%2===0){log(p.name+' 幸运桥掷出 '+d+'（偶数）+2🪙！');gain(p,2,0)}
+    if(d%2===0){log(p.name+' 幸运桥掷出 '+d+'（偶数）+2💰！');gain(p,2,0)}
     else{log(p.name+' 幸运桥掷出 '+d+'（奇数）+1⭐！');gain(p,0,1)}
     return;
   }
-  if(b.t==='start'){log(p.name+' 停在起点广场，+2🪙！');gain(p,2,0);return}
+  if(b.t==='start'){log(p.name+' 停在起点广场，+2💰！');gain(p,2,0);return}
 }
 async function resolveProp(p,g){
   const b=BOARD[g],v=props[g],me=players.indexOf(p);
@@ -431,10 +431,10 @@ async function resolveProp(p,g){
       else log(p.name+' 金币不够，没买 '+b.n);
     }else{
       const buy=await waitDlg(`<div class="dic">${b.ic}</div><div class="dt">${b.n} 要卖啦！</div>
-        <div class="db">价格：<b>💰${b.p}</b>　基础租金：💰${b.r}<br>升级后租金：💰${b.r2}<br><br>你有 🪙${p.coins}，要买吗？</div>`,
+        <div class="db">价格：<b>💰${b.p}</b>　基础租金：💰${b.r}<br>升级后租金：💰${b.r2}<br><br>你有 💰${p.coins}，要买吗？</div>`,
         [{t:`💰 买下它`,c:'b-buy',v:true},{t:'先不买',c:'b-no',v:false}]);
       if(buy){
-        if(p.coins<b.p){await info(`<div class="dic">🪙</div><div class="dt">金币不够呀！</div>`,1200);return}
+        if(p.coins<b.p){await info(`<div class="dic">💰</div><div class="dt">金币不够呀！</div>`,1200);return}
         p.coins-=b.p;v.o=me;sCoin();renderBoard();renderPlayers();
         log(p.name+' 买下了 '+b.n+'！');
         await info(`<div class="dic">🎉${b.ic}</div><div class="dt">恭喜买下 ${b.n}！</div><div class="db">以后别人踩到这里，要付你租金哦～</div>`,1500);
@@ -448,10 +448,10 @@ async function resolveProp(p,g){
       if(p.coins>=b.u+3){p.coins-=b.u;v.lv=1;sCoin();renderBoard();renderPlayers();log(p.name+' 把 '+b.n+' 升级了！');}
     }else{
       const up=await waitDlg(`<div class="dic">${b.ic}🏠</div><div class="dt">升级 ${b.n}？</div>
-        <div class="db">升级费：<b>💰${b.u}</b><br>租金 💰${b.r} → <b>💰${b.r2}</b><br><br>你有 🪙${p.coins}</div>`,
+        <div class="db">升级费：<b>💰${b.u}</b><br>租金 💰${b.r} → <b>💰${b.r2}</b><br><br>你有 💰${p.coins}</div>`,
         [{t:`🏠 升级`,c:'b-up',v:true},{t:'不升了',c:'b-no',v:false}]);
       if(up&&p.coins>=b.u){p.coins-=b.u;v.lv=1;sCoin();renderBoard();renderPlayers();log(p.name+' 把 '+b.n+' 升级了！租金变 💰'+b.r2)}
-      else if(up){await info(`<div class="dic">🪙</div><div class="dt">金币不够呀！</div>`,1200)}
+      else if(up){await info(`<div class="dic">💰</div><div class="dt">金币不够呀！</div>`,1200)}
     }
     return;
   }
@@ -476,8 +476,8 @@ async function chooseWolf(p){
   const canCoin=p.coins>=2,canStar=p.stars>=1;
   if(p.ai||( !canCoin&&!canStar)){if(canCoin)p.coins-=2;else if(canStar)p.stars--;sBad();renderPlayers();return}
   const c=await waitDlg(`<div class="dic">🐺</div><div class="dt">遇到大灰狼！</div>
-    <div class="db">给它 2 金币，还是给它 1 颗星星？<br>你有 🪙${p.coins}　⭐${p.stars}</div>`,
-    [{t:'🪙 给2金币',c:'b-buy',v:'c',},{t:'⭐ 给1星星',c:'b-up',v:'s'}]);
+    <div class="db">给它 2 金币，还是给它 1 颗星星？<br>你有 💰${p.coins}　⭐${p.stars}</div>`,
+    [{t:'💰 给2金币',c:'b-buy',v:'c',},{t:'⭐ 给1星星',c:'b-up',v:'s'}]);
   if(c==='c'&&canCoin)p.coins-=2;else if(c==='s'&&canStar)p.stars--;else if(canCoin)p.coins-=2;
   sBad();renderPlayers();
 }
@@ -488,7 +488,7 @@ async function winGame(p){
   over=true;$('rollBtn').disabled=true;
   sWin();confetti();
   await info(`<div class="dic">🏆${p.ic}</div><div class="dt">${p.name} 赢啦！</div>
-    <div class="db">集满了 10 颗快乐星星！<br>🪙 ${p.coins}　⭐ ${p.stars}<br><br>大家给冠军鼓掌～👏</div>`,1e9);
+    <div class="db">集满了 10 颗快乐星星！<br>💰 ${p.coins}　⭐ ${p.stars}<br><br>大家给冠军鼓掌～👏</div>`,1e9);
 }
 function checkTimeUp(){
   if(over)return false;
@@ -498,7 +498,7 @@ function checkTimeUp(){
   const w=alive[0];
   sWin();confetti();
   info(`<div class="dic">⏰🏆</div><div class="dt">时间到！${w?w.name+' 赢啦！':''}</div>
-    <div class="db">${alive.map(p=>`${p.ic}${p.name}：⭐${p.stars} 🪙${p.coins}`).join('<br>')}<br><br>下次再一起玩～</div>`,1e9);
+    <div class="db">${alive.map(p=>`${p.ic}${p.name}：⭐${p.stars} 💰${p.coins}`).join('<br>')}<br><br>下次再一起玩～</div>`,1e9);
   return true;
 }
 function confetti(){
