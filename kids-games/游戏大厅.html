@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>宝宝的游戏盒子</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    font-family: "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB", sans-serif;
+    background: linear-gradient(170deg, #a8e6ff 0%, #c9b6ff 55%, #ffc3d8 100%);
+    background-attachment: fixed; overflow: hidden; user-select: none;
+  }
+  #app { display: flex; flex-direction: column; height: 100%; padding: 10px 12px 12px; gap: 10px; }
+
+  /* ---------- 顶栏 ---------- */
+  .bar { flex: none; display: flex; align-items: center; gap: 10px; min-height: 44px; }
+  .bar .title {
+    font-size: 20px; font-weight: 900; color: #fff;
+    text-shadow: 0 3px 0 rgba(120,90,180,.45); white-space: nowrap;
+  }
+  .homebtn {
+    flex: none; border: none; cursor: pointer; display: none;
+    background: #fff; color: #5b4b8a; font-size: 14px; font-weight: 900;
+    border-radius: 12px; padding: 8px 13px; box-shadow: 0 3px 0 rgba(120,90,180,.25);
+  }
+  .homebtn:active { transform: translateY(2px); box-shadow: none; }
+  .bar.showback .homebtn { display: block; }
+  .bar.showback .title { font-size: 16px; }
+  .quick { margin-left: auto; display: none; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+  .bar.showback .quick { display: flex; }
+  .quick::-webkit-scrollbar { display: none; }
+  .chip {
+    border: none; cursor: pointer; background: rgba(255,255,255,.75); color: #5b4b8a;
+    font-size: 13px; font-weight: 800; border-radius: 11px; padding: 7px 11px;
+    box-shadow: 0 2px 0 rgba(120,90,180,.2); white-space: nowrap; flex: none;
+  }
+  .chip:active { transform: translateY(2px); box-shadow: none; }
+  .chip.cur { background: #ffd34d; color: #fff; box-shadow: 0 2px 0 #e0a712; }
+
+  /* 切换按钮（图标/列表） */
+  .viewbtn {
+    flex: none; border: none; cursor: pointer; background: rgba(255,255,255,.85);
+    color: #5b4b8a; font-size: 13px; font-weight: 900; border-radius: 11px; padding: 7px 12px;
+    box-shadow: 0 2px 0 rgba(120,90,180,.2);
+  }
+  .viewbtn:active { transform: translateY(2px); box-shadow: none; }
+  body.playing .viewbtn { display: none; }
+
+  /* ---------- 舞台 ---------- */
+  .stage { flex: 1; min-height: 0; display: flex; }
+
+  /* ===== 图标网格模式（默认，整齐好选） ===== */
+  #home.grid {
+    flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch;
+    display: grid; align-content: start; gap: 12px; padding: 2px 2px 10px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    max-width: 640px; width: 100%; margin: 0 auto;
+  }
+  @media (min-width: 620px) {
+    #home.grid { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; max-width: 820px; }
+  }
+  @media (min-width: 980px) {
+    #home.grid { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 16px; max-width: 980px; align-content: center; }
+  }
+  @media (min-width: 1280px) {
+    #home.grid { grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 16px; max-width: 1240px; }
+  }
+  .tile .pic { width: 62%; }
+  .tile {
+    position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px;
+    background: #fffdf6; border: 4px solid #fff; border-radius: 22px; padding: 13px 6px 10px;
+    box-shadow: 0 8px 18px rgba(80,60,140,.2); cursor: pointer; font-family: inherit;
+    transition: transform .14s, box-shadow .14s; width: 100%;
+  }
+  .tile:hover { transform: translateY(-3px); box-shadow: 0 12px 24px rgba(80,60,140,.3); }
+  .tile:active { transform: translateY(1px); }
+  .tile .no {
+    position: absolute; top: 5px; left: 8px; font-size: 12px; font-weight: 900; color: #cbb8ec;
+  }
+  .tile .pic {
+    width: 66%; aspect-ratio: 1; border-radius: 18px;
+    display: flex; align-items: center; justify-content: center; flex: none;
+  }
+  .tile .pic svg { width: 70%; height: 70%; }
+  .tile .nm { font-size: 15px; font-weight: 900; color: #5b4b8a; white-space: nowrap; }
+
+  /* ===== 列表模式（家长看详细介绍） ===== */
+  #home.list {
+    flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch;
+    display: flex; flex-direction: column; gap: 12px; padding: 2px 2px 10px;
+    max-width: 760px; width: 100%; margin: 0 auto;
+  }
+  .card {
+    display: flex; align-items: center; gap: 15px; cursor: pointer;
+    background: #fffdf6; border: 5px solid #fff; border-radius: 24px; padding: 12px 16px;
+    box-shadow: 0 8px 20px rgba(80,60,140,.2); transition: .16s; text-align: left;
+    font-family: inherit; width: 100%;
+  }
+  .card:hover { transform: translateY(-3px); box-shadow: 0 12px 26px rgba(80,60,140,.3); }
+  .card:active { transform: translateY(2px); }
+  .card .no {
+    font-size: 15px; font-weight: 900; color: #cbb8ec; flex: none; width: 26px; text-align: center;
+  }
+  .card .pic {
+    width: 60px; height: 60px; flex: none; border-radius: 16px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .card .pic svg { width: 46px; height: 46px; }
+  .card .txt { flex: 1; min-width: 0; }
+  .card .t { font-size: 19px; font-weight: 900; color: #5b4b8a; margin-bottom: 3px; }
+  .card .d { font-size: 13.5px; color: #8a7ab0; font-weight: 700; line-height: 1.55; }
+  .card .meta { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+  .tag { font-size: 11.5px; font-weight: 800; border-radius: 9px; padding: 2px 8px; background: #ffefc9; color: #c98a10; }
+  .tag.time { background: #dff3e0; color: #4a9c55; }
+
+  /* 玩游戏的 iframe */
+  #frame {
+    flex: 1; min-height: 0; width: 100%; border: none; border-radius: 20px; display: none;
+    background: #fff; box-shadow: 0 10px 26px rgba(60,80,140,.28);
+  }
+  body.playing #home { display: none; }
+  body.playing #frame { display: block; }
+
+  /* ---------- 底部说明 ---------- */
+  .foot {
+    flex: none; text-align: center; font-size: 12.5px; font-weight: 700; color: #5b4b8a;
+    background: rgba(255,255,255,.55); border-radius: 14px; padding: 7px 12px; line-height: 1.7;
+  }
+  body.playing .foot { display: none; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="bar" id="bar">
+    <button class="homebtn" id="btnHome">← 换一个</button>
+    <div class="title" id="barTitle">宝宝的游戏盒子</div>
+    <div class="quick" id="quick"></div>
+    <button class="viewbtn" id="viewBtn">列表</button>
+  </div>
+
+  <div class="stage">
+    <section id="home"></section>
+    <iframe id="frame" title="游戏画面" allow="autoplay"></iframe>
+  </div>
+
+  <div class="foot">每天玩 1~2 个就停，别让孩子玩累 · 手机 / 平板 / 电脑都能打开</div>
+</div>
+
+<script>
+const GAMES = [
+  {
+    file: '1-数字动物大冒险.html', name: '数字动物大冒险', short: '动物数学', tag: '数学',
+    desc: '选一只小动物，陪你一起闯 6 关',
+    sub: '数数 · 影子配对 · 比多少 · 接龙 · 加减法',
+    time: '约 5 分钟', bg: '#fff0e0',
+    icon: '<svg viewBox="0 0 64 64"><circle cx="13" cy="17" r="9" fill="#3b3b3b"/><circle cx="51" cy="17" r="9" fill="#3b3b3b"/><circle cx="32" cy="34" r="26" fill="#fdfdfd"/><ellipse cx="21" cy="31" rx="9" ry="10.5" fill="#3b3b3b"/><ellipse cx="43" cy="31" rx="9" ry="10.5" fill="#3b3b3b"/><circle cx="21" cy="31" r="3.6" fill="#fff"/><circle cx="43" cy="31" r="3.6" fill="#fff"/><circle cx="21.6" cy="31" r="2" fill="#222"/><circle cx="43.6" cy="31" r="2" fill="#222"/><ellipse cx="32" cy="42" rx="5" ry="3.6" fill="#3b3b3b"/><path d="M26 48c4 3 8 3 12 0" stroke="#3b3b3b" stroke-width="2.2" fill="none" stroke-linecap="round"/></svg>'
+  },
+  {
+    file: '2-移车出库.html', name: '移车出库', short: '移车', tag: '动脑',
+    desc: '挪开别的车，把红色小车开出去',
+    sub: '简单 3~10 步 · 挑战 5~14 步，有提示',
+    time: '约 5 分钟', bg: '#ffe8e8',
+    icon: '<svg viewBox="0 0 64 64"><rect x="4" y="22" width="56" height="24" rx="9" fill="#ff5f5f"/><rect x="14" y="26" width="14" height="11" rx="3" fill="#fff" opacity=".85"/><rect x="33" y="26" width="14" height="11" rx="3" fill="#fff" opacity=".85"/><circle cx="12" cy="48" r="6" fill="#4a3b6b"/><circle cx="52" cy="48" r="6" fill="#4a3b6b"/><circle cx="12" cy="48" r="2.4" fill="#c9c2e0"/><circle cx="52" cy="48" r="2.4" fill="#c9c2e0"/><rect x="50" y="30" width="8" height="5" rx="2" fill="#fff6b0"/></svg>'
+  },
+  {
+    file: '3-歼20打怪兽.html', name: '歼20 打怪兽', short: '歼20', tag: '闯关',
+    desc: '开着歼-20 闯 3 关，打下大怪兽',
+    sub: '5 种子弹任选 · 每条命 100 颗炸弹',
+    time: '约 4 分钟', bg: '#e3f0ff',
+    icon: '<svg viewBox="0 0 64 64"><path d="M28 52 L36 52 L34 61 L30 61 Z" fill="#ffb43d" opacity=".85"/><path d="M27 30 L4 50 L27 47 Z" fill="#5b7fb5"/><path d="M37 30 L60 50 L37 47 Z" fill="#5b7fb5"/><path d="M27 24 L13 33 L27 32 Z" fill="#7d9ccb"/><path d="M37 24 L51 33 L37 32 Z" fill="#7d9ccb"/><path d="M25 43 L16 57 L26 54 Z" fill="#4a6a99"/><path d="M39 43 L48 57 L38 54 Z" fill="#4a6a99"/><path d="M32 3 L28 18 L25 34 L26 53 L38 53 L39 34 L36 18 Z" fill="#6d8fc4"/><path d="M32 3 L30 18 L32 53 L34 18 Z" fill="#93b0da" opacity=".65"/><ellipse cx="32" cy="16" rx="3" ry="5.5" fill="#2b3a5c"/><ellipse cx="27.5" cy="30" rx="2.2" ry="3.6" fill="#3f5a86"/><ellipse cx="36.5" cy="30" rx="2.2" ry="3.6" fill="#3f5a86"/></svg>'
+  },
+  {
+    file: '4-变得一样多.html', name: '变得一样多', short: '一样多', tag: '数学',
+    desc: '哪边比较少？补几个让它和另一边一样多',
+    sub: '数量比较 · 一一对应 · 天平演示',
+    time: '约 4 分钟', bg: '#fff6d0',
+    icon: '<svg viewBox="0 0 64 64"><path d="M32 58 L22 64 H42 Z" fill="#b9a7e0"/><rect x="30" y="16" width="4" height="42" rx="2" fill="#b9a7e0"/><circle cx="32" cy="16" r="4" fill="#8f7bc4"/><rect x="10" y="12" width="44" height="7" rx="3.5" fill="#8f7bc4"/><line x1="16" y1="19" x2="16" y2="32" stroke="#8f7bc4" stroke-width="2.5"/><line x1="48" y1="19" x2="48" y2="32" stroke="#8f7bc4" stroke-width="2.5"/><path d="M6 36 Q16 48 26 36 Z" fill="#c9b6ff" stroke="#8f7bc4" stroke-width="2"/><path d="M38 36 Q48 48 58 36 Z" fill="#c9b6ff" stroke="#8f7bc4" stroke-width="2"/><circle cx="12" cy="34" r="2.8" fill="#ff8fa3"/><circle cx="16" cy="38" r="2.8" fill="#8fd6ff"/><circle cx="20" cy="34" r="2.8" fill="#ffd34d"/><circle cx="42" cy="34" r="2.8" fill="#ff8fa3"/><circle cx="46" cy="38" r="2.8" fill="#8fd6ff"/><circle cx="50" cy="34" r="2.8" fill="#ffd34d"/><circle cx="44" cy="30" r="2.8" fill="#7ad46b"/></svg>'
+  },
+  {
+    file: '5-坡度飞车.html', name: '坡度飞车', short: '飞车', tag: '竞速',
+    desc: '选赛车、调坡度，一冲到底看能飞多远',
+    sub: '5 种赛车 · 坡度自选 · 太陡会翻车',
+    time: '约 3 分钟', bg: '#eaf5ff',
+    icon: '<svg viewBox="0 0 64 64"><path d="M6 50 L28 26 L56 26" stroke="#8f7bc4" stroke-width="5" stroke-linecap="round" fill="none"/><rect x="30" y="13" width="19" height="9" rx="4" fill="#ff5f5f"/><circle cx="35" cy="26" r="3.8" fill="#333"/><circle cx="45" cy="26" r="3.8" fill="#333"/><circle cx="35" cy="26" r="1.5" fill="#fff"/><circle cx="45" cy="26" r="1.5" fill="#fff"/><path d="M49 17 L53 13 M49 20 L55 18" stroke="#ff8fa3" stroke-width="2.4" stroke-linecap="round"/><path d="M6 54 H58" stroke="#8a6a3f" stroke-width="4" stroke-linecap="round"/><circle cx="12" cy="44" r="2.5" fill="#7ad46b"/><circle cx="20" cy="40" r="2.5" fill="#ffd34d"/></svg>'
+  },
+  {
+    file: '6-奥特曼打怪兽.html', name: '奥特曼打怪兽', short: '奥特曼', tag: '闯关',
+    desc: '前后走位用拳头打怪兽！喷火的躲远点',
+    sub: '出拳 · 光线 · 必杀 · 3 关打怪兽',
+    time: '约 4 分钟', bg: '#fff0e8',
+    icon: '<svg viewBox="0 0 64 64"><ellipse cx="32" cy="20" rx="13" ry="15" fill="#ececec"/><ellipse cx="32" cy="22" rx="10" ry="12" fill="#d8d8d8"/><path d="M20 17 L27 20 L20 26 Z" fill="#ff5f5f"/><path d="M44 17 L37 20 L44 26 Z" fill="#ff5f5f"/><ellipse cx="26" cy="21" rx="3.6" ry="6" fill="#ffd34d" transform="rotate(-16 26 21)"/><ellipse cx="38" cy="21" rx="3.6" ry="6" fill="#ffd34d" transform="rotate(16 38 21)"/><circle cx="26" cy="21" r="1.5" fill="#333"/><circle cx="38" cy="21" r="1.5" fill="#333"/><path d="M32 30 L29 36 L35 36 Z" fill="#ff5f5f"/><rect x="21" y="34" width="22" height="20" rx="6" fill="#ff5f5f"/><rect x="25" y="44" width="14" height="10" rx="3" fill="#5b8fd9"/><path d="M50 10 L56 14 L50 18 Z" fill="#ffd34d"/><path d="M56 12 L62 16 L56 20 Z" fill="#fff" opacity=".8"/></svg>'
+  },
+  {
+    file: '7-乒乓球对战.html', name: '乒乓球对战', short: '乒乓', tag: '运动',
+    desc: '拖球拍接球，和电脑对打！球会越变越快',
+    sub: '先赢 5 分获胜 · 球速越来越快',
+    time: '约 3 分钟', bg: '#e8f6e0',
+    icon: '<svg viewBox="0 0 64 64"><rect x="6" y="18" width="52" height="26" rx="4" fill="#4a9c55"/><rect x="6" y="30" width="52" height="3" fill="#fff" opacity=".9"/><rect x="30" y="18" width="4" height="26" fill="#fff" opacity=".5"/><circle cx="20" cy="40" r="11" fill="#ff8f7a"/><circle cx="20" cy="40" r="11" fill="none" stroke="#c96a55" stroke-width="1.6"/><rect x="17.6" y="49" width="5" height="7" rx="2.5" fill="#c96a55"/><circle cx="46" cy="22" r="6.5" fill="#fff" stroke="#e0a712" stroke-width="1.4"/><path d="M46 16.5 Q51 22 46 27.5" stroke="#e0a712" stroke-width="1.4" fill="none"/></svg>'
+  },
+  {
+    file: '8-警察抓小偷.html', name: '警察抓小偷', short: '抓小偷', tag: '追逐',
+    desc: '选警车追小偷！摩托车最快，坦克最稳',
+    sub: '坦克 · 警车 · 飞机 · 摩托车 · 追 6 个贼',
+    time: '约 4 分钟', bg: '#e3e8ff',
+    icon: '<svg viewBox="0 0 64 64"><rect x="6" y="22" width="52" height="20" rx="8" fill="#3b5fd9"/><rect x="6" y="22" width="52" height="9" rx="4.5" fill="#4a72ff"/><rect x="9" y="25" width="10" height="6" rx="2" fill="#ffd34d"/><rect x="45" y="25" width="10" height="6" rx="2" fill="#ffd34d"/><circle cx="18" cy="46" r="6.5" fill="#2b3a5c"/><circle cx="46" cy="46" r="6.5" fill="#2b3a5c"/><circle cx="18" cy="46" r="2.4" fill="#c9c2e0"/><circle cx="46" cy="46" r="2.4" fill="#c9c2e0"/><path d="M30 14 L33 7 L36 14 Z" fill="#ff5f5f"/><circle cx="33" cy="9" r="1.8" fill="#fff"/><path d="M33 15 c-5 4 -5 8 0 11 c5 -3 5 -7 0 -11 Z" fill="#8fd6ff"/></svg>'
+  },
+  {
+    file: '9-拼图游戏.html', name: '拼图游戏', short: '拼图', tag: '动脑',
+    desc: '选一张喜欢的画，把打乱的拼图块拼回去',
+    sub: '宝剑 · 日出 · 房子 · 猫咪 · 大象 · 花朵',
+    time: '约 5 分钟', bg: '#fff0f5',
+    icon: '<svg viewBox="0 0 64 64"><rect x="7" y="7" width="22" height="22" rx="5" fill="#ff8fa3"/><rect x="35" y="7" width="22" height="22" rx="5" fill="#8fd6ff"/><rect x="7" y="35" width="22" height="22" rx="5" fill="#ffd34d"/><rect x="35" y="35" width="22" height="22" rx="5" fill="#7ad46b"/><circle cx="18" cy="18" r="4.5" fill="#fff"/><circle cx="46" cy="18" r="4.5" fill="#fff" opacity=".75"/><circle cx="18" cy="46" r="4.5" fill="#fff" opacity=".75"/><circle cx="46" cy="46" r="4.5" fill="#fff"/></svg>'
+  },
+  {
+    file: '10-游泳游戏.html', name: '游泳游戏', short: '游泳', tag: '运动',
+    desc: '按住「加油」使劲游，和电脑比谁游得远！',
+    sub: '30 秒比赛 · 按住加速 · 比谁远',
+    time: '约 2 分钟', bg: '#e0f4ff',
+    icon: '<svg viewBox="0 0 64 64"><path d="M4 42 Q13 34 22 42 T40 42 T58 42 V58 H4 Z" fill="#5fb0ff"/><path d="M4 50 Q13 42 22 50 T40 50 T58 50" stroke="#a8e6ff" stroke-width="2.4" fill="none"/><circle cx="26" cy="18" r="5" fill="#ffd9b3"/><rect x="21" y="24" width="10" height="4" rx="2" fill="#ff5f7a"/><rect x="22.5" y="28" width="7" height="10" rx="3" fill="#5b8fd9"/><rect x="25.5" y="38" width="5" height="9" rx="2.5" fill="#5b8fd9"/><circle cx="28" cy="21.5" r="2" fill="#fff" opacity=".9"/><path d="M19 30 L10 27 M19 34 L10 33 M19 38 L10 39" stroke="#8fd6ff" stroke-width="3" stroke-linecap="round"/><path d="M40 44 Q44 40 48 44 T56 44" stroke="#fff" stroke-width="2.4" fill="none" opacity=".8"/></svg>'
+  },
+  {
+    file: '11-铁头功.html', name: '铁头功', short: '铁头功', tag: '认知',
+    desc: '软软的用头撞开，硬邦邦的赶紧躲开！',
+    sub: '13 种东西 · 撞错会哭，救护车来接 · 3 关',
+    time: '约 3 分钟', bg: '#eef4ff',
+    icon: '<svg viewBox="0 0 64 64"><ellipse cx="47" cy="42" rx="11" ry="14" fill="#fdfaf2" stroke="#e8e0cf" stroke-width="2"/><path d="M40 38 L44 43 L42 47 L47 44" stroke="#e8443a" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M56 32 L60 28 M57 53 L62 56 M36 54 L31 59" stroke="#ffd34d" stroke-width="2.6" stroke-linecap="round"/><circle cx="19" cy="36" r="15" fill="#ffe0bd"/><path d="M4 36 A15 16 0 0 1 34 36 Z" fill="#b9c2cc"/><rect x="1" y="34" width="36" height="7" rx="3.5" fill="#8d99a6"/><ellipse cx="11" cy="27" rx="3.2" ry="2.4" fill="#e3e9ef" transform="rotate(-20 11 27)"/><circle cx="13" cy="44" r="2.3" fill="#333"/><circle cx="25" cy="44" r="2.3" fill="#333"/><path d="M14 51 q5 4.5 10 0" stroke="#c62828" stroke-width="2.4" fill="none" stroke-linecap="round"/><circle cx="7" cy="47" r="2.6" fill="#ff8a5c" opacity=".55"/><circle cx="31" cy="47" r="2.6" fill="#ff8a5c" opacity=".55"/></svg>'
+  },
+  {
+    file: '12-射箭比赛.html', name: '射箭比赛', short: '射箭', tag: '竞技',
+    desc: '往后拉弓，松手射箭，十环最高分！',
+    sub: '每局 3 箭 · 第 3 箭双倍 · 5 个对手 · 打气球加分',
+    time: '约 4 分钟', bg: '#fff4e0',
+    icon: '<svg viewBox="0 0 64 64"><circle cx="45" cy="22" r="17" fill="#f5f5f5" stroke="#333" stroke-width="2"/><circle cx="45" cy="22" r="13.5" fill="#333"/><circle cx="45" cy="22" r="10" fill="#2b6fd8"/><circle cx="45" cy="22" r="6.5" fill="#e53935"/><circle cx="45" cy="22" r="3.2" fill="#ffca28"/><path d="M20 14 A22 22 0 0 1 20 56" stroke="#8d5524" stroke-width="4.5" fill="none" stroke-linecap="round"/><path d="M20 14 L20 56" stroke="#e0e0e0" stroke-width="1.8"/><path d="M20 34 L48 24" stroke="#8d5524" stroke-width="1.6" opacity=".55"/><path d="M44 24 L34 20 L34 28 Z" fill="#c62828"/><path d="M21 35 L10 33 M21 35 L10 37" stroke="#c62828" stroke-width="2" stroke-linecap="round"/><circle cx="9" cy="52" r="0" fill="none"/><path d="M8 46 q4 4 8 0" stroke="#8d5524" stroke-width="2" fill="none" stroke-linecap="round"/></svg>'
+  },
+  {
+    file: '13-迷宫大冒险.html', name: '迷宫大冒险', short: '迷宫', tag: '闯关',
+    desc: '小人走迷宫，从入口到出口！钥匙开门',
+    sub: '9 关 5×5→13×13 · 钥匙 · 怪兽 · 吃星星',
+    time: '约 5 分钟', bg: '#e4f5dd',
+    icon: '<svg viewBox="0 0 64 64"><rect x="6" y="6" width="52" height="52" rx="9" fill="#f2e3c2" stroke="#2f6b38" stroke-width="3"/><path d="M6 18 H22 M22 18 V34 M6 34 H16 M34 6 V18 M34 18 H52 M34 34 V52 M16 34 H34 M46 18 V30 M40 30 H52" stroke="#3f8f4a" stroke-width="4.5" stroke-linecap="round" fill="none"/><circle cx="11" cy="11" r="4" fill="#2f9e44" stroke="#1e6b2f" stroke-width="1.5"/><circle cx="11" cy="11" r="1.6" fill="#fff"/><path d="M52 40 L52 54 M52 40 L60 47 L52 53 Z" stroke="#8a4a2b" stroke-width="2" fill="none"/><path d="M52 40 L60 47 L52 53 Z" fill="#e53935"/><circle cx="28" cy="26" r="2" fill="#ffca28"/><circle cx="40" cy="40" r="2" fill="#ffca28"/></svg>'
+  },
+  {
+    file: '14-颜色配对.html', name: '颜色配对', short: '配对', tag: '认知',
+    desc: '把颜色和形状都一样的图案连起来！',
+    sub: '8 关 · 3对起步 · 同色不同形 · 相似色陷阱',
+    time: '约 4 分钟', bg: '#eee5ff',
+    icon: '<svg viewBox="0 0 64 64"><circle cx="14" cy="13" r="7.5" fill="#e53935"/><circle cx="14" cy="32" r="7.5" fill="#ffca28"/><circle cx="14" cy="51" r="7.5" fill="#3a7bd5"/><circle cx="50" cy="13" r="7.5" fill="#43a047"/><circle cx="50" cy="32" r="7.5" fill="#9b6bd6"/><circle cx="50" cy="51" r="7.5" fill="#ff8f3c"/><path d="M21 13 Q32 2 43 13" stroke="#3a7bd5" stroke-width="3" fill="none" stroke-linecap="round"/><path d="M21 32 Q32 21 43 32" stroke="#9b6bd6" stroke-width="3" fill="none" stroke-linecap="round"/><path d="M21 51 Q32 62 43 51" stroke="#ff8f3c" stroke-width="3" fill="none" stroke-linecap="round"/></svg>'
+  },
+  {
+    file: '15-消防车救火.html', name: '消防车救火', short: '消防车', tag: '闯关',
+    desc: '拖消防车到火下按住喷水，救房子救人！',
+    sub: '5 关倒计时 · 升级水枪水炮大水管 · 救护车',
+    time: '约 5 分钟', bg: '#ffe8dd',
+    icon: '<svg viewBox="0 0 64 64"><rect x="10" y="30" width="36" height="14" rx="5" fill="#e53935"/><rect x="36" y="20" width="16" height="12" rx="4" fill="#ff6a5a"/><rect x="41" y="22" width="8" height="6" rx="2" fill="#bfe8ff"/><circle cx="18" cy="46" r="5.5" fill="#333"/><circle cx="40" cy="46" r="5.5" fill="#333"/><circle cx="18" cy="46" r="2" fill="#999"/><circle cx="40" cy="46" r="2" fill="#999"/><path d="M26 20 Q26 6 40 8 Q50 9 50 16 Q44 14 40 15 Q34 16 32 20 Z" fill="#ffca28"/><path d="M33 12 L25 5 L27 12 Z" fill="#ff8a2a"/><path d="M35 11 L29 2 L31 11 Z" fill="#ff5f2a"/><rect x="10" y="18" width="6" height="12" fill="#b8321e"/><path d="M8 22 L3 18 M8 26 L3 24 M8 30 L3 30" stroke="#3a7bd5" stroke-width="2.6" stroke-linecap="round"/></svg>'
+  },
+  {
+    file: '16-划龙舟.html', name: '划龙舟', short: '龙舟', tag: '竞速',
+    desc: '10 个队员一起划！点得越快划得越快',
+    sub: '5 场排位赛 · 对手越来越快 · 冲刺',
+    time: '约 4 分钟', bg: '#e0f0ff',
+    icon: '<svg viewBox="0 0 64 64"><path d="M6 34 Q14 20 32 20 Q50 20 58 34 Q50 44 32 44 Q14 44 6 34 Z" fill="#e53935"/><path d="M6 34 L2 26 L2 42 Z" fill="#ff8a4a"/><path d="M32 20 L32 12 L40 14 L32 16 L26 14 Z" fill="#ffd34d"/><circle cx="10" cy="34" r="1.6" fill="#fff"/><circle cx="14" cy="34" r="1.6" fill="#fff" opacity=".7"/><circle cx="18" cy="34" r="1.6" fill="#fff" opacity=".5"/><circle cx="52" cy="34" r="1.6" fill="#fff"/><circle cx="48" cy="34" r="1.6" fill="#fff" opacity=".7"/><circle cx="44" cy="34" r="1.6" fill="#fff" opacity=".5"/><circle cx="24" cy="30" r="3" fill="#ffe0bd"/><circle cx="38" cy="30" r="3" fill="#ffe0bd"/><path d="M8 44 Q16 50 24 44 M36 44 Q44 50 52 44" stroke="#4a9ad8" stroke-width="2.4" fill="none" stroke-linecap="round"/></svg>'
+  }
+];
+
+const $ = id => document.getElementById(id);
+let cur = -1;
+let viewMode = localStorage.getItem('viewMode') || 'grid';
+
+// ===== 两种视图：图标网格（默认） / 列表（家长看详情） =====
+function renderHome() {
+  $('home').className = viewMode;
+  if (viewMode === 'grid') {
+    $('home').innerHTML = GAMES.map((g, i) =>
+      '<button class="tile" data-i="' + i + '">' +
+        '<span class="no">' + (i + 1) + '</span>' +
+        '<span class="pic" style="background:' + g.bg + '">' + g.icon + '</span>' +
+        '<span class="nm">' + g.short + '</span>' +
+      '</button>'
+    ).join('');
+  } else {
+    $('home').innerHTML = GAMES.map((g, i) =>
+      '<button class="card" data-i="' + i + '">' +
+        '<span class="no">' + (i + 1) + '</span>' +
+        '<div class="pic" style="background:' + g.bg + '">' + g.icon + '</div>' +
+        '<div class="txt">' +
+          '<div class="t">' + g.name + '</div>' +
+          '<div class="d">' + g.desc + '<br>' + g.sub + '</div>' +
+          '<div class="meta"><span class="tag">' + g.tag + '</span><span class="tag time">' + g.time + '</span></div>' +
+        '</div>' +
+      '</button>'
+    ).join('');
+  }
+}
+$('viewBtn').onclick = function () {
+  viewMode = viewMode === 'grid' ? 'list' : 'grid';
+  localStorage.setItem('viewMode', viewMode);
+  this.textContent = viewMode === 'grid' ? '列表' : '图标';
+  renderHome();
+};
+$('viewBtn').textContent = viewMode === 'grid' ? '列表' : '图标';
+
+// 快速切换小标签
+$('quick').innerHTML = GAMES.map((g, i) =>
+  '<button class="chip" data-i="' + i + '">' + g.short + '</button>'
+).join('');
+
+function play(i) {
+  if (i === cur) return;
+  cur = i;
+  const g = GAMES[i];
+  document.body.classList.add('playing');
+  $('bar').classList.add('showback');
+  $('barTitle').textContent = g.name;
+  [...$('quick').children].forEach((c, k) => c.className = 'chip' + (k === i ? ' cur' : ''));
+  const f = $('frame');
+  f.src = 'about:blank';                 // 先清空，保证换游戏时旧的定时器全部销毁
+  setTimeout(() => { f.src = encodeURI(g.file); }, 30);
+}
+function goHome() {
+  cur = -1;
+  document.body.classList.remove('playing');
+  $('bar').classList.remove('showback');
+  $('barTitle').textContent = '宝宝的游戏盒子';
+  const f = $('frame');
+  f.src = 'about:blank';
+}
+$('home').addEventListener('click', e => {
+  const b = e.target.closest('.tile, .card');
+  if (b) play(+b.dataset.i);
+});
+$('quick').addEventListener('click', e => {
+  const b = e.target.closest('.chip');
+  if (b) play(+b.dataset.i);
+});
+$('btnHome').onclick = goHome;
+renderHome();
+
+// 地址栏带 #2 可直接进第二个游戏
+const m = /^#(\d+)$/.exec(location.hash);
+if (m && GAMES[+m[1]]) play(+m[1]);
+</script>
+</body>
+</html>
