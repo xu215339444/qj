@@ -243,7 +243,7 @@ function startLevel(i,fromShop){
   (L.chest||[]).forEach(([x,y])=>pickups.push({t:'chest',x,y,w:30,h:26,vy:0}));
   playPeach=0;startTime=frame;cam=0;shopUsed={};
   $('pads').classList.add('show');
-  log(' '+L.name+' 出发！🍑×'+(10-P.peach%10)+' 升级');
+  floatTxt(P.x+120,P.y-60,' '+L.name+' 出发！','#43a047');
 }
 function mkEnemy(t,x,y){
   const d=ENEMY_DEF[t];
