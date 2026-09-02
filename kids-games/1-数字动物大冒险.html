@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>数字动物大冒险 · 4~5岁数学闯关</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    font-family: "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB", sans-serif;
+    background: linear-gradient(170deg, #a8e6ff 0%, #c9b6ff 55%, #ffc3d8 100%);
+    overflow: hidden; user-select: none;
+  }
+  body { display: flex; align-items: center; justify-content: center; }
+
+  #app {
+    position: relative; width: 100%; max-width: 760px; height: 100%;
+    display: flex; flex-direction: column; padding: 10px 14px 18px;
+  }
+
+  /* ---------- 顶部信息栏 ---------- */
+  .hud {
+    flex: none; display: flex; align-items: center; gap: 10px;
+    background: rgba(255,255,255,.55); border-radius: 20px; padding: 8px 14px;
+    box-shadow: 0 4px 14px rgba(80,60,140,.12);
+  }
+  .hud .star-box {
+    display: flex; align-items: center; gap: 5px;
+    font-size: 22px; font-weight: 800; color: #f5a623; text-shadow: 0 1px 0 #fff;
+  }
+  .hud .star-box svg { width: 26px; height: 26px; }
+  .hud .pet-badge {
+    width: 38px; height: 38px; border-radius: 50%; background: #fff; flex: none;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 2px 6px rgba(0,0,0,.12);
+  }
+  .hud .pet-badge svg { width: 32px; height: 32px; }
+  .hud .mode-tag {
+    font-size: 13px; font-weight: 800; color: #fff; padding: 3px 10px;
+    border-radius: 20px; background: #b79bf0; margin-left: 4px;
+  }
+  .dots { display: flex; gap: 5px; margin-left: auto; }
+  .dot {
+    width: 14px; height: 14px; border-radius: 50%;
+    background: rgba(255,255,255,.75); border: 2px solid #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,.12); transition: .35s;
+  }
+  .dot.done { background: #7ad46b; transform: scale(1.2); }
+  .dot.now  { background: #ffd34d; transform: scale(1.35); }
+  .btn-sound {
+    width: 40px; height: 40px; border-radius: 50%; border: none; cursor: pointer; flex: none;
+    background: #fff; box-shadow: 0 3px 8px rgba(0,0,0,.12);
+    display: flex; align-items: center; justify-content: center; transition: .2s;
+  }
+  .btn-sound:active { transform: scale(.9); }
+  .btn-sound.off { opacity: .45; }
+  .btn-sound svg { width: 22px; height: 22px; }
+
+  /* ---------- 舞台 ---------- */
+  .stage { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+
+  .teacher { flex: none; display: flex; align-items: flex-end; gap: 8px; padding: 6px 4px 0; }
+  .teacher .t-who { flex: none; display: flex; flex-direction: column; align-items: center; gap: 1px; }
+  .teacher .t-who svg { width: 74px; height: 74px; }
+  .teacher .t-who span { font-size: 13px; font-weight: 800; color: #fff; text-shadow: 0 2px 0 rgba(120,90,180,.55); }
+  .bubble {
+    position: relative; background: #fff; border-radius: 18px; padding: 10px 16px;
+    margin-bottom: 16px; font-size: 19px; font-weight: 700; color: #4a3b6b; line-height: 1.4;
+    box-shadow: 0 4px 12px rgba(80,60,140,.15); animation: pop .3s ease; max-width: 80%;
+  }
+  .bubble::after {
+    content: ""; position: absolute; left: -10px; bottom: 8px;
+    border: 8px solid transparent; border-right-color: #fff; border-left: 0;
+  }
+  @keyframes pop { from { transform: scale(.7); opacity: 0 } to { transform: scale(1); opacity: 1 } }
+
+  .question {
+    flex: 1; min-height: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 12px; overflow: hidden;
+  }
+  .q-note { font-size: 15px; color: #5b4b8a; font-weight: 700; opacity: .85; }
+  .q-visual {
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; max-width: 94%;
+  }
+  .q-visual svg { width: 46px; height: 46px; animation: drop .4s backwards ease; }
+  @keyframes drop { from { transform: translateY(-24px) scale(.4); opacity: 0 } }
+  .q-visual svg.big { width: 104px; height: 104px; }
+  .q-visual svg.shadow { filter: brightness(0); opacity: .78; animation: none; }
+  .q-visual .plus { font-size: 40px; font-weight: 900; color: #fff; text-shadow: 0 3px 0 rgba(120,90,180,.5); }
+  .big-num { font-size: 92px; font-weight: 900; color: #fff; line-height: 1; text-shadow: 0 6px 0 rgba(120,90,180,.5); }
+
+  /* 划掉（减法） */
+  .rm { position: relative; display: inline-block; opacity: .34; filter: grayscale(.95); }
+  .rm svg { animation: none; }
+  .rm::after {
+    content: ""; position: absolute; left: -4%; top: 46%; width: 108%; height: 5px;
+    background: #ff4d4d; border-radius: 3px; transform: rotate(-40deg);
+  }
+  /* 数字接龙格子 */
+  .slots { display: flex; gap: 7px; align-items: center; justify-content: center; }
+  .slot {
+    width: 54px; height: 68px; border-radius: 15px; background: #fff;
+    font-size: 32px; font-weight: 900; color: #5b4b8a;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 0 rgba(120,90,180,.28);
+  }
+  .slot.q { background: #ffd34d; color: #fff; font-size: 38px; box-shadow: 0 4px 0 #e0a520; }
+
+  /* ---------- 选项 ---------- */
+  .options { flex: none; display: flex; flex-wrap: wrap; gap: 11px; justify-content: center; padding: 6px 0 4px; }
+  .opt {
+    background: #fff; border: 5px solid #ffe9a8; border-radius: 24px;
+    min-width: 72px; min-height: 72px; padding: 6px 12px;
+    font-size: 38px; font-weight: 900; color: #5b4b8a; cursor: pointer;
+    box-shadow: 0 6px 0 #e6c15e, 0 10px 18px rgba(80,60,140,.18);
+    display: flex; align-items: center; justify-content: center;
+    transition: transform .12s, box-shadow .12s, background .2s;
+  }
+  .opt:active { transform: translateY(4px); box-shadow: 0 2px 0 #e6c15e; }
+  .opt svg { width: 52px; height: 52px; }
+  .opt.ok  { background: #d6f5cd; border-color: #7ad46b; box-shadow: 0 6px 0 #57b848; animation: cheer .5s; }
+  .opt.bad { animation: shake .4s; background: #ffe0e0; border-color: #ff9a9a; }
+  .opt.dim { opacity: .35; }
+  @keyframes cheer { 30% { transform: scale(1.18) rotate(-4deg) } 60% { transform: scale(.95) rotate(3deg) } }
+  @keyframes shake { 20%{transform:translateX(-9px)} 40%{transform:translateX(9px)} 60%{transform:translateX(-6px)} 80%{transform:translateX(6px)} }
+
+  .opt.card { flex-direction: column; min-width: 138px; min-height: 120px; gap: 4px; }
+  .opt.card .grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; max-width: 126px; }
+  .opt.card .grid svg { width: 24px; height: 24px; }
+  .opt.card .lbl { font-size: 15px; color: #8a7ab0; font-weight: 700; }
+
+  /* ---------- 开始 / 过关 / 奖状 ---------- */
+  .center-screen {
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 12px; text-align: center; overflow-y: auto; padding: 4px 0;
+  }
+  .animal-row { display: flex; gap: 9px; justify-content: center; flex-wrap: wrap; margin: 2px 0; }
+  .animal-card {
+    width: 94px; border-radius: 20px; background: rgba(255,255,255,.78);
+    border: 4px solid #fff; padding: 5px 4px 7px; cursor: pointer;
+    box-shadow: 0 4px 10px rgba(80,60,140,.15);
+    display: flex; flex-direction: column; align-items: center; gap: 1px; transition: .18s;
+  }
+  .animal-card svg { width: 58px; height: 58px; }
+  .animal-card .nm { font-size: 15px; font-weight: 800; color: #5b4b8a; }
+  .animal-card:active { transform: scale(.94); }
+  .animal-card.sel {
+    border-color: #ffd34d; background: #fff; transform: translateY(-4px) scale(1.06);
+    box-shadow: 0 9px 18px rgba(224,138,18,.38);
+  }
+  .animal-card.sel .nm { color: #e08a12; }
+  .big-title { font-size: 38px; font-weight: 900; color: #fff; line-height: 1.25; text-shadow: 0 5px 0 rgba(120,90,180,.5); }
+  .sub-title { font-size: 18px; color: #5b4b8a; font-weight: 700; line-height: 1.7; }
+  .btn-main {
+    border: none; cursor: pointer; background: linear-gradient(#ffd34d, #ffb02e);
+    color: #fff; font-size: 25px; font-weight: 900; padding: 15px 40px; border-radius: 40px;
+    box-shadow: 0 7px 0 #e08a12, 0 12px 22px rgba(80,60,140,.25); animation: breathe 1.6s infinite ease-in-out;
+  }
+  .btn-main:active { transform: translateY(5px); box-shadow: 0 2px 0 #e08a12; }
+  @keyframes breathe { 50% { transform: scale(1.05) } }
+  .btn-soft {
+    border: none; cursor: pointer; background: rgba(255,255,255,.85);
+    color: #5b4b8a; font-size: 18px; font-weight: 800; padding: 11px 26px; border-radius: 30px;
+    box-shadow: 0 4px 0 rgba(120,90,180,.25);
+  }
+  .btn-soft:active { transform: translateY(3px); box-shadow: none; }
+
+  .level-list { display: flex; flex-direction: column; gap: 7px; margin-top: 4px; }
+  .level-pill {
+    background: rgba(255,255,255,.75); border-radius: 16px; padding: 7px 16px;
+    font-size: 16px; font-weight: 700; color: #5b4b8a; display: flex; align-items: center; gap: 9px;
+  }
+  .level-pill svg { width: 28px; height: 28px; flex: none; }
+  .level-pill .tip { color: #9a8ac0; font-weight: 600; font-size: 14px; margin-left: auto; }
+
+  .certificate {
+    background: #fffdf6; border: 8px solid #ffd34d; border-radius: 26px;
+    padding: 18px 24px; width: 100%; max-width: 470px;
+    box-shadow: 0 14px 34px rgba(80,60,140,.28); animation: pop .5s;
+  }
+  .certificate h2 { margin: 0 0 4px; font-size: 26px; color: #e08a12; }
+  .certificate .who { font-size: 20px; font-weight: 900; color: #5b4b8a; margin-bottom: 8px; }
+  .certificate .rows { display: flex; justify-content: center; gap: 24px; margin: 10px 0; }
+  .certificate .rows div { font-size: 16px; color: #6b5b95; font-weight: 700; }
+  .certificate .rows b { display: block; font-size: 29px; color: #7ad46b; }
+  .certificate .say { font-size: 16px; color: #5b4b8a; line-height: 1.7; }
+  .row-btns { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+
+  .tips {
+    margin-top: 8px; width: 100%; max-width: 470px; background: rgba(255,255,255,.6);
+    border-radius: 16px; padding: 9px 16px; font-size: 14px; color: #5b4b8a; line-height: 1.7; text-align: left;
+  }
+  .tips summary { cursor: pointer; font-weight: 800; font-size: 15px; }
+
+  .confetti { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 50; }
+  .confetti i { position: absolute; width: 11px; height: 16px; border-radius: 3px; animation: fall linear forwards; }
+  @keyframes fall { to { transform: translateY(105vh) rotate(720deg); opacity: .2; } }
+  .flying-star { position: fixed; z-index: 60; pointer-events: none; animation: fly 1s ease-out forwards; }
+  @keyframes fly { to { transform: translate(var(--dx), var(--dy)) scale(.2) rotate(180deg); opacity: 0; } }
+
+  /* 回大厅的小入口（单独打开游戏文件时也能一键回去） */
+  .homelink {
+    position: fixed; right: 8px; bottom: 6px; z-index: 60;
+    font-size: 11px; font-weight: 800; color: #6f5fa0; text-decoration: none;
+    background: rgba(255,255,255,.6); border-radius: 9px; padding: 3px 8px;
+    opacity: .6; -webkit-tap-highlight-color: transparent;
+  }
+  .homelink:active { opacity: 1; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="hud" id="hud" style="visibility:hidden">
+    <div class="star-box">
+      <svg viewBox="0 0 24 24"><path fill="#f5a623" d="M12 2l2.9 6.2 6.6.9-4.8 4.6 1.2 6.6L12 17.1 6.1 20.3l1.2-6.6L2.5 9.1l6.6-.9z"/></svg>
+      <span id="starNum">0</span>
+    </div>
+    <div class="pet-badge" id="petBadge"></div>
+    <div class="mode-tag" id="modeTag">进阶版</div>
+    <div class="dots" id="dots"></div>
+    <button class="btn-sound" id="btnSound" title="声音开关">
+      <svg viewBox="0 0 24 24"><path fill="#5b4b8a" d="M4 9v6h4l5 4V5L8 9H4zm12.5 3a4.5 4.5 0 00-2.5-4v8a4.5 4.5 0 002.5-4zM14 2.2v2.1c3.4.9 6 4 6 7.7s-2.6 6.8-6 7.7v2.1c4.6-1 8-5 8-9.8s-3.4-8.8-8-9.8z"/></svg>
+    </button>
+  </div>
+  <div class="stage" id="stage"></div>
+</div>
+
+<script>
+/* ============ 图形库（全部手绘 SVG，不依赖 emoji 字体） ============ */
+const S = (inner, vb) => '<svg viewBox="' + (vb || '0 0 64 64') + '">' + inner + '</svg>';
+const ICON = {
+  apple:  () => S('<path d="M32 21c-8-9-21-5-21 8 0 11 9 24 15 28 2 1.6 4 1.6 6 0 6-4 15-17 15-28 0-13-13-17-21-8z" fill="#ff5f5f"/><ellipse cx="23" cy="27" rx="4" ry="5" fill="#fff" opacity=".35"/><path d="M32 21c0-7 5-11 11-12-1 7-4 12-11 12z" fill="#57b848"/><rect x="30.5" y="9" width="3" height="10" rx="1.5" fill="#8b5a2b"/>'),
+  fish:   () => S('<path d="M40 32c0 9-9 15-19 15S6 41 6 32s9-15 21-15 13 6 13 15z" fill="#ffa63d"/><path d="M40 32L56 20v24L40 32z" fill="#ff8c1a"/><circle cx="20" cy="28" r="3.2" fill="#fff"/><circle cx="19.2" cy="28" r="1.7" fill="#333"/><path d="M30 24c3 2 3 12 0 14" stroke="#ff8c1a" stroke-width="2.5" fill="none"/>'),
+  balloon:() => S('<path d="M32 10c-9 0-15 7-15 16s6 17 15 17 15-8 15-17-6-16-15-16z" fill="#7c6cf0"/><ellipse cx="27" cy="19" rx="3.5" ry="5" fill="#fff" opacity=".4"/><path d="M32 43l-4 6h8l-4-6z" fill="#5a4ad0"/><path d="M32 49c6 3-6 6 0 12" stroke="#5b4b8a" stroke-width="2" fill="none"/>'),
+  flower: () => S('<g fill="#ff7ab8"><circle cx="32" cy="16" r="10"/><circle cx="46" cy="30" r="10"/><circle cx="32" cy="44" r="10"/><circle cx="18" cy="30" r="10"/></g><circle cx="32" cy="30" r="9" fill="#ffd34d"/>'),
+  duck:  () => S('<ellipse cx="30" cy="42" rx="19" ry="14" fill="#ffd34d"/><circle cx="42" cy="26" r="12" fill="#ffd34d"/><path d="M54 26h7l-7 5z" fill="#ff9a3d"/><circle cx="46" cy="23" r="2.4" fill="#333"/><path d="M12 44c-5 2-6 8 0 8h6c5 0 5-8 0-8z" fill="#ff9a3d"/>'),
+  star:  () => S('<path d="M32 4l7.7 16.6 18.3 2.4-13.4 12.9 3.4 18.1L32 45.2 15.9 54l3.4-18.1L5.9 23l18.3-2.4z" fill="#ffc93c"/>'),
+  circle:   () => S('<circle cx="32" cy="32" r="26" fill="#ff8fa3"/>'),
+  square:   () => S('<rect x="7" y="7" width="50" height="50" rx="6" fill="#6fc3f0"/>'),
+  triangle: () => S('<path d="M32 6l26 48H6z" fill="#7ad46b"/>'),
+  rectangle:() => S('<rect x="4" y="16" width="56" height="32" rx="5" fill="#c79bf0"/>'),
+  heart:    () => S('<path d="M32 56S6 40 6 23C6 13 14 7 22 7c5 0 10 3 10 3s5-3 10-3c8 0 16 6 16 16c0 17-26 33-26 33z" fill="#ff6b8b"/>'),
+  diamond:  () => S('<path d="M32 4l28 28-28 28L4 32z" fill="#ffa63d"/>'),
+  bear: () => S('<circle cx="13" cy="17" r="9" fill="#c99a6b"/><circle cx="51" cy="17" r="9" fill="#c99a6b"/><circle cx="32" cy="34" r="26" fill="#d9ab79"/><ellipse cx="32" cy="42" rx="15" ry="12" fill="#f3ddc0"/><circle cx="23" cy="31" r="3.4" fill="#3b2b1e"/><circle cx="41" cy="31" r="3.4" fill="#3b2b1e"/><ellipse cx="32" cy="39" rx="4.5" ry="3.4" fill="#3b2b1e"/><path d="M26 46c4 3 8 3 12 0" stroke="#3b2b1e" stroke-width="2.2" fill="none" stroke-linecap="round"/><circle cx="18" cy="38" r="4" fill="#ff9ab0" opacity=".6"/><circle cx="46" cy="38" r="4" fill="#ff9ab0" opacity=".6"/>')
+};
+/* ---- 五位动物伙伴（全部手绘 SVG，风格统一） ---- */
+const ANIMAL_PANDA = () => S(
+  '<circle cx="13" cy="17" r="9" fill="#3b3b3b"/><circle cx="51" cy="17" r="9" fill="#3b3b3b"/>' +
+  '<circle cx="32" cy="34" r="26" fill="#fdfdfd"/>' +
+  '<ellipse cx="21" cy="31" rx="9" ry="10.5" fill="#3b3b3b"/><ellipse cx="43" cy="31" rx="9" ry="10.5" fill="#3b3b3b"/>' +
+  '<circle cx="21" cy="31" r="3.6" fill="#fff"/><circle cx="43" cy="31" r="3.6" fill="#fff"/>' +
+  '<circle cx="21.6" cy="31" r="2" fill="#222"/><circle cx="43.6" cy="31" r="2" fill="#222"/>' +
+  '<ellipse cx="32" cy="42" rx="5" ry="3.6" fill="#3b3b3b"/>' +
+  '<path d="M26 48c4 3 8 3 12 0" stroke="#3b3b3b" stroke-width="2.2" fill="none" stroke-linecap="round"/>');
+const ANIMAL_GIRAFFE = () => S(
+  '<rect x="24" y="42" width="16" height="22" rx="8" fill="#f7cf5f"/>' +
+  '<rect x="10" y="8" width="6" height="11" rx="3" fill="#c98f2e"/><rect x="48" y="8" width="6" height="11" rx="3" fill="#c98f2e"/>' +
+  '<circle cx="13" cy="11" r="5.5" fill="#c98f2e"/><circle cx="51" cy="11" r="5.5" fill="#c98f2e"/>' +
+  '<ellipse cx="32" cy="30" rx="24" ry="23" fill="#f7cf5f"/>' +
+  '<circle cx="18" cy="17" r="5" fill="#dda12e" opacity=".7"/><circle cx="46" cy="17" r="5" fill="#dda12e" opacity=".7"/>' +
+  '<circle cx="15" cy="34" r="4.5" fill="#dda12e" opacity=".7"/><circle cx="49" cy="34" r="4.5" fill="#dda12e" opacity=".7"/>' +
+  '<circle cx="23" cy="28" r="3.6" fill="#3b2b1e"/><circle cx="41" cy="28" r="3.6" fill="#3b2b1e"/>' +
+  '<circle cx="21.8" cy="26.8" r="1.3" fill="#fff"/><circle cx="39.8" cy="26.8" r="1.3" fill="#fff"/>' +
+  '<ellipse cx="32" cy="42" rx="12" ry="9" fill="#f6e0a8"/>' +
+  '<circle cx="27" cy="41" r="1.9" fill="#8b6b3a"/><circle cx="37" cy="41" r="1.9" fill="#8b6b3a"/>' +
+  '<path d="M27 46c3 2.6 7 2.6 10 0" stroke="#8b6b3a" stroke-width="2" fill="none" stroke-linecap="round"/>');
+const ANIMAL_TIGER = () => S(
+  '<circle cx="13" cy="17" r="9" fill="#ffb64d"/><circle cx="51" cy="17" r="9" fill="#ffb64d"/>' +
+  '<circle cx="13" cy="17" r="4.6" fill="#ff8fb0" opacity=".55"/><circle cx="51" cy="17" r="4.6" fill="#ff8fb0" opacity=".55"/>' +
+  '<circle cx="32" cy="34" r="26" fill="#ffb64d"/>' +
+  '<path d="M32 9v9M26 14h12M27 19h10" stroke="#5a3a1a" stroke-width="3" fill="none" stroke-linecap="round"/>' +
+  '<path d="M9 27l7 2M9 35l7 1M55 27l-7 2M55 35l-7 1" stroke="#5a3a1a" stroke-width="3" fill="none" stroke-linecap="round"/>' +
+  '<circle cx="22" cy="30" r="3.6" fill="#333"/><circle cx="42" cy="30" r="3.6" fill="#333"/>' +
+  '<circle cx="20.8" cy="28.8" r="1.3" fill="#fff"/><circle cx="40.8" cy="28.8" r="1.3" fill="#fff"/>' +
+  '<ellipse cx="32" cy="43" rx="13" ry="10" fill="#fff5e6"/>' +
+  '<path d="M32 38l4.5 4.5h-9z" fill="#ff8fb0"/>' +
+  '<path d="M32 42.5v3M26 47c4 3 8 3 12 0" stroke="#5a3a1a" stroke-width="2" fill="none" stroke-linecap="round"/>');
+const ANIMAL_ELEPHANT = () => S(
+  '<ellipse cx="11" cy="30" rx="11" ry="16" fill="#aab2c8"/><ellipse cx="53" cy="30" rx="11" ry="16" fill="#aab2c8"/>' +
+  '<ellipse cx="12" cy="30" rx="6" ry="9" fill="#e2c3d1" opacity=".7"/><ellipse cx="52" cy="30" rx="6" ry="9" fill="#e2c3d1" opacity=".7"/>' +
+  '<circle cx="32" cy="30" r="24" fill="#c2cade"/>' +
+  '<path d="M32 40c0 8-1 13 3 16 3 2.4 8 1.4 8-3.6" stroke="#c2cade" stroke-width="11" fill="none" stroke-linecap="round"/>' +
+  '<path d="M30 47h6M31 52h6" stroke="#aab2c8" stroke-width="1.8" fill="none" stroke-linecap="round"/>' +
+  '<circle cx="23" cy="28" r="3.5" fill="#333"/><circle cx="41" cy="28" r="3.5" fill="#333"/>' +
+  '<circle cx="21.8" cy="26.8" r="1.3" fill="#fff"/><circle cx="39.8" cy="26.8" r="1.3" fill="#fff"/>' +
+  '<path d="M23 44l1.5 8-4 1zM41 44l-1.5 8 4 1z" fill="#fffdf6"/>');
+
+const ANIMALS = [
+  { key:'panda',    name:'熊猫团团',   short:'团团', icon:ANIMAL_PANDA,
+    say:'我是熊猫团团，我最喜欢吃竹子，也最喜欢数数！', cheer:'团团给你竖起大拇指，你太厉害啦！' },
+  { key:'giraffe',  name:'长颈鹿高高', short:'高高', icon:ANIMAL_GIRAFFE,
+    say:'我是长颈鹿高高，我脖子最长，看得最远！',     cheer:'高高说，我早就看到你有多棒啦！' },
+  { key:'bear',     name:'小熊波波',   short:'波波', icon:ICON.bear,
+    say:'我是小熊波波，我们一起闯关吧！',             cheer:'波波给你一个大大的拥抱！' },
+  { key:'tiger',    name:'老虎跳跳',   short:'跳跳', icon:ANIMAL_TIGER,
+    say:'我是老虎跳跳，嗷呜，我跑得最快！',           cheer:'跳跳说，你比小老虎还厉害！' },
+  { key:'elephant', name:'大象嘟嘟',   short:'嘟嘟', icon:ANIMAL_ELEPHANT,
+    say:'我是大象嘟嘟，我鼻子最长，记性最好！',       cheer:'嘟嘟用长鼻子为你喷彩带庆祝！' }
+];
+let curAnimal = ANIMALS[0];
+
+const TROPHY = '<svg viewBox="0 0 64 64" style="width:32px;height:32px"><path d="M16 8h32v12c0 9-7 16-16 16s-16-7-16-16V8z" fill="#ffc93c"/><path d="M16 12H8v5c0 6 4 10 9 10M48 12h8v5c0 6-4 10-9 10" stroke="#e0a520" stroke-width="4" fill="none"/><rect x="28" y="36" width="8" height="10" fill="#e0a520"/><rect x="18" y="48" width="28" height="8" rx="3" fill="#c79bf0"/></svg>';
+const STAR_ICON = '<svg viewBox="0 0 24 24" style="width:40px;height:40px"><path fill="#ffc93c" d="M12 2l2.9 6.2 6.6.9-4.8 4.6 1.2 6.6L12 17.1 6.1 20.3l1.2-6.6L2.5 9.1l6.6-.9z"/></svg>';
+
+const ITEMS = [
+  { key:'apple',   name:'苹果',   icon:ICON.apple },
+  { key:'fish',    name:'小鱼',   icon:ICON.fish },
+  { key:'balloon', name:'气球',   icon:ICON.balloon },
+  { key:'flower',  name:'小花',   icon:ICON.flower },
+  { key:'duck',    name:'小鸭子', icon:ICON.duck },
+  { key:'star',    name:'星星',   icon:ICON.star }
+];
+const SHAPES = [
+  { key:'circle',    name:'圆形',   icon:ICON.circle },
+  { key:'square',    name:'正方形', icon:ICON.square },
+  { key:'triangle',  name:'三角形', icon:ICON.triangle },
+  { key:'rectangle', name:'长方形', icon:ICON.rectangle },
+  { key:'heart',     name:'心形',   icon:ICON.heart },
+  { key:'diamond',   name:'菱形',   icon:ICON.diamond }
+];
+const ALL_PICS = ITEMS.concat(SHAPES);
+
+/* ============ 工具 ============ */
+const rnd = n => Math.floor(Math.random() * n);
+const pick = a => a[rnd(a.length)];
+const ri = (a, b) => a + rnd(b - a + 1);                 // 区间整数 [a,b]
+function shuffle(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = rnd(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+function uniqPush(arr, val, max) { if (!arr.includes(val) && arr.length < max) arr.push(val); }
+function numOpts(correct, size, distractors) {            // 生成不重复的数字选项
+  const opts = [correct];
+  shuffle(distractors.filter(v => v !== correct && v >= 1 && v <= 20))
+    .forEach(v => uniqPush(opts, v, size));
+  let guard = 0;
+  while (opts.length < size && guard++ < 80) {
+    uniqPush(opts, Math.max(1, Math.min(20, ri(correct - 5, correct + 5))), size);
+  }
+  while (opts.length < size) uniqPush(opts, opts.length + 1, size);
+  return shuffle(opts).map(v => ({ html: String(v), ok: v === correct }));
+}
+
+/* ============ 声音 ============ */
+let audioCtx = null, soundOn = true;
+function beep(freqs, dur) {
+  if (!soundOn) return;
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    freqs.forEach((f, i) => {
+      const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+      o.type = 'sine'; o.frequency.value = f;
+      const t = audioCtx.currentTime + i * dur * 0.55;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.22, t + 0.03);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur * 0.7);
+      o.connect(g); g.connect(audioCtx.destination); o.start(t); o.stop(t + dur);
+    });
+  } catch (e) { /* 静音降级 */ }
+}
+const SND = {
+  tap:   () => beep([660], 0.10),
+  right: () => beep([660, 880, 1180], 0.16),
+  wrong: () => beep([300, 210], 0.18),
+  level: () => beep([523, 659, 784, 1046], 0.16),
+  win:   () => beep([523, 659, 784, 1046, 784, 1046, 1318], 0.20)
+};
+function speak(text) {
+  if (!soundOn || !('speechSynthesis' in window)) return;
+  try {
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'zh-CN'; u.rate = 0.85; u.pitch = 1.25;
+    speechSynthesis.speak(u);
+  } catch (e) { /* 忽略 */ }
+}
+
+/* ============ 难度档位 ============
+   DIFF = 1 简单版（4岁入门）   DIFF = 2 进阶版（4岁半~5岁）          */
+let DIFF = 2;
+const D = {
+  countMax:   () => DIFF === 2 ? 10 : 5,     // 数一数上限
+  shadowOpts: () => DIFF === 2 ? 6 : 4,      // 影子配对选项数
+  cmpMin:     () => DIFF === 2 ? 6 : 2,      // 比多少 最小数量
+  cmpMax:     () => DIFF === 2 ? 12 : 8,     // 比多少 最大数量
+  cmpGap:     () => DIFF === 2 ? 2 : 3,      // 比多少 最大差值
+  seqTop:     () => DIFF === 2 ? 20 : 10,    // 数字接龙 上限
+  addMax:     () => DIFF === 2 ? 10 : 5,     // 加法 和上限
+  subMax:     () => DIFF === 2 ? 10 : 6      // 减法 总数上限
+};
+
+/* ============ 出题器 ============ */
+// 第1关：数一数（进阶 4~10，简单 1~5）
+function qCount(idx) {
+  const top = D.countMax();
+  const min = DIFF === 2 ? (idx < 2 ? 4 : 6) : 1;
+  const n = ri(min, top);
+  const item = pick(ITEMS);
+  const visual = Array.from({ length: n }, (_, i) =>
+    item.icon().replace('<svg', '<svg style="animation-delay:' + (i * 0.05) + 's"')).join('');
+  return {
+    say: '数一数，一共有几个' + item.name + '？',
+    title: '数一数，一共有几个' + item.name + '？',
+    note: '可以用手指点着一个一个数哦',
+    visual: visual,
+    options: numOpts(n, 4, [n - 1, n + 1, n - 2, n + 2, n + 3, n - 3])
+  };
+}
+
+// 第2关：影子配对（新游戏）—— 看黑色剪影找原图
+function qShadow() {
+  const n = D.shadowOpts();
+  const target = pick(ALL_PICS);
+  const others = shuffle(ALL_PICS.filter(p => p.key !== target.key)).slice(0, n - 1);
+  const all = shuffle([target].concat(others));
+  return {
+    say: '这是谁的影子？找出它本来的样子',
+    title: '这是谁的<b>影子</b>？找出它本来的样子',
+    note: '',
+    visual: target.icon().replace('<svg', '<svg class="big shadow"'),
+    options: all.map(p => ({ html: p.icon(), ok: p.key === target.key }))
+  };
+}
+
+// 第3关：比多少（进阶 6~12 且最多只差 2 个）
+function qCompare(idx) {
+  const askLess = idx >= 2;
+  const lo = D.cmpMin(), hi = D.cmpMax(), gapMax = D.cmpGap();
+  let a = ri(lo, hi), diff = ri(1, gapMax), b = a + diff;
+  if (b > hi) { b = a - diff; if (b < 1) { a = ri(lo, hi - 1); b = a + 1; } }
+  const item = pick(ITEMS);
+  const grid = n => '<div class="grid">' + item.icon().repeat(Math.max(0, n)) + '</div>';
+  const aWin = askLess ? (a < b) : (a > b);
+  return {
+    say: '哪一边' + (askLess ? '更少' : '更多') + '呢？要仔细数哦',
+    title: '哪一边' + (askLess ? '更少' : '更多') + '呢？',
+    note: '两边长得很像，要一个一个数',
+    visual: '',
+    options: [   // 不打乱：第一张永远在左，第二张永远在右
+      { html: grid(a) + '<div class="lbl">左边</div>', ok: aWin, card: true },
+      { html: grid(b) + '<div class="lbl">右边</div>', ok: !aWin, card: true }
+    ]
+  };
+}
+
+// 第4关：数字接龙（新游戏）—— 数列填空 / 倒着数 / 找邻居
+function qSequence(idx) {
+  const top = D.seqTop();
+  // 进阶版第4题：找邻居（前面/后面是几）
+  if (DIFF === 2 && idx === 3) {
+    const n = ri(2, top - 1);
+    const after = rnd(2) === 0;
+    const ans = after ? n + 1 : n - 1;
+    return {
+      say: '数字 ' + n + ' 的' + (after ? '后面' : '前面') + '是几？',
+      title: '数字 <span style="color:#ffd34d">' + n + '</span> 的' + (after ? '后面' : '前面') + '是几？',
+      note: '在心里从 1 数到 ' + top + ' 试试看',
+      visual: '<div class="big-num">' + n + '</div>',
+      options: numOpts(ans, 4, [ans - 1, ans + 1, ans + 2, ans - 2, n])
+    };
+  }
+  const down = (DIFF === 2 && idx === 2);       // 进阶版第3题：倒着数
+  const len = 5;
+  const hide = ri(1, len - 2);                  // 挖空位置不取两端，更好读
+  const start = down ? ri(len + 1, top) : ri(1, Math.max(1, top - len - 1));
+  const seq = [];
+  for (let i = 0; i < len; i++) seq.push(down ? start - i : start + i);
+  const ans = seq[hide];
+  const slots = seq.map((v, i) =>
+    '<div class="slot' + (i === hide ? ' q' : '') + '">' + (i === hide ? '?' : v) + '</div>').join('');
+  return {
+    say: '数字接龙，问号里应该填几？',
+    title: '数字接龙，问号里该填几？',
+    note: down ? '这是倒着数的哦，看仔细' : '一个一个数过来',
+    visual: '<div class="slots">' + slots + '</div>',
+    options: numOpts(ans, 4, [ans - 1, ans + 1, ans - 2, ans + 2, seq[0] - 1, seq[len - 1] + 1])
+  };
+}
+
+// 第5关：加一加（进阶：和 5~10）
+function qAdd() {
+  const top = D.addMax();
+  const minSum = DIFF === 2 ? 5 : 2;
+  let a, b, guard = 0;
+  do { a = ri(1, top - 1); b = ri(1, top - 1); guard++; } while ((a + b < minSum || a + b > top) && guard < 60);
+  const item = pick(ITEMS);
+  const sum = a + b;
+  const group = n => Array.from({ length: n }, () => item.icon()).join('');
+  return {
+    say: a + '个加上' + b + '个，一共有几个' + item.name + '？',
+    title: '放在一起，一共有几个？',
+    note: '',
+    visual: group(a) + '<span class="plus">+</span>' + group(b) + '<span class="plus">=</span><span class="plus" style="color:#ffd34d">?</span>',
+    options: numOpts(sum, DIFF === 2 ? 4 : 3, [sum - 1, sum + 1, sum - 2, sum + 2, a, b])
+  };
+}
+
+// 第6关：减一减（新游戏）—— 划掉的表示被拿走
+function qSubtract() {
+  const top = D.subMax();
+  const total = DIFF === 2 ? ri(5, top) : ri(3, top);
+  const k = ri(1, Math.min(4, total - 1));      // 至少剩 1 个
+  const rest = total - k;
+  const item = pick(ITEMS);
+  let visual = '';
+  for (let i = 0; i < total; i++) {
+    const svg = item.icon();
+    visual += i < rest ? svg : '<span class="rm">' + svg + '</span>';
+  }
+  return {
+    say: '一共有' + total + '个' + item.name + '，划掉的' + k + '个被拿走了，还剩几个？',
+    title: '划掉的被拿走啦，<b>还剩</b>几个？',
+    note: '红斜线划掉的就不算数了哦',
+    visual: visual,
+    options: numOpts(rest, 4, [total, k, rest + 1, rest - 1, rest + 2])
+  };
+}
+
+const LEVELS = [
+  { name: '数一数',   build: qCount,    icon: ICON.apple,  tip: '点数 1~10' },
+  { name: '影子配对', build: qShadow,   icon: ICON.heart,  tip: '观察轮廓' },
+  { name: '比多少',   build: qCompare,  icon: ICON.duck,   tip: '多与少，差1~2' },
+  { name: '数字接龙', build: qSequence, icon: ICON.star,   tip: '数序 1~20' },
+  { name: '加一加',   build: qAdd,      icon: ICON.flower, tip: '10以内加法' },
+  { name: '减一减',   build: qSubtract, icon: ICON.fish,   tip: '10以内减法' }
+];
+const PER_LEVEL = 4;
+
+/* ============ 游戏状态 ============ */
+const stage = document.getElementById('stage');
+const hud = document.getElementById('hud');
+const dotsBox = document.getElementById('dots');
+const starNum = document.getElementById('starNum');
+const modeTag = document.getElementById('modeTag');
+const petBadge = document.getElementById('petBadge');
+let stars = 0, li = 0, qi = 0, current = null, locked = false, startTime = 0, wrongCount = 0;
+
+function renderDots() {
+  dotsBox.innerHTML = LEVELS.map((_, i) =>
+    '<div class="dot ' + (i < li ? 'done' : (i === li ? 'now' : '')) + '"></div>').join('');
+}
+function addStar(x, y) {
+  const el = document.createElement('div');
+  el.className = 'flying-star';
+  el.style.left = x + 'px'; el.style.top = y + 'px';
+  el.style.setProperty('--dx', (rnd(140) - 70) + 'px');
+  el.style.setProperty('--dy', '-170px');
+  el.innerHTML = STAR_ICON;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 1000);
+}
+function confetti() {
+  const box = document.createElement('div');
+  box.className = 'confetti';
+  const colors = ['#ffd34d', '#ff8fa3', '#7ad46b', '#6fc3f0', '#c79bf0', '#ffa63d'];
+  for (let i = 0; i < 60; i++) {
+    const p = document.createElement('i');
+    p.style.left = rnd(100) + 'vw';
+    p.style.background = colors[rnd(colors.length)];
+    p.style.animationDuration = (1.6 + Math.random() * 1.6) + 's';
+    p.style.animationDelay = (Math.random() * 0.6) + 's';
+    box.appendChild(p);
+  }
+  document.body.appendChild(box);
+  setTimeout(() => box.remove(), 4200);
+}
+
+/* ---------- 首页（选难度） ---------- */
+function showIntro() {
+  hud.style.visibility = 'hidden';
+  stage.innerHTML =
+    '<div class="center-screen">' +
+      '<div class="big-title">数字动物大冒险</div>' +
+      '<div class="sub-title">选一只小动物陪你闯 6 关<br>全部通关就能拿到奖状！</div>' +
+      '<div class="animal-row" id="animalRow">' +
+        ANIMALS.map((a, i) =>
+          '<div class="animal-card' + (i === 0 ? ' sel' : '') + '" data-i="' + i + '">' +
+          a.icon() + '<div class="nm">' + a.name + '</div></div>').join('') +
+      '</div>' +
+      '<div class="row-btns" style="margin-top:4px">' +
+        '<button class="btn-main" id="btnHard" style="font-size:22px">进阶版（推荐）</button>' +
+        '<button class="btn-soft" id="btnEasy">简单一点</button>' +
+      '</div>' +
+      '<div class="tips"><details><summary>看看 6 关都玩什么</summary>' +
+        '<div class="level-list" style="margin-top:6px">' +
+          LEVELS.map((l, i) =>
+            '<div class="level-pill">' + l.icon() + '<span>第' + (i + 1) + '关 · ' + l.name + '</span>' +
+            '<span class="tip">' + l.tip + '</span></div>').join('') +
+        '</div>' +
+      '</details></div>' +
+      '<div class="tips"><details><summary>给爸爸妈妈的小贴士（点开看看）</summary>' +
+      '· <b>进阶版</b>：数到 10、1~20 数序、10 以内加减、影子配对、只在差 1~2 个时比多少。<br>' +
+      '· 如果孩子某关连错 2 次，建议退回<b>简单版</b>，保护兴趣比做对更重要。<br>' +
+      '· 答错时别说"不对"，改问"你是怎么数出来的？"，让他自己发现。<br>' +
+      '· 通关后拿实物延伸：摆 7 颗葡萄，拿走 3 颗，问他还剩几颗。<br>' +
+      '· 每天玩 1 次就够，全程约 5 分钟。' +
+      '</details></div>' +
+    '</div>';
+  // 选动物：点一下它就打招呼
+  document.getElementById('animalRow').onclick = e => {
+    const card = e.target.closest('.animal-card');
+    if (!card) return;
+    const i = Number(card.dataset.i);
+    curAnimal = ANIMALS[i];
+    Array.from(document.querySelectorAll('.animal-card'))
+      .forEach((c, k) => c.classList.toggle('sel', k === i));
+    SND.tap();
+    speak(curAnimal.say);
+  };
+  const go = d => {
+    DIFF = d;
+    modeTag.textContent = d === 2 ? '进阶版' : '简单版';
+    modeTag.style.background = d === 2 ? '#b79bf0' : '#7ad46b';
+    petBadge.innerHTML = curAnimal.icon();
+    beep([523, 784], 0.15);
+    stars = 0; li = 0; qi = 0; wrongCount = 0; startTime = Date.now();
+    starNum.textContent = '0';
+    hud.style.visibility = 'visible';
+    speak('我是' + curAnimal.name + '，我们出发啦！');
+    showLevelUp();
+  };
+  document.getElementById('btnHard').onclick = () => go(2);
+  document.getElementById('btnEasy').onclick = () => go(1);
+}
+
+/* ---------- 过关 / 开场 ---------- */
+function showLevelUp() {
+  const l = LEVELS[li];
+  stage.innerHTML =
+    '<div class="center-screen">' +
+      '<div class="row-btns" style="align-items:flex-end;gap:6px">' +
+        '<div style="animation:pop .4s">' + curAnimal.icon().replace('<svg', '<svg style="width:96px;height:96px"') + '</div>' +
+        '<div style="animation:pop .4s;margin-bottom:10px">' + l.icon().replace('<svg', '<svg style="width:64px;height:64px"') + '</div>' +
+      '</div>' +
+      '<div class="big-title">第 ' + (li + 1) + ' 关 · ' + l.name + '</div>' +
+      '<div class="sub-title">' + l.tip + '<br>' + curAnimal.short + '陪你完成 ' + PER_LEVEL + ' 个小任务，加油！</div>' +
+      '<button class="btn-main" id="btnGo">出发！</button>' +
+    '</div>';
+  speak('第' + (li + 1) + '关，' + l.name + '，准备好了吗？出发！');
+  document.getElementById('btnGo').onclick = () => { SND.tap(); nextQuestion(); };
+}
+
+/* ---------- 出题 ---------- */
+function nextQuestion() {
+  locked = false;
+  renderDots();
+  if (qi >= PER_LEVEL) {
+    if (li >= LEVELS.length - 1) return showFinale();
+    li++; qi = 0;
+    SND.level(); confetti();
+    return showLevelUp();
+  }
+  current = LEVELS[li].build(qi);
+  stage.innerHTML =
+    '<div class="teacher"><div class="t-who">' + curAnimal.icon() +
+      '<span>' + curAnimal.short + '</span></div><div class="bubble">' + current.title + '</div></div>' +
+    '<div class="question">' +
+      (current.note ? '<div class="q-note">' + current.note + '</div>' : '') +
+      '<div class="q-visual">' + current.visual + '</div>' +
+    '</div>' +
+    '<div class="options" id="opts"></div>';
+  const opts = document.getElementById('opts');
+  current.options.forEach(o => {
+    const b = document.createElement('button');
+    b.className = 'opt' + (o.card ? ' card' : '');
+    b.innerHTML = o.html;
+    b.onclick = e => answer(b, o.ok, e);
+    opts.appendChild(b);
+  });
+  speak(current.say);
+}
+
+/* ---------- 作答 ---------- */
+function answer(btn, ok, e) {
+  if (locked) return;
+  if (ok) {
+    locked = true;
+    btn.classList.add('ok');
+    stars++; starNum.textContent = stars;
+    if (e) addStar(e.clientX || window.innerWidth / 2, e.clientY || window.innerHeight / 2);
+    SND.right();
+    speak(['太棒了！', '答对啦！', '你好厉害！', '完全正确！', '真聪明！'][rnd(5)]);
+    Array.from(document.querySelectorAll('.opt')).forEach(o => { if (o !== btn) o.classList.add('dim'); });
+    setTimeout(() => { qi++; nextQuestion(); }, DIFF === 2 ? 1150 : 1250);
+  } else {
+    btn.classList.add('bad');
+    wrongCount++;
+    SND.wrong();
+    speak(['再试一次吧', '再想一想，你可以的', '没关系，再数一遍'][rnd(3)]);
+    setTimeout(() => btn.classList.remove('bad'), 450);
+  }
+}
+
+/* ---------- 通关奖状 ---------- */
+function showFinale() {
+  const sec = Math.round((Date.now() - startTime) / 1000);
+  const mm = String(Math.floor(sec / 60)).padStart(2, '0');
+  const ss = String(sec % 60).padStart(2, '0');
+  const total = PER_LEVEL * LEVELS.length;
+  const full = stars >= total;
+  confetti(); SND.win();
+  speak('恭喜你！全部通关啦，' + curAnimal.name + '说你是数学小达人！');
+  renderDots();
+  document.querySelectorAll('.dot').forEach(d => d.classList.add('done'));
+  setTimeout(() => confetti(), 900);
+  stage.innerHTML =
+    '<div class="center-screen">' +
+      '<div class="certificate">' +
+        '<div style="animation:pop .5s">' + curAnimal.icon().replace('<svg', '<svg style="width:78px;height:78px"') + '</div>' +
+        '<h2><span style="vertical-align:-6px;display:inline-block">' + TROPHY + '</span> 数学小达人奖状</h2>' +
+        '<div class="who">' + curAnimal.name + '陪你闯过全部 ' + LEVELS.length + ' 关！</div>' +
+        '<div class="rows">' +
+          '<div>收集星星<b>' + stars + '/' + total + '</b></div>' +
+          '<div>通关用时<b>' + mm + ':' + ss + '</b></div>' +
+          '<div>答错次数<b>' + wrongCount + '</b></div>' +
+        '</div>' +
+        '<div class="say">' +
+          (full ? '全部一次答对，太厉害啦！可以试试更难的玩法：让爸爸妈妈报两个数，你来加。'
+                : (wrongCount <= 3 ? '表现很棒！已经会数到 10、会比多少、还会做加减法了。'
+                                   : '能坚持闯完 6 关就很了不起啦，明天再挑战一次，星星会更多的！')) +
+          '<br><b style="color:#e08a12">' + curAnimal.cheer + '</b>' +
+        '</div>' +
+      '</div>' +
+      '<div class="row-btns"><button class="btn-main" id="btnAgain">再玩一次</button></div>' +
+    '</div>';
+  document.getElementById('btnAgain').onclick = showIntro;
+}
+
+/* ---------- 声音开关 ---------- */
+document.getElementById('btnSound').onclick = function () {
+  soundOn = !soundOn;
+  this.classList.toggle('off', !soundOn);
+  if (!soundOn && 'speechSynthesis' in window) speechSynthesis.cancel();
+  else SND.tap();
+};
+
+showIntro();
+</script>
+
+<a class="homelink" href="%E6%B8%B8%E6%88%8F%E5%A4%A7%E5%8E%85.html" target="_top">← 游戏大厅</a>
+</body>
+</html>
