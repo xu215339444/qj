@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>变得一样多 · 4~5岁数量守恒</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    font-family: "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB", sans-serif;
+    background: linear-gradient(170deg, #d7f0ff 0%, #e8dcff 55%, #ffe1ec 100%);
+    overflow: hidden; user-select: none; touch-action: manipulation;
+  }
+  body { display: flex; align-items: center; justify-content: center; }
+
+  #app {
+    position: relative; width: 100%; max-width: 620px; height: 100%;
+    display: flex; flex-direction: column; padding: 8px 12px 12px;
+  }
+
+  /* 顶栏 */
+  .top { flex: none; display: flex; align-items: center; gap: 10px; padding: 0 2px 4px; }
+  .lv {
+    font-size: 17px; font-weight: 900; color: #5b4b8a;
+    background: rgba(255,255,255,.65); border-radius: 13px; padding: 4px 13px;
+  }
+  .lv b { color: #e08a12; font-size: 20px; }
+  .prog { flex: 1; height: 10px; background: rgba(255,255,255,.6); border-radius: 6px; overflow: hidden; }
+  .prog i { display: block; height: 100%; width: 0; background: linear-gradient(90deg,#7ad46b,#ffd34d); transition: width .4s; }
+  .btn-sound {
+    flex: none; border: none; cursor: pointer; width: 38px; height: 38px; border-radius: 50%;
+    background: rgba(255,255,255,.7); display: flex; align-items: center; justify-content: center;
+  }
+  .btn-sound:active { transform: scale(.9); }
+  .btn-sound.off { opacity: .45; }
+  .btn-sound svg { width: 21px; height: 21px; }
+
+  /* 天平 */
+  .scaleWrap { flex: none; display: flex; justify-content: center; padding: 2px 0 0; }
+  .scaleWrap svg { width: 100%; max-width: 260px; height: auto; }
+  #beam, #panL, #panR { transform-box: view-box; transition: transform .5s cubic-bezier(.34,1.35,.5,1); }
+  #beam { transform-origin: 130px 32px; }
+  #panL { transform-origin: 46px 50px; }
+  #panR { transform-origin: 214px 50px; }
+  .eqtag { text-align: center; font-size: 15px; font-weight: 900; color: #57b848; height: 20px; }
+  .eqtag span { background: #e9ffe4; border-radius: 11px; padding: 2px 12px; }
+
+  /* 两个盘子 */
+  .boards {
+    flex: 1; display: flex; gap: 12px; align-items: stretch;
+    min-height: 0; padding: 4px 0;
+  }
+  .side {
+    flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px;
+    background: rgba(255,255,255,.55); border: 4px dashed rgba(255,255,255,.9);
+    border-radius: 22px; padding: 8px 6px 10px; min-width: 0;
+    transition: background .25s, border-color .25s;
+  }
+  .side.less { border-color: #ffd34d; background: rgba(255,246,214,.75); }
+  .side.shake { animation: shake .42s; }
+  @keyframes shake {
+    20% { transform: translateX(-8px) } 40% { transform: translateX(8px) }
+    60% { transform: translateX(-5px) } 80% { transform: translateX(5px) }
+  }
+  .side.bounce { animation: bounce .5s; }
+  @keyframes bounce { 35% { transform: translateY(-12px) scale(1.04) } 70% { transform: translateY(0) scale(.98) } }
+
+  .title { font-size: 14px; font-weight: 900; color: #6b5b95; }
+  .grid {
+    flex: 1; width: 100%; display: grid; grid-template-columns: repeat(4, 1fr);
+    align-content: start; justify-items: center; gap: 4px 2px; min-height: 0; overflow: hidden;
+  }
+  .grid svg { width: 100%; max-width: 40px; height: auto; }
+  @keyframes pop { from { transform: scale(.2); opacity: 0 } }
+  @keyframes popAll { from { transform: scale(.3); opacity: 0 } }
+
+  .num {
+    font-size: 30px; font-weight: 900; color: #5b4b8a; line-height: 1;
+    background: #fff; border-radius: 14px; padding: 2px 16px; min-width: 58px; text-align: center;
+    box-shadow: 0 2px 0 rgba(120,110,160,.18);
+  }
+  .num.eq { color: #57b848; }
+  .btn-add {
+    border: none; cursor: pointer; border-radius: 16px; width: 100%; max-width: 130px;
+    background: linear-gradient(#ffd34d, #ffb02e); color: #fff; font-size: 19px; font-weight: 900;
+    padding: 8px 0; box-shadow: 0 5px 0 #e08a12; display: flex; align-items: center; justify-content: center; gap: 4px;
+  }
+  .btn-add:active { transform: translateY(4px); box-shadow: 0 1px 0 #e08a12; }
+  .btn-add svg { width: 19px; height: 19px; }
+
+  /* 底部 */
+  .tipbar {
+    flex: none; text-align: center; font-size: 14px; font-weight: 800; color: #4a5b8a;
+    background: rgba(255,255,255,.6); border-radius: 14px; padding: 7px 10px;
+  }
+  .rowbar { flex: none; display: flex; gap: 10px; justify-content: center; padding-top: 6px; }
+  .btn-soft {
+    border: none; cursor: pointer; border-radius: 14px; background: rgba(255,255,255,.75);
+    color: #6b5b95; font-size: 14px; font-weight: 900; padding: 7px 18px;
+  }
+  .btn-soft:active { transform: translateY(3px); }
+
+  /* 覆盖层 */
+  .overlay {
+    position: absolute; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center;
+    background: rgba(50,70,130,.42); padding: 16px; animation: fade .25s;
+  }
+  @keyframes fade { from { opacity: 0 } }
+  .card {
+    background: #fffdf6; border: 7px solid #ffd34d; border-radius: 24px;
+    padding: 20px 22px; width: 100%; max-width: 380px; text-align: center;
+    box-shadow: 0 16px 40px rgba(50,70,130,.4); animation: pop2 .35s;
+    max-height: 100%; overflow-y: auto;
+  }
+  @keyframes pop2 { from { transform: scale(.75); opacity: 0 } }
+  .card h2 { margin: 0 0 6px; font-size: 25px; color: #e08a12; }
+  .card p { margin: 7px 0; font-size: 15px; font-weight: 700; color: #5b4b8a; line-height: 1.8; }
+  .card .small { font-size: 13px; color: #8a7ab0; }
+  .card .demo { display: flex; justify-content: center; gap: 14px; margin: 10px 0 4px; }
+  .card .demo div { font-size: 12px; font-weight: 800; color: #6b5b95; }
+  .card .demo .g { display: flex; flex-wrap: wrap; gap: 3px; justify-content: center; width: 92px;
+    background: #fff4e0; border-radius: 12px; padding: 6px 4px; }
+  .card .demo .g svg { width: 20px; height: 20px; }
+  .btn-main {
+    border: none; cursor: pointer; border-radius: 26px; margin-top: 12px;
+    background: linear-gradient(#ffd34d, #ffb02e); color: #fff;
+    font-size: 21px; font-weight: 900; padding: 12px 34px;
+    box-shadow: 0 6px 0 #e08a12, 0 10px 20px rgba(80,60,140,.25);
+  }
+  .btn-main:active { transform: translateY(4px); box-shadow: 0 2px 0 #e08a12; }
+  .btn-main.green { background: linear-gradient(#8fe08a, #57b848); box-shadow: 0 6px 0 #3f9433; }
+  .stars { font-size: 30px; letter-spacing: 4px; margin: 6px 0 0; }
+  .nextbar { margin-top: 12px; text-align: center; }
+
+  .confetti { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 50; }
+  .confetti i { position: absolute; width: 11px; height: 16px; border-radius: 3px; animation: fall linear forwards; }
+  @keyframes fall { to { transform: translateY(105vh) rotate(720deg); opacity: .2; } }
+
+  /* 回大厅的小入口（单独打开游戏文件时也能一键回去） */
+  .homelink {
+    position: fixed; right: 8px; bottom: 6px; z-index: 60;
+    font-size: 11px; font-weight: 800; color: #6f5fa0; text-decoration: none;
+    background: rgba(255,255,255,.6); border-radius: 9px; padding: 3px 8px;
+    opacity: .6; -webkit-tap-highlight-color: transparent;
+  }
+  .homelink:active { opacity: 1; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="top">
+    <div class="lv">第 <b id="hLv">1</b> 关</div>
+    <div class="prog"><i id="hProg"></i></div>
+    <button class="btn-sound" id="btnSound">
+      <svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4z" fill="#6b5b95"/><path id="sndWave" d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12" stroke="#6b5b95" stroke-width="2" fill="none" stroke-linecap="round"/></svg>
+    </button>
+  </div>
+
+  <div class="scaleWrap">
+    <svg viewBox="0 0 260 96">
+      <path d="M130 92 L108 96 L152 96 Z" fill="#b9a7e0"/>
+      <rect x="126.5" y="32" width="7" height="60" rx="3.5" fill="#b9a7e0"/>
+      <circle cx="130" cy="32" r="7" fill="#8f7bc4"/>
+      <g id="beam">
+        <rect x="40" y="26" width="180" height="11" rx="5.5" fill="#8f7bc4"/>
+        <line x1="46" y1="37" x2="46" y2="50" stroke="#8f7bc4" stroke-width="2.6"/>
+        <line x1="214" y1="37" x2="214" y2="50" stroke="#8f7bc4" stroke-width="2.6"/>
+        <g id="panL">
+          <path d="M20 50 q26 22 52 0 z" fill="#c9b6ff" stroke="#8f7bc4" stroke-width="2"/>
+          <ellipse cx="46" cy="50" rx="26" ry="4" fill="#a892e0"/>
+        </g>
+        <g id="panR">
+          <path d="M188 50 q26 22 52 0 z" fill="#c9b6ff" stroke="#8f7bc4" stroke-width="2"/>
+          <ellipse cx="214" cy="50" rx="26" ry="4" fill="#a892e0"/>
+        </g>
+      </g>
+    </svg>
+  </div>
+  <div class="eqtag" id="eqTag"></div>
+
+  <div class="boards">
+    <div class="side" id="sideL">
+      <div class="title">左边</div>
+      <div class="grid" id="gridL"></div>
+      <div class="num" id="numL">0</div>
+      <button class="btn-add" id="addL">
+        <svg viewBox="0 0 24 24"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z" fill="#fff"/></svg>加 1 个
+      </button>
+    </div>
+    <div class="side" id="sideR">
+      <div class="title">右边</div>
+      <div class="grid" id="gridR"></div>
+      <div class="num" id="numR">0</div>
+      <button class="btn-add" id="addR">
+        <svg viewBox="0 0 24 24"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z" fill="#fff"/></svg>加 1 个
+      </button>
+    </div>
+  </div>
+
+  <div class="tipbar" id="tipbar">哪一边比较少？点它下面的「加 1 个」，让两边变得一样多</div>
+  <div class="rowbar">
+    <button class="btn-soft" id="btnHint">提示</button>
+    <button class="btn-soft" id="btnReset">重来</button>
+  </div>
+
+  <div id="overlayBox"></div>
+</div>
+
+<script>
+/* ================== 基础 ================== */
+const $ = id => document.getElementById(id);
+const rnd = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
+
+/* ================== 声音 ================== */
+let audioCtx = null, soundOn = true;
+function beep(freqs, dur) {
+  if (!soundOn) return;
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    freqs.forEach((f, i) => {
+      const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+      o.type = 'sine'; o.frequency.value = f;
+      const t = audioCtx.currentTime + i * dur * 0.55;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.22, t + 0.03);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur * 0.7);
+      o.connect(g); g.connect(audioCtx.destination); o.start(t); o.stop(t + dur);
+    });
+  } catch (e) { /* 静音降级 */ }
+}
+const SND = {
+  add:   () => beep([720], 0.10),
+  nope:  () => beep([320, 240], 0.16),
+  level: () => beep([523, 659, 784, 1046], 0.16),
+  win:   () => beep([523, 659, 784, 1046, 784, 1046, 1318], 0.20)
+};
+function speak(text) {
+  if (!soundOn || !('speechSynthesis' in window)) return;
+  try {
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'zh-CN'; u.rate = 0.85; u.pitch = 1.25;
+    speechSynthesis.speak(u);
+  } catch (e) { /* 忽略 */ }
+}
+
+/* ================== 小图案（纯 SVG，不用 emoji） ================== */
+const THEMES = [
+  { name:'苹果', svg: () =>
+    '<circle cx="14" cy="24" r="11" fill="#ff6b6b"/><circle cx="26" cy="24" r="11" fill="#ff6b6b"/>' +
+    '<rect x="19" y="9" width="2.6" height="9" rx="1.3" fill="#8b5a2b"/>' +
+    '<path d="M21 13c4-5 9-4 9-4s-1 6-9 6z" fill="#7ad46b"/>' +
+    '<ellipse cx="11" cy="20" rx="2.6" ry="3.6" fill="#fff" opacity=".5"/>' },
+  { name:'星星', svg: () =>
+    '<path d="M20 3.5l4.9 10.4 11.4 1.4-8.4 7.8 2.2 11.2-10.1-5.7-10.1 5.7 2.2-11.2L3.7 15.3l11.4-1.4z" ' +
+    'fill="#ffd34d" stroke="#f0a91e" stroke-width="1.3" stroke-linejoin="round"/>' },
+  { name:'气球', svg: (c) =>
+    '<ellipse cx="20" cy="15" rx="10" ry="12.5" fill="' + c + '"/>' +
+    '<path d="M20 27.5l-3 3.5h6z" fill="' + c + '"/>' +
+    '<path d="M20 31q5 4 0 8" stroke="#8b7bb8" stroke-width="1.6" fill="none"/>' +
+    '<ellipse cx="16.4" cy="11" rx="2.4" ry="3.2" fill="#fff" opacity=".55"/>' },
+  { name:'小花', svg: (c) =>
+    '<g fill="' + c + '"><circle cx="20" cy="10.5" r="6.6"/><circle cx="29" cy="17" r="6.6"/>' +
+    '<circle cx="25.6" cy="27.5" r="6.6"/><circle cx="14.4" cy="27.5" r="6.6"/><circle cx="11" cy="17" r="6.6"/></g>' +
+    '<circle cx="20" cy="19.5" r="5.6" fill="#ffd34d"/>' },
+  { name:'糖果', svg: (c) =>
+    '<path d="M9 14L2 10l4 8z" fill="' + c + '"/><path d="M31 14l7-4-4 8z" fill="' + c + '"/>' +
+    '<circle cx="20" cy="20" r="11.5" fill="' + c + '"/>' +
+    '<path d="M20 8.5a11.5 11.5 0 0 1 0 23z" fill="#fff" opacity=".28"/>' },
+  { name:'小鱼', svg: (c) =>
+    '<path d="M9 20c5-8.5 17-8.5 23 0-6 8.5-18 8.5-23 0z" fill="' + c + '"/>' +
+    '<path d="M9.5 20L3 14v12z" fill="' + c + '"/>' +
+    '<circle cx="25" cy="17.6" r="2.6" fill="#fff"/><circle cx="25.4" cy="17.6" r="1.3" fill="#333"/>' },
+  { name:'爱心', svg: () =>
+    '<path d="M20 35S4.5 25.5 4.5 15.5C4.5 9.6 9.4 5.4 14.2 5.4c2.7 0 4.7 1.5 5.8 1.5s3.1-1.5 5.8-1.5c4.8 0 9.7 4.2 9.7 10.1C35.5 25.5 20 35 20 35z" fill="#ff7fa8"/>' +
+    '<ellipse cx="14" cy="14" rx="2.4" ry="3.4" fill="#fff" opacity=".5"/>' },
+  { name:'皮球', svg: () =>
+    '<circle cx="20" cy="20" r="12.5" fill="#fff"/>' +
+    '<path d="M20 7.5a12.5 12.5 0 0 1 0 25z" fill="#ff8fa3"/>' +
+    '<path d="M20 7.5a12.5 12.5 0 0 0 0 25z" fill="#8fd6ff"/>' +
+    '<circle cx="20" cy="20" r="4.6" fill="#fff"/>' +
+    '<circle cx="20" cy="20" r="12.5" fill="none" stroke="#8f7bc4" stroke-width="1.6"/>' }
+];
+const CANDY_COLORS = ['#ff8fa3', '#8fd6ff', '#a8e6a1', '#ffd34d', '#c79cff', '#ffb07c'];
+function itemSvg(theme, seed) {
+  const t = THEMES[theme];
+  const c = CANDY_COLORS[(seed * 3 + theme) % CANDY_COLORS.length];
+  return '<svg viewBox="0 0 40 40">' + t.svg(c) + '</svg>';
+}
+
+/* ================== 关卡 ==================
+   gap = 两边差几个；fewer 的取值范围 lo~hi（多的那边最多 10 个） */
+const PLAN = [
+  { gap:1, lo:2, hi:5 }, { gap:1, lo:3, hi:6 }, { gap:1, lo:4, hi:8 }, { gap:1, lo:5, hi:9 },
+  { gap:2, lo:2, hi:5 }, { gap:2, lo:3, hi:6 }, { gap:2, lo:4, hi:7 }, { gap:2, lo:5, hi:8 },
+  { gap:3, lo:2, hi:4 }, { gap:3, lo:3, hi:5 }, { gap:3, lo:4, hi:6 }, { gap:3, lo:5, hi:7 },
+  { gap:4, lo:2, hi:3 }, { gap:4, lo:3, hi:4 }, { gap:4, lo:4, hi:5 }, { gap:4, lo:5, hi:6 }
+];
+
+let level = 0, nL = 0, nR = 0, theme = 0, mistakes = 0, added = 0, totalStars = 0;
+let locked = false;                     // 通关动画期间不再响应点击
+
+function makeLevel(n) {
+  const p = PLAN[Math.min(n, PLAN.length - 1)];
+  const fewer = rnd(p.lo, p.hi);
+  const more = fewer + p.gap;
+  theme = rnd(0, THEMES.length - 1);
+  // 随机决定少的是左边还是右边
+  if (Math.random() < 0.5) { nL = fewer; nR = more; } else { nL = more; nR = fewer; }
+  mistakes = 0; added = 0; locked = false;
+  render();
+  speak('左边 ' + nL + ' 个，右边 ' + nR + ' 个，哪一边比较少呀');
+}
+
+/* ================== 渲染 ================== */
+function render(justAdded) {
+  $('hLv').textContent = level + 1;
+  $('hProg').style.width = (level / PLAN.length * 100) + '%';
+
+  fillGrid('L', nL, justAdded === 'L' ? nL - 1 : -1);
+  fillGrid('R', nR, justAdded === 'R' ? nR - 1 : -1);
+
+  $('numL').textContent = nL;
+  $('numR').textContent = nR;
+
+  const eq = nL === nR;
+  $('numL').className = 'num' + (eq ? ' eq' : '');
+  $('numR').className = 'num' + (eq ? ' eq' : '');
+
+  // 天平：差得越多，倾斜越明显
+  const diff = nR - nL;                       // 正数 = 右边重 = 右边低
+  const ang = Math.max(-15, Math.min(15, diff * 4.2));
+  $('beam').style.transform = 'rotate(' + ang + 'deg)';
+  $('panL').style.transform = 'rotate(' + (-ang) + 'deg)';
+  $('panR').style.transform = 'rotate(' + (-ang) + 'deg)';
+
+  $('eqTag').innerHTML = eq ? '<span>✓ 一样多啦！</span>' : '';
+
+  // 少的一边高亮（只在还没相等、且差 >=1 时提示）
+  $('sideL').className = 'side' + (!eq && nL < nR ? ' less' : '');
+  $('sideR').className = 'side' + (!eq && nR < nL ? ' less' : '');
+
+  if (!eq) {
+    const less = nL < nR ? '左' : '右';
+    const d = Math.abs(nR - nL);
+    $('tipbar').textContent = less + '边少 ' + d + ' 个，点「加 1 个」补上，让两边一样多';
+  }
+}
+
+function fillGrid(which, n, newIdx) {
+  const el = $('grid' + which);
+  let html = '';
+  for (let i = 0; i < n; i++) html += itemSvg(theme, i + (which === 'R' ? 7 : 0));
+  el.innerHTML = html;
+  if (newIdx >= 0) {
+    // 只让新加的那一个弹一下，别的所有东西都别动
+    if (el.children[newIdx]) el.children[newIdx].style.animation = 'pop .42s';
+  } else {
+    // 新关卡：整齐地一起冒出来
+    for (let i = 0; i < el.children.length; i++) {
+      el.children[i].style.animation = 'popAll .34s ' + (i * 0.045) + 's backwards';
+    }
+  }
+}
+
+/* ================== 交互 ================== */
+function addItem(which) {
+  if (locked) return;
+  const isFewer = which === 'L' ? (nL < nR) : (nR < nL);
+  if (nL === nR) {                       // 已经一样多了，再加就多了
+    nope(which, '两边已经一样多啦');
+    return;
+  }
+  if (!isFewer) {                        // 加到了多的那边
+    nope(which, '这一边已经比较多啦');
+    return;
+  }
+  if (which === 'L') nL++; else nR++;
+  added++;
+  SND.add();
+  render(which);
+  const now = which === 'L' ? nL : nR;
+  speak(now + '个');
+  if (nL === nR) { locked = true; setTimeout(win, 420); }   // 立刻上锁，防止多点的那一下被判成错
+}
+
+function nope(which, msg) {
+  mistakes++;
+  SND.nope();
+  const el = $('side' + which);
+  el.classList.remove('shake'); void el.offsetWidth; el.classList.add('shake');
+  $('tipbar').textContent = msg + '，看看另外一边吧';
+  speak(msg);
+}
+
+function win() {
+  locked = true;
+  SND.level();
+  speak('一样多啦，都是 ' + nL + ' 个！');
+  const star = mistakes === 0 ? 3 : (mistakes === 1 ? 2 : 1);
+  totalStars += star;
+  confetti();
+  $('sideL').classList.add('bounce');
+  $('sideR').classList.add('bounce');
+  $('tipbar').textContent = '太棒啦！两边都是 ' + nL + ' 个';
+  setTimeout(() => {
+    const last = level >= PLAN.length - 1;
+    const box = $ ('overlayBox');
+    box.innerHTML =
+      '<div class="overlay"><div class="card">' +
+        '<h2>' + (last ? '全部闯关成功！' : '一样多啦！') + '</h2>' +
+        '<p>两边都是 <b style="color:#e08a12">' + nL + '</b> 个，你补上了 <b>' + added + '</b> 个</p>' +
+        '<div class="stars">' + '★'.repeat(star) + '☆'.repeat(3 - star) + '</div>' +
+        '<p class="small">' + (star === 3 ? '一次都没点错，太厉害啦！' : '已经很棒啦，下次试试一次点对') + '</p>' +
+        '<button class="btn-main green" id="ovNext">' + (last ? '看看奖状 →' : '下一关 →') + '</button>' +
+      '</div></div>';
+    $('ovNext').onclick = () => {
+      box.innerHTML = '';
+      $('sideL').classList.remove('bounce');
+      $('sideR').classList.remove('bounce');
+      if (last) showFinish(); else { level++; makeLevel(level); }
+    };
+  }, 900);
+}
+
+function showFinish() {
+  SND.win();
+  confetti();
+  const full = totalStars >= PLAN.length * 3 - 3;
+  $('overlayBox').innerHTML =
+    '<div class="overlay"><div class="card">' +
+      '<h2>奖状</h2>' +
+      '<p>你已经会让两边<b style="color:#e08a12">变得一样多</b>啦！</p>' +
+      '<div class="stars">' + '★'.repeat(Math.min(3, Math.round(totalStars / PLAN.length))) + '☆'.repeat(3 - Math.min(3, Math.round(totalStars / PLAN.length))) + '</div>' +
+      '<p class="small">一共 ' + PLAN.length + ' 关，拿到 ' + totalStars + ' / ' + (PLAN.length * 3) + ' 颗星' +
+      (full ? '<br>几乎全对，数量小达人！' : '<br>再玩一次可以拿更多星星哦') + '</p>' +
+      '<button class="btn-main" id="ovAgain">再玩一次</button>' +
+    '</div></div>';
+  $('ovAgain').onclick = () => { level = 0; totalStars = 0; $('overlayBox').innerHTML = ''; makeLevel(0); };
+}
+
+function confetti() {
+  const box = document.createElement('div');
+  box.className = 'confetti';
+  const cs = ['#ffd34d', '#ff8fa3', '#7ad46b', '#6fc3f0', '#c79bf0', '#ffa63d'];
+  for (let i = 0; i < 60; i++) {
+    const p = document.createElement('i');
+    p.style.left = Math.random() * 100 + 'vw';
+    p.style.background = cs[Math.floor(Math.random() * cs.length)];
+    p.style.animationDuration = (1.5 + Math.random() * 1.6) + 's';
+    p.style.animationDelay = (Math.random() * 0.5) + 's';
+    box.appendChild(p);
+  }
+  document.body.appendChild(box);
+  setTimeout(() => box.remove(), 4200);
+}
+
+/* ================== 按钮 ================== */
+// 按钮在盘子里面，必须阻止冒泡，否则点一次会加两个
+$('addL').onclick = e => { e.stopPropagation(); addItem('L'); };
+$('addR').onclick = e => { e.stopPropagation(); addItem('R'); };
+$('sideL').onclick = () => addItem('L');
+$('sideR').onclick = () => addItem('R');
+
+$('btnHint').onclick = () => {
+  if (locked) return;
+  const less = nL < nR ? 'L' : (nR < nL ? 'R' : '');
+  if (!less) { $('tipbar').textContent = '两边已经一样多啦，不用再加咯'; speak('两边已经一样多啦'); return; }
+  const btn = $('add' + less);
+  btn.style.animation = 'none'; void btn.offsetWidth;
+  btn.style.animation = 'shake .5s';
+  setTimeout(() => { btn.style.animation = ''; }, 600);
+  $('tipbar').textContent = '点这边的「加 1 个」，一共要加 ' + Math.abs(nR - nL) + ' 次';
+  speak('点这边，加 ' + Math.abs(nR - nL) + ' 次');
+};
+$('btnReset').onclick = () => { if (!locked) { $('overlayBox').innerHTML = ''; makeLevel(level); } };
+
+$('btnSound').onclick = () => {
+  soundOn = !soundOn;
+  $('btnSound').classList.toggle('off', !soundOn);
+  if (!soundOn && 'speechSynthesis' in window) speechSynthesis.cancel();
+  else speak('声音打开啦');
+};
+
+/* ================== 开始 ================== */
+function showIntro() {
+  const demo = (n, label) =>
+    '<div>' + label + '<div class="g">' + Array.from({ length: n }, (_, i) => itemSvg(2, i)).join('') + '</div></div>';
+  $('overlayBox').innerHTML =
+    '<div class="overlay"><div class="card">' +
+      '<h2>变得一样多</h2>' +
+      '<p>两边的小东西不一样多，<br>请你给<b style="color:#e08a12">少的那边</b>加上几个，<br>让两边变得一样多</p>' +
+      '<div class="demo">' + demo(4, '这边少 1 个') + demo(5, '这边多 1 个') + '</div>' +
+      '<p class="small">· 点盘子，或者点下面的「加 1 个」<br>' +
+      '· 加对了会「叮」一声，加错了盘子会摇一摇<br>' +
+      '· 顶上的天平：哪边多就往哪边歪，一样多就持平<br>' +
+      '· 卡住了就点「提示」</p>' +
+      '<button class="btn-main" id="ovStart">开始闯关</button>' +
+    '</div></div>';
+  $('ovStart').onclick = () => { $('overlayBox').innerHTML = ''; beep(1, 0.01); makeLevel(0); };
+}
+showIntro();
+</script>
+<a class="homelink" href="游戏大厅.html" target="_top">← 游戏大厅</a>
+</body>
+</html>
