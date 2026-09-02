@@ -182,50 +182,122 @@ const pick = a => a[Math.floor(Math.random() * a.length)];
 const clamp = (v, a, b) => v < a ? a : (v > b ? b : v);
 const hit = (a, b) => { const dx = a.x - b.x, dy = a.y - b.y, r = a.r + b.r; return dx * dx + dy * dy < r * r; };
 
-/* ================== 音效 ================== */
-let actx = null, soundOn = true;
-function tone(freq, dur, type, vol) {
-  if (!soundOn) return;
-  try {
-    if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+/* ================== 音效（Web Audio：噪声/失真/回声/循环BGM） ================== */
+let actx = null, soundOn = true, master = null, nbuf = null;
+function ensureAudio() {
+  if (!actx) {
+    actx = new (window.AudioContext || window.webkitAudioContext)();
+    master = actx.createGain(); master.gain.value = 0.9; master.connect(actx.destination);
+    const len = Math.floor(actx.sampleRate * 1.2);
+    nbuf = actx.createBuffer(1, len, actx.sampleRate);
+    const d = nbuf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+  }
+}
+function osc(f0, f1, dur, type, vol, when, echo) {   // 扫频振荡器（可选回声）
+  if (!soundOn) return; try { ensureAudio();
+    const t0 = actx.currentTime + (when || 0);
     const o = actx.createOscillator(), g = actx.createGain();
-    o.type = type || 'square'; o.frequency.setValueAtTime(freq, actx.currentTime);
-    o.frequency.exponentialRampToValueAtTime(Math.max(40, freq * 0.5), actx.currentTime + dur);
-    g.gain.setValueAtTime(0.0001, actx.currentTime);
-    g.gain.exponentialRampToValueAtTime(vol || 0.06, actx.currentTime + 0.01);
-    g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime + dur);
-    o.connect(g); g.connect(actx.destination); o.start(); o.stop(actx.currentTime + dur);
+    o.type = type || 'sine'; o.frequency.setValueAtTime(Math.max(20, f0), t0);
+    o.frequency.exponentialRampToValueAtTime(Math.max(20, f1 || f0 * 0.4), t0 + dur);
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(vol || 0.05, t0 + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    o.connect(g); g.connect(master);
+    if (echo) {
+      const dl = actx.createDelay(0.5); dl.delayTime.value = 0.16;
+      const fb = actx.createGain(); fb.gain.value = 0.3; dl.connect(fb); fb.connect(dl);
+      g.connect(dl); dl.connect(master);
+    }
+    o.start(t0); o.stop(t0 + dur + 0.06);
+  } catch (e) { /* 忽略 */ }
+}
+function noise(dur, vol, f0, f1, q, type, when) {     // 成形噪声（爆炸/火焰/激光）
+  if (!soundOn) return; try { ensureAudio();
+    const t0 = actx.currentTime + (when || 0);
+    const s = actx.createBufferSource(); s.buffer = nbuf; s.loop = true;
+    const fl = actx.createBiquadFilter(); fl.type = type || 'lowpass';
+    fl.frequency.setValueAtTime(f0 || 1000, t0);
+    if (f1) fl.frequency.exponentialRampToValueAtTime(Math.max(40, f1), t0 + dur);
+    fl.Q.value = q || 0.8;
+    const g = actx.createGain();
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(vol || 0.1, t0 + 0.015);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    s.connect(fl); fl.connect(g); g.connect(master);
+    s.start(t0); s.stop(t0 + dur + 0.06);
+  } catch (e) { /* 忽略 */ }
+}
+function dist(f0, f1, dur, vol) {                     // 失真锯齿（受伤）
+  if (!soundOn) return; try { ensureAudio();
+    const t0 = actx.currentTime;
+    const o = actx.createOscillator(), sh = actx.createWaveShaper();
+    const c = new Float32Array(256);
+    for (let i = 0; i < 256; i++) { const x = i / 128 - 1; c[i] = Math.tanh(x * 3.2); }
+    sh.curve = c;
+    o.type = 'sawtooth'; o.frequency.setValueAtTime(f0, t0);
+    o.frequency.exponentialRampToValueAtTime(Math.max(28, f1), t0 + dur);
+    const g = actx.createGain();
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(vol || 0.09, t0 + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    o.connect(sh); sh.connect(g); g.connect(master);
+    o.start(t0); o.stop(t0 + dur + 0.05);
   } catch (e) { /* 忽略 */ }
 }
 const SFX = {
-  shoot: () => tone(880, 0.06, 'square', 0.035),
-  boom:  () => { tone(200, 0.22, 'sawtooth', 0.09); tone(90, 0.28, 'sine', 0.07); },
-  hurt:  () => tone(160, 0.3, 'sawtooth', 0.1),
-  item:  () => { tone(660, 0.09, 'sine', 0.08); setTimeout(() => tone(990, 0.12, 'sine', 0.08), 90); },
-  clear: () => [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => tone(f, 0.2, 'sine', 0.09), i * 110)),
-  win:   () => [523, 659, 784, 1046, 784, 1046, 1318].forEach((f, i) => setTimeout(() => tone(f, 0.24, 'sine', 0.09), i * 130)),
-  lose:  () => [400, 330, 260].forEach((f, i) => setTimeout(() => tone(f, 0.3, 'triangle', 0.09), i * 150)),
-  power: () => [523, 784, 1046].forEach((f, i) => setTimeout(() => tone(f, 0.13, 'square', 0.07), i * 70)),
-  bomb:  () => { tone(70, 0.5, 'sine', 0.13); tone(150, 0.35, 'sawtooth', 0.09); setTimeout(() => tone(45, 0.6, 'sine', 0.1), 90); },
-  flame: () => tone(300, 0.07, 'sawtooth', 0.022),
-  zap:   () => { tone(1400, 0.05, 'square', 0.05); setTimeout(() => tone(700, 0.09, 'sawtooth', 0.05), 40); },
-  lock:  () => { tone(1200, 0.05, 'sine', 0.04); setTimeout(() => tone(1600, 0.05, 'sine', 0.04), 50); },
-  swing: () => tone(520, 0.1, 'triangle', 0.035),
-  swap:  () => [659, 880, 1175].forEach((f, i) => setTimeout(() => tone(f, 0.1, 'triangle', 0.07), i * 60))
+  shoot:  () => { osc(1500, 360, 0.09, 'square', 0.042); noise(0.05, 0.045, 5600, 1400, 1.4, 'highpass'); },          // 激光
+  boom:   () => { noise(0.5, 0.22, 950, 70, 0.7); osc(165, 36, 0.55, 'sine', 0.3); osc(88, 30, 0.6, 'triangle', 0.2); }, // 轰鸣爆炸
+  hurt:   () => { dist(430, 50, 0.4, 0.11); noise(0.22, 0.09, 1000, 140, 1); },                                        // 受伤失真
+  item:   () => { osc(1318, 1318, 0.14, 'sine', 0.085); osc(1975, 1975, 0.24, 'sine', 0.06, 0.06, true); },           // 叮咚
+  clear:  () => { [659, 784, 1046, 1318].forEach((f, i) => setTimeout(() => osc(f, f * 1.02, 0.2, 'triangle', 0.09), i * 105)); },
+  win:    () => { [523, 659, 784, 1046, 784, 1046, 1318, 1568].forEach((f, i) => setTimeout(() => { osc(f, f, 0.2, 'square', 0.05); osc(f * 2, f * 2, 0.12, 'sine', 0.028); }, i * 110)); },
+  lose:   () => { [392, 311, 233, 155].forEach((f, i) => setTimeout(() => osc(f, f * 0.96, 0.36, 'sawtooth', 0.07), i * 180)); },
+  power:  () => { [523, 784, 1318].forEach((f, i) => setTimeout(() => osc(f, f, 0.14, 'square', 0.05), i * 65)); },
+  bomb:   () => { osc(120, 28, 0.8, 'sine', 0.3); noise(0.9, 0.2, 750, 55, 0.6); osc(48, 22, 0.85, 'triangle', 0.18, 0.08); },
+  flame:  () => noise(0.08, 0.07, 1700, 480, 1),
+  zap:    () => { osc(2000, 240, 0.17, 'square', 0.055); osc(2700, 420, 0.12, 'sawtooth', 0.03, 0.03); },
+  lock:   () => { osc(950, 950, 0.07, 'sine', 0.05); setTimeout(() => osc(1420, 1420, 0.07, 'sine', 0.05), 60); },
+  swing:  () => osc(700, 240, 0.14, 'triangle', 0.05),
+  swap:   () => [659, 880, 1318].forEach((f, i) => setTimeout(() => osc(f, f, 0.1, 'triangle', 0.06), i * 55)),
+  beam:   () => { osc(2400, 90, 0.5, 'sawtooth', 0.085); noise(0.4, 0.06, 4200, 300, 2, 'highpass'); },            // BOSS 激光
+  summon: () => { osc(220, 440, 0.18, 'square', 0.05); setTimeout(() => osc(440, 880, 0.14, 'square', 0.04), 130); } // BOSS 召唤
 };
+/* BOSS 战紧张 BGM：小调 8 步循环音序器 */
+const BGM = { on: false, step: 0, timer: null,
+  bass: [110, 110, 0, 110, 131, 0, 98, 0],
+  lead: [0, 220, 0, 262, 0, 220, 0, 196]
+};
+function bgmStart() {
+  if (BGM.on || !soundOn) return;
+  try { ensureAudio(); BGM.on = true; BGM.step = 0;
+    BGM.timer = setInterval(bgmTick, 130); } catch (e) {}
+}
+function bgmStop() { if (!BGM.on) return; BGM.on = false; if (BGM.timer) { clearInterval(BGM.timer); BGM.timer = null; } }
+function bgmTick() {
+  try {
+    if (!BGM.on || !actx || actx.state === 'suspended') return;
+    const s = BGM.step % 8;
+    const b = BGM.bass[s], l = BGM.lead[s];
+    if (b) { osc(b, b, 0.16, 'triangle', 0.07); noise(0.04, 0.025, 200, 130, 1, 'lowpass'); }
+    if (l) osc(l, l, 0.12, 'square', 0.024);
+    BGM.step++;
+  } catch (e) { /* 忽略 */ }
+}
 
-/* ================== 关卡配置（整体偏简单，适合小朋友） ================== */
+/* ================== 关卡配置（难度提高版） ================== */
 const LEVELS = [
-  { name:'云上小怪',   waves:[14, 16, 18, 20],   types:['blob'],                 boss:'batking', bossHp:50, fire:0,    spd:1.00 },
-  { name:'蝙蝠山谷',   waves:[16, 18, 20, 22],  types:['blob','bat'],           boss:'batking', bossHp:75, fire:0.28, spd:1.12 },
-  { name:'巨兽巢穴',   waves:[18, 20, 22, 24], types:['blob','bat','rock'],    boss:'bigeye',  bossHp:100, fire:0.5,  spd:1.25 }
+  { name:'云上小怪',   waves:[18, 20, 22, 24], types:['blob'],                boss:'toucan',     bossHp:75,  fire:0.2,  spd:1.20 },
+  { name:'蝙蝠山谷',   waves:[20, 22, 24, 26], types:['blob','bat'],          boss:'hydra3',     bossHp:110, fire:0.4,  spd:1.34 },
+  { name:'巨兽巢穴',   waves:[22, 24, 26, 28], types:['blob','bat','rock'],   boss:'mechdragon', bossHp:150, fire:0.65, spd:1.50 }
 ];
 const ENEMY = {
-  blob:     { r:19, hp:1, score:10, spd:99  },
-  bat:      { r:23, hp:2, score:20, spd:129 },
-  rock:     { r:27, hp:3, score:30, spd:80  },
-  batking:  { r:52, hp:12,score:150,spd:0   },
-  bigeye:   { r:60, hp:30,score:250,spd:0   }
+  blob:     { r:19, hp:2, score:10, spd:99  },
+  bat:      { r:23, hp:3, score:20, spd:129 },
+  rock:     { r:27, hp:5, score:30, spd:80  },
+  toucan:    { r:46, score:300, spd:0 },
+  hydra3:    { r:56, score:450, spd:0 },
+  mechdragon:{ r:60, score:700, spd:0 }
 };
 
 /* ================== 五种子弹（武器） ==================
@@ -266,12 +338,12 @@ function weaponSvg(id) {             // 选子弹卡片上的小图标（纯 SVG
 /* ================== 游戏状态 ================== */
 let state = 'menu';                 // menu | playing | pause | clear | dead | win
 let level = 0, waveIdx = 0, waveLeft = 0, waveTotal = 0, wavePause = 0;
-let score = 0, kills = 0, lives = 5, startTime = 0, elapsed = 0;
+let score = 0, kills = 0, lives = 3, startTime = 0, elapsed = 0;
 let shake = 0, tick = 0, flash = 0;
 const player = { x: W / 2, y: H - 130, r: 17, cool: 0, power: 1, pwExp: 0, inv: 0, alive: true };
-let bombs = 100;                      // 每条命 100 颗炸弹
-const BOMBS_PER_LIFE = 100, BOMB_DMG = 6;
-const PW_NEED = [0, 14, 40];         // 升到 2 级累计 14 杀，升到 3 级累计 40 杀
+let bombs = 30;                       // 每条命 30 颗炸弹
+const BOMBS_PER_LIFE = 30, BOMB_DMG = 4;
+const PW_NEED = [0, 20, 60];         // 升到 2 级累计 20 杀，升到 3 级累计 60 杀
 let bullets = [], enemies = [], ebullets = [], drops = [], parts = [], clouds = [];
 let bolts = [];                      // 雷电的视觉闪电（伤害在开火瞬间结算）
 let tipMsg = '', tipT = 0;           // “换武器啦！”这类飘字提示
@@ -454,7 +526,7 @@ function drawEnemy(g, e, t) {
   const weak = e.hp / e.maxhp <= 0.5;                // 快挂了
   const look = clamp((player.x - e.x) / 90, -1, 1);  // 眼珠追着飞机看
   const blink = Math.sin(t * 1.6 + (e.base || 0)) > 0.965;
-  const eyeMode = ouch ? 'hurt' : (weak && e.maxhp > 2 ? 'dead' : (blink ? 'blink' : 'open'));
+  const eyeMode = ouch ? 'hurt' : (weak && e.maxhp >= 2 ? 'dead' : (blink ? 'blink' : 'open'));
 
   if (e.type === 'blob') {
     g.fillStyle = '#7ad46b';
@@ -508,57 +580,150 @@ function drawEnemy(g, e, t) {
     eye(g, 8, 0, 7, eyeMode, look);
     mouth(g, 0, 12, 7, ouch ? 'oh' : (weak ? 'wave' : 'teeth'));
 
-  } else if (e.type === 'batking' || e.type === 'bigeye') {
-    const R = e.r, big = e.type === 'bigeye';
-    // 触手
-    g.strokeStyle = big ? '#c94f7c' : '#8d5fc0'; g.lineWidth = 9; g.lineCap = 'round';
-    for (let i = -2; i <= 2; i++) {
-      g.beginPath(); g.moveTo(i * 15, R * 0.5);
-      g.quadraticCurveTo(i * 15 + Math.sin(t * 3 + i) * 16, R * 1.1, i * 20 + Math.sin(t * 2 + i) * 12, R * 1.5);
-      g.stroke();
+  } else if (e.type === 'toucan') {                 // 巨嘴鸟王：大橙鸟 + 巨型彩嘴
+    const R = e.r, flap = Math.sin(t * 7), om = ouch ? 1.3 : 1;
+    const wingY = R * 0.1;
+    g.save(); g.rotate(flap * 0.16);
+    g.fillStyle = '#ffb02e';
+    g.beginPath(); g.ellipse(-R * 0.92, wingY, R * 0.52, R * 0.34, -0.5, 0, 7); g.fill();
+    g.beginPath(); g.ellipse(R * 0.92, wingY, R * 0.52, R * 0.34, 0.5, 0, 7); g.fill();
+    g.fillStyle = '#fff3c4';
+    g.beginPath(); g.ellipse(-R * 0.94, wingY - 2, R * 0.3, R * 0.2, -0.5, 0, 7); g.fill();
+    g.beginPath(); g.ellipse(R * 0.94, wingY - 2, R * 0.3, R * 0.2, 0.5, 0, 7); g.fill();
+    g.restore();
+    // 身体
+    g.fillStyle = '#ff8f3c'; wobbly(g, R * 0.8, 26, 2.2, t * 2.6, 6); g.fill();
+    g.strokeStyle = '#e06a1a'; g.lineWidth = 3; g.stroke();
+    g.fillStyle = '#fff0d9';
+    g.beginPath(); g.ellipse(0, R * 0.42, R * 0.5, R * 0.38, 0, 0, 7); g.fill();
+    // 头顶羽冠
+    g.strokeStyle = '#ff8a3c'; g.lineWidth = 4; g.lineCap = 'round';
+    for (let k = -1; k <= 1; k++) {
+      g.beginPath(); g.moveTo(k * R * 0.14, -R * 0.72);
+      g.quadraticCurveTo(k * R * 0.2 + flap * 3, -R * 1.05, k * R * 0.26 + flap * 6, -R * 0.9); g.stroke();
     }
-    g.fillStyle = big ? '#ff6b8b' : '#a678d8';
-    wobbly(g, R, 26, 3, t * 2.5, 6); g.fill();
-    g.strokeStyle = big ? '#d94f6b' : '#7d4fb0'; g.lineWidth = 3; g.stroke();
-    // 腮红：血越少越红
-    if (weak) { blush(g, -R * 0.62, R * 0.12, R * 0.17); blush(g, R * 0.62, R * 0.12, R * 0.17); }
-    // 独眼（血少时眯成一条缝）
-    const eyeY = -4, er = R * 0.42;
-    if (blink) {
-      g.strokeStyle = '#20303f'; g.lineWidth = big ? 6 : 5; g.lineCap = 'round';
-      g.beginPath(); g.moveTo(-er * 0.85, eyeY); g.lineTo(er * 0.85, eyeY); g.stroke();
-    } else {
-      g.fillStyle = '#fff';
-      g.beginPath(); g.arc(0, eyeY, er, 0, 7); g.fill();
-      g.strokeStyle = big ? '#d94f6b' : '#7d4fb0'; g.lineWidth = 3; g.stroke();
-      const px = clamp((player.x - e.x) / 150, -1, 1) * er * 0.34;
-      const py = clamp((player.y - e.y) / 220, -1, 1) * er * 0.2;
-      g.fillStyle = big ? '#2b1b3a' : '#2f2440';
-      g.beginPath(); g.arc(px, eyeY + py, R * (ouch ? 0.16 : 0.22), 0, 7); g.fill();   // 挨打时瞳孔缩一下
-      g.fillStyle = '#fff';
-      g.beginPath(); g.arc(px + 5, eyeY + py - 6, R * 0.07, 0, 7); g.fill();
-    }
-    // 眉毛：血少于四成时竖起怒眉
-    if (weak) {
-      g.save(); g.strokeStyle = '#20303f'; g.lineWidth = big ? 7 : 6; g.lineCap = 'round';
-      g.beginPath(); g.moveTo(-er * 1.15, eyeY - er * 1.05); g.lineTo(-er * 0.15, eyeY - er * 0.5); g.stroke();
-      g.beginPath(); g.moveTo(er * 1.15, eyeY - er * 1.05); g.lineTo(er * 0.15, eyeY - er * 0.5); g.stroke();
+    // 眼睛 + 腮红
+    eye(g, -R * 0.3, -R * 0.22, R * 0.13, eyeMode, look);
+    eye(g, R * 0.3, -R * 0.22, R * 0.13, eyeMode, look);
+    blush(g, -R * 0.46, R * 0.05, R * 0.1); blush(g, R * 0.46, R * 0.05, R * 0.1);
+    // 巨型彩嘴（开合）
+    g.fillStyle = '#ffa62b';
+    g.beginPath(); g.moveTo(-R * 0.62, -R * 0.08);
+    g.lineTo(R * 0.62, -R * 0.08);
+    g.lineTo(R * 0.08, R * 0.5 * om);
+    g.lineTo(-R * 0.08, R * 0.5 * om);
+    g.closePath(); g.fill();
+    g.strokeStyle = '#d97a14'; g.lineWidth = 2.5; g.stroke();
+    g.fillStyle = '#ff8a00';
+    g.beginPath(); g.moveTo(-R * 0.26, R * 0.44 * om);
+    g.lineTo(R * 0.26, R * 0.44 * om);
+    g.lineTo(R * 0.06, R * 0.7 * om);
+    g.lineTo(-R * 0.06, R * 0.7 * om);
+    g.closePath(); g.fill();
+    g.fillStyle = '#fff';
+    g.beginPath(); g.arc(-R * 0.03, R * 0.08, R * 0.035, 0, 7); g.fill();
+    g.beginPath(); g.arc(R * 0.03, R * 0.08, R * 0.035, 0, 7); g.fill();
+    // 尾羽
+    g.strokeStyle = '#ffb02e'; g.lineWidth = 5; g.lineCap = 'round';
+    g.beginPath(); g.moveTo(-R * 0.3, R * 0.78);
+    g.quadraticCurveTo(-R * 0.5, R * 1.25, -R * 0.85, R * 1.1 + flap * 4); g.stroke();
+
+  } else if (e.type === 'hydra3') {                 // 三头蛇：三颗头轮流喷火
+    const R = e.r;
+    g.fillStyle = '#58b36e';
+    g.beginPath(); g.ellipse(0, R * 0.1, R * 0.95, R * 0.5, 0, 0, 7); g.fill();
+    g.strokeStyle = '#3e944f'; g.lineWidth = 3; g.stroke();
+    g.fillStyle = '#9be08b';
+    g.beginPath(); g.ellipse(0, R * 0.3, R * 0.42, R * 0.2, 0, 0, 7); g.fill();
+    // 尾巴（右侧摆动）
+    const wav = Math.sin(t * 3.4);
+    g.strokeStyle = '#58b36e'; g.lineWidth = R * 0.24; g.lineCap = 'round';
+    g.beginPath(); g.moveTo(R * 0.72, R * 0.18);
+    g.quadraticCurveTo(R * 1.12, R * 0.1 + wav * 8, R * 1.32, R * 0.5 + wav * 13); g.stroke();
+    // 三个头
+    for (let k = -1; k <= 1; k++) {
+      const hx = k * R * 0.62;
+      const fireNow = (e.headN % 3) === k + 1 && e.fireT < 0.45;
+      g.save(); g.translate(hx, -R * 0.05);
+      // 脖子
+      g.strokeStyle = '#58b36e'; g.lineWidth = R * 0.26; g.lineCap = 'round';
+      g.beginPath(); g.moveTo(0, R * 0.12);
+      g.quadraticCurveTo(k * R * 0.22 + Math.sin(t * 3 + k) * 3, -R * 0.5, 0, -R * 0.88 + Math.sin(t * 3.2 + k) * 4); g.stroke();
+      // 头
+      const hc = fireNow ? '#ff8a4a' : (ouch ? '#8ce07c' : '#6bc37b');
+      g.fillStyle = hc; wobbly(g, R * 0.27, 14, 2, t * 3 + k * 2, 4); g.fill();
+      g.strokeStyle = '#3e944f'; g.lineWidth = 2.4; g.stroke();
+      // 眼睛（挨打变X）
+      if (ouch) {
+        g.strokeStyle = '#20303f'; g.lineWidth = 2.6; g.lineCap = 'round';
+        g.beginPath(); g.moveTo(-5, -7); g.lineTo(-1, -3); g.moveTo(-1, -7); g.lineTo(-5, -3); g.stroke();
+        g.beginPath(); g.moveTo(5, -7); g.lineTo(1, -3); g.moveTo(1, -7); g.lineTo(5, -3); g.stroke();
+      } else { eye(g, -6, -6, 4, eyeMode, look); eye(g, 6, -6, 4, eyeMode, look); }
+      // 嘴 + 火焰舌头
+      mouth(g, 0, 3, 7, fireNow ? 'oh' : (blink ? 'wave' : 'smile'));
+      if (fireNow) {
+        g.fillStyle = 'rgba(255,170,60,.9)';
+        g.beginPath(); g.moveTo(-4, 10); g.lineTo(4, 10);
+        g.lineTo(0, 26 + rnd(0, 6)); g.closePath(); g.fill();
+        g.fillStyle = 'rgba(255,220,120,.85)';
+        g.beginPath(); g.arc(0, 14 + rnd(0, 4), 3 + rnd(0, 2), 0, 7); g.fill();
+      }
       g.restore();
     }
-    // 大嘴 + 尖牙：挨打/血少时张得更大
-    const open = ouch ? 1.45 : (weak ? 1.2 : 1);
-    g.fillStyle = '#3a1f30';
-    g.beginPath(); g.ellipse(0, R * 0.5, R * 0.42, R * 0.2 * open, 0, 0, 7); g.fill();
-    g.fillStyle = '#ff8fae';
-    g.beginPath(); g.ellipse(0, R * 0.5 + R * 0.1 * open, R * 0.2, R * 0.06 * open, 0, 0, 7); g.fill();
-    g.fillStyle = '#fff';
-    for (let i = -2; i <= 2; i++) {
-      g.beginPath();
-      g.moveTo(i * 11 - 4, R * 0.5 - R * 0.2 * open);
-      g.lineTo(i * 11, R * 0.5 - R * 0.2 * open + 11);
-      g.lineTo(i * 11 + 4, R * 0.5 - R * 0.2 * open);
-      g.closePath(); g.fill();
+    // 身上鳞片点
+    g.fillStyle = 'rgba(255,255,255,.18)';
+    for (let k = -2; k <= 2; k++) { g.beginPath(); g.arc(k * R * 0.2, -R * 0.05, R * 0.05, 0, 7); g.fill(); }
+
+  } else if (e.type === 'mechdragon') {             // 暗黑机械龙：金属机身，半血狂暴
+    const R = e.r, rage = e.hp / e.maxhp <= 0.5;
+    const gl = rage && Math.floor(t * 10) % 2;      // 狂暴红灯闪烁
+    const fl = Math.sin(t * 6);
+    // 机械翅膀
+    g.fillStyle = '#5c6f8f';
+    g.beginPath(); g.moveTo(-R * 0.2, -R * 0.5); g.lineTo(-R * 1.3, -R * 0.9 + fl * 7); g.lineTo(-R * 1.2, -R * 0.2 + fl * 7); g.closePath(); g.fill();
+    g.beginPath(); g.moveTo(R * 0.2, -R * 0.5); g.lineTo(R * 1.3, -R * 0.9 - fl * 7); g.lineTo(R * 1.2, -R * 0.2 - fl * 7); g.closePath(); g.fill();
+    g.strokeStyle = '#3c4a63'; g.lineWidth = 2;
+    for (let i = 0; i < 3; i++) {
+      g.beginPath(); g.moveTo(R * 0.25 + i * R * 0.05, -R * 0.42 - i * R * 0.12); g.lineTo(R * 1.1 - i * R * 0.18, -R * 0.75); g.stroke();
+      g.beginPath(); g.moveTo(-R * 0.25 - i * R * 0.05, -R * 0.42 - i * R * 0.12); g.lineTo(-R * 1.1 + i * R * 0.18, -R * 0.75); g.stroke();
     }
+    // 机身（六边形机械体）
+    g.fillStyle = rage ? (gl ? '#8a5f7a' : '#7189b5') : '#7d8fb5';
+    g.beginPath();
+    g.moveTo(0, -R * 0.92); g.lineTo(R * 0.62, -R * 0.55); g.lineTo(R * 0.78, R * 0.28);
+    g.lineTo(R * 0.35, R * 0.85); g.lineTo(-R * 0.35, R * 0.85); g.lineTo(-R * 0.78, R * 0.28);
+    g.lineTo(-R * 0.62, -R * 0.55); g.closePath(); g.fill();
+    g.strokeStyle = '#42527a'; g.lineWidth = 3; g.stroke();
+    // 金属高光与铆钉
+    g.strokeStyle = 'rgba(255,255,255,.4)'; g.lineWidth = 2;
+    g.beginPath(); g.moveTo(-R * 0.5, -R * 0.4); g.lineTo(-R * 0.2, -R * 0.7); g.stroke();
+    g.fillStyle = '#2f3c58';
+    for (let i = 0; i < 4; i++) { g.beginPath(); g.arc(-R * 0.42 + i * R * 0.28, R * 0.62, 3, 0, 7); g.fill(); }
+    // 腹部能量灯
+    g.fillStyle = rage ? (gl ? '#ff5f5f' : '#ffd34d') : '#8fd6ff';
+    g.beginPath(); g.ellipse(0, R * 0.42, R * 0.34, R * 0.16, 0, 0, 7); g.fill();
+    // 机械角
+    g.fillStyle = '#ffd34d';
+    g.beginPath(); g.moveTo(-R * 0.3, -R * 0.85); g.lineTo(-R * 0.42, -R * 1.25); g.lineTo(-R * 0.08, -R * 0.95); g.closePath(); g.fill();
+    g.beginPath(); g.moveTo(R * 0.3, -R * 0.85); g.lineTo(R * 0.42, -R * 1.25); g.lineTo(R * 0.08, -R * 0.95); g.closePath(); g.fill();
+    // 机械眼（狂暴时红色发光）
+    const gr = R * 0.2;
+    g.fillStyle = '#20303f';
+    g.beginPath(); g.arc(-R * 0.28, -R * 0.28, gr, 0, 7); g.fill();
+    g.beginPath(); g.arc(R * 0.28, -R * 0.28, gr, 0, 7); g.fill();
+    g.fillStyle = rage ? (gl ? '#fff' : '#ff3b3b') : (ouch ? '#ffb03d' : '#ffd34d');
+    g.beginPath(); g.arc(-R * 0.28 + look * 4, -R * 0.28, gr * 0.5, 0, 7); g.fill();
+    g.beginPath(); g.arc(R * 0.28 + look * 4, -R * 0.28, gr * 0.5, 0, 7); g.fill();
+    g.fillStyle = '#fff';
+    g.beginPath(); g.arc(-R * 0.28 + look * 4 - 2, -R * 0.32, gr * 0.16, 0, 7); g.fill();
+    g.beginPath(); g.arc(R * 0.28 + look * 4 - 2, -R * 0.32, gr * 0.16, 0, 7); g.fill();
+    // 嘴巴（金属缝，狂暴亮牙）
+    g.strokeStyle = '#2f3c58'; g.lineWidth = 2.5;
+    g.beginPath(); g.moveTo(-R * 0.3, R * 0.1); g.lineTo(R * 0.3, R * 0.1); g.stroke();
+    // 下方推进焰
+    g.fillStyle = 'rgba(255,140,60,.85)';
+    g.beginPath(); g.moveTo(-R * 0.24, R * 0.85); g.lineTo(R * 0.24, R * 0.85);
+    g.lineTo(R * 0.05, R * 1.2 + Math.abs(fl) * 8); g.lineTo(-R * 0.05, R * 1.2 + Math.abs(fl) * 8); g.closePath(); g.fill();
   }
   drawHpBar(g, e);
   g.restore();
@@ -634,10 +799,41 @@ function drawBolt(g, b) {                         // 雷电：白色主闪 + 蓝
 }
 function drawEBullet(g, b) {
   g.save(); g.translate(b.x, b.y);
-  g.fillStyle = '#ff5f7a';
-  g.beginPath(); g.arc(0, 0, 6, 0, 7); g.fill();
-  g.fillStyle = 'rgba(255,255,255,.85)';
-  g.beginPath(); g.arc(-1.6, -1.6, 2.2, 0, 7); g.fill();
+  if (b.kind === 'feather') {                    // 羽毛弹幕
+    g.rotate(Math.atan2(b.vy, b.vx) + Math.PI / 2);
+    g.fillStyle = 'rgba(255,255,255,.92)';
+    g.beginPath(); g.ellipse(0, 0, 3.6, 9, 0, 0, 7); g.fill();
+    g.strokeStyle = '#ff9ab8'; g.lineWidth = 1.6;
+    g.beginPath(); g.moveTo(0, -8.4); g.lineTo(0, 8.4); g.stroke();
+  } else if (b.kind === 'ball') {                // 火球
+    const k = Math.min(1, (b.y - 100) / 500);
+    const grd = g.createRadialGradient(0, 0, 1.5, 0, 0, b.r);
+    grd.addColorStop(0, '#fff8d0'); grd.addColorStop(0.4, '#ffd34d'); grd.addColorStop(1, 'rgba(255,110,40,0)');
+    g.fillStyle = grd; g.beginPath(); g.arc(0, 0, b.r, 0, 7); g.fill();
+    g.fillStyle = '#ff9a3d'; g.beginPath(); g.arc(0, 0, b.r * 0.62, 0, 7); g.fill();
+    g.fillStyle = '#fff2b0'; g.beginPath(); g.arc(-b.r * 0.2, -b.r * 0.22, b.r * 0.28, 0, 7); g.fill();
+  } else if (b.kind === 'seek') {                // 追踪导弹（小恶魔弹）
+    g.rotate(Math.atan2(b.vy, b.vx) + Math.PI / 2);
+    g.fillStyle = '#b06ae8';
+    g.beginPath(); g.moveTo(0, -9); g.lineTo(7, 4); g.lineTo(0, 1); g.lineTo(-7, 4); g.closePath(); g.fill();
+    g.fillStyle = '#ffd34d';
+    g.beginPath(); g.arc(0, -6, 2.4, 0, 7); g.fill();
+    g.strokeStyle = '#ff8a5a'; g.lineWidth = 1.6;
+    g.beginPath(); g.moveTo(-4, 4); g.lineTo(-6, 8); g.moveTo(4, 4); g.lineTo(6, 8); g.stroke();
+  } else if (b.kind === 'beam') {                // 激光柱
+    const grd = g.createLinearGradient(0, -72, 0, 20);
+    grd.addColorStop(0, 'rgba(150,220,255,0)');
+    grd.addColorStop(0.35, 'rgba(200,240,255,.9)');
+    grd.addColorStop(1, 'rgba(255,255,255,.95)');
+    g.fillStyle = grd; g.fillRect(-9, -72, 18, 92);
+    g.fillStyle = 'rgba(80,190,255,.9)'; g.fillRect(-13, -8, 26, 10);
+    g.fillStyle = '#fff'; g.fillRect(-6, -40, 12, 44);
+  } else {                                       // 普通火球红点
+    g.fillStyle = '#ff5f7a';
+    g.beginPath(); g.arc(0, 0, 6, 0, 7); g.fill();
+    g.fillStyle = 'rgba(255,255,255,.85)';
+    g.beginPath(); g.arc(-1.6, -1.6, 2.2, 0, 7); g.fill();
+  }
   g.restore();
 }
 function drawDrop(g, d) {
@@ -738,14 +934,127 @@ function spawnEnemy() {
 }
 function spawnBoss() {
   const L = LEVELS[level], type = L.boss, cfg = ENEMY[type], hp = L.bossHp;
+  const NAME = { toucan: '巨嘴鸟王', hydra3: '三头蛇', mechdragon: '暗黑机械龙' };
   boss = {
-    type, x: W / 2, y: -cfg.r, r: cfg.r, hp, maxhp: hp,
-    t: 0, fireT: 1.5, flash: 0, hitT: 0, score: cfg.score, entering: true, dir: 1
+    type, n: NAME[type] || '大怪兽', x: W / 2, y: -cfg.r - 40, r: cfg.r, hp, maxhp: hp,
+    t: 0, fireT: 1.4, flash: 0, hitT: 0, score: cfg.score, entering: true, dir: 1,
+    ph: 1, headN: 0, dive: 0, ty: 112, summonT: 0, bossT: 0
   };
+}
+/* ================== BOSS 行动（每只王都有专属招式） ================== */
+function fireDot(x, y, vx, vy)   { ebullets.push({ x, y, vx, vy, r: 6,  kind: 'dot' }); }
+function fireBall(x, y, vx, vy)  { ebullets.push({ x, y, vx: vx || 0, vy: vy || 300, r: 10, kind: 'ball' }); }
+function fireFeather(x, y, vx)   { ebullets.push({ x, y, vx, vy: 200 + rnd(0, 70), r: 7, kind: 'feather' }); }
+function fireSeek(x, y)          { ebullets.push({ x, y, vx: rnd(-30, 30), vy: 200, r: 9, kind: 'seek' }); }
+function fireBeam(x)             { ebullets.push({ x, y: boss.y + boss.r, vx: 0, vy: 800, r: 12, kind: 'beam' }); }
+function bossEnter(dt, homeY) {
+  if (!boss.entering) return true;
+  boss.y += 80 * dt;
+  if (boss.y >= homeY) { boss.y = homeY; boss.entering = false; }
+  return !boss.entering;
+}
+/* 第1关：巨嘴鸟王 —— 高空巡游 + 俯冲撞击 + 撒羽毛弹幕 */
+function toucanAct(dt, hpR) {
+  const fast = hpR <= 0.5;
+  if (!bossEnter(dt, 110)) return;
+  boss.x += boss.dir * (fast ? 95 : 70) * dt;
+  if (boss.x < boss.r + 30) { boss.x = boss.r + 30; boss.dir = 1; }
+  if (boss.x > W - boss.r - 30) { boss.x = W - boss.r - 30; boss.dir = -1; }
+  boss.ty = 110 + Math.sin(boss.t * 2.0) * (fast ? 16 : 9);
+  if (boss.dive === 2) {                        // 正在俯冲：追玩家撞下去，一路撒羽毛
+    boss.y += (fast ? 440 : 360) * dt;
+    boss.x += (player.x - boss.x) * Math.min(1, dt * 2.4);
+    if (Math.random() < dt * (fast ? 24 : 14)) fireFeather(boss.x + rnd(-12, 12), boss.y + boss.r * 0.5, rnd(-110, 110));
+    if (boss.y > 500) boss.dive = 1;
+  } else if (boss.dive === 1) {                 // 拉高爬升
+    boss.y -= 300 * dt;
+    if (boss.y <= boss.ty) { boss.y = boss.ty; boss.dive = 0; }
+  } else {
+    boss.y += (boss.ty - boss.y) * Math.min(1, dt * 3);
+    boss.fireT -= dt;
+    if (boss.fireT <= 0) {
+      if (Math.random() < (fast ? 0.42 : 0.3)) { boss.dive = 2; boss.fireT = fast ? 1.8 : 2.4; SFX.zap(); }
+      else {
+        for (let k = -2; k <= 2; k++) fireFeather(boss.x, boss.y + boss.r * 0.4, k * (fast ? 92 : 68));
+        fireDot(boss.x, boss.y + boss.r * 0.3, 0, 250);
+        boss.fireT = fast ? 1.25 : 1.7;
+        SFX.zap();
+      }
+    }
+  }
+}
+/* 第2关：三头蛇 —— 身体左右摆，三个头轮流喷火球 */
+function hydraAct(dt, hpR) {
+  const fast = hpR <= 0.5;
+  if (!bossEnter(dt, 122)) return;
+  boss.x += boss.dir * (fast ? 122 : 86) * dt;
+  if (boss.x < boss.r + 34) { boss.x = boss.r + 34; boss.dir = 1; }
+  if (boss.x > W - boss.r - 34) { boss.x = W - boss.r - 34; boss.dir = -1; }
+  boss.y = 122 + Math.sin(boss.t * 1.35) * (fast ? 10 : 6);
+  boss.fireT -= dt;
+  if (boss.fireT <= 0) {
+    boss.fireT = fast ? 0.55 : 0.85;
+    const no = boss.headN % 3, hx = boss.x + (no - 1) * (fast ? 36 : 30), hy = boss.y - boss.r * 0.55;
+    fireBall(hx - 5, hy, rnd(-36, 36), 310 + rnd(0, 60));
+    fireBall(hx + 5, hy, rnd(-36, 36), 310 + rnd(0, 60));
+    SFX.flame();
+    boss.headN++;
+  }
+}
+/* 第3关：暗黑机械龙 —— 阶段一激光+追踪弹；阶段二狂暴+召唤小怪 */
+function mechAct(dt, hpR) {
+  if (hpR <= 0.5 && boss.ph === 1) {            // 变身狂暴
+    boss.ph = 2; shake = 18; flash = Math.max(flash, 0.35);
+    boss.fireT = 0.4; boss.summonT = 2.2;
+    SFX.beam(); SFX.power();
+  }
+  if (!bossEnter(dt, 128)) return;
+  const rage = boss.ph === 2;
+  boss.x += boss.dir * (rage ? 156 : 76) * dt;
+  if (boss.x < boss.r + 26) { boss.x = boss.r + 26; boss.dir = 1; }
+  if (boss.x > W - boss.r - 26) { boss.x = W - boss.r - 26; boss.dir = -1; }
+  boss.y = 128 + Math.sin(boss.t * (rage ? 2.6 : 1.7)) * (rage ? 14 : 6);
+  boss.fireT -= dt;
+  if (boss.fireT <= 0) {
+    if (!rage) {
+      boss.fireT = 1.2;
+      if (boss.headN % 2 === 0) { fireBeam(player.x); SFX.beam(); }
+      else { fireSeek(boss.x - 18, boss.y + 10); fireSeek(boss.x + 18, boss.y + 10); SFX.lock(); }
+    } else {
+      boss.fireT = 0.8;
+      if (Math.random() < 0.5) { fireBeam(player.x); SFX.beam(); }
+      else {
+        fireSeek(boss.x, boss.y + 6);
+        fireBall(boss.x - 24, boss.y + 22, -70, 330);
+        fireBall(boss.x + 24, boss.y + 22, 70, 330);
+        SFX.flame();
+      }
+    }
+    boss.headN++;
+  }
+  if (rage) {
+    boss.summonT -= dt;
+    if (boss.summonT <= 0) {
+      boss.summonT = 4.4;
+      spawnEnemy(); spawnEnemy(); SFX.summon();
+    }
+  }
+}
+function updateBoss(dt) {
+  if (!boss) return;
+  const hpR = boss.hp / boss.maxhp;
+  boss.t += dt;
+  if (boss.flash > 0) boss.flash -= dt;
+  if (boss.hitT > 0) boss.hitT -= dt;
+  if (boss.type === 'toucan') toucanAct(dt, hpR);
+  else if (boss.type === 'hydra3') hydraAct(dt, hpR);
+  else if (boss.type === 'mechdragon') mechAct(dt, hpR);
+  if (hit(boss, player)) hurt();
 }
 function levelClear() {
   if (state !== 'playing') return;      // 打完 BOSS 后的 0.9 秒里若已阵亡，就不弹过关页
   state = 'clear';
+  bgmStop();
   SFX.clear();
   const last = level >= LEVELS.length - 1;
   if (last) return showWin();
@@ -762,6 +1071,7 @@ function levelClear() {
 }
 function gameOver() {
   state = 'dead';
+  bgmStop();
   SFX.lose();
   showOverlay(
     '<div class="card">' +
@@ -773,14 +1083,15 @@ function gameOver() {
     '</div>'
   );
   // 重玩这一关：命和炸弹补满，火力保留（否则带着 1 级火力打 BOSS 太吃亏）
-  $('ovRetry').onclick = () => { lives = 5; bombs = BOMBS_PER_LIFE; startLevel(level); };
+  $('ovRetry').onclick = () => { lives = 3; bombs = BOMBS_PER_LIFE; startLevel(level); };
 }
 function showWin() {
   state = 'win';
+  bgmStop();
   SFX.win();
   const sec = Math.round((Date.now() - startTime) / 1000);
   const mm = String(Math.floor(sec / 60)).padStart(2, '0'), ss = String(sec % 60).padStart(2, '0');
-  const star = lives >= 4 ? 3 : (lives >= 2 ? 2 : 1);
+  const star = lives >= 3 ? 3 : (lives >= 2 ? 2 : 1);
   showOverlay(
     '<div class="card">' +
       '<h2>怪兽全部被赶跑啦！</h2>' +
@@ -850,7 +1161,7 @@ function onBossDead() {
   score += boss.score; kills++;
   boom(boss.x, boss.y, '#ff6b8b', 42); SFX.boom();
   const bx = boss.x, by = boss.y;
-  boss = null; bossDone = true;
+  bgmStop(); boss = null; bossDone = true;
   pwGain();
   setTimeout(() => { boom(bx, by, '#ffd34d', 30); SFX.boom(); }, 160);
   setTimeout(levelClear, 900);
@@ -1038,26 +1349,9 @@ function update(dt) {
     else if (hit(e, player)) { boom(e.x, e.y, '#7ad46b', 12); enemies.splice(i, 1); SFX.boom(); hurt(); }
   }
 
-  // --- BOSS ---
-  if (boss) {
-    boss.t += dt;
-    if (boss.entering) { boss.y += 60 * dt; if (boss.y >= 118) { boss.y = 118; boss.entering = false; } }
-    else {
-      boss.x += boss.dir * 62 * dt;
-      if (boss.x < boss.r + 20) { boss.x = boss.r + 20; boss.dir = 1; }
-      if (boss.x > W - boss.r - 20) { boss.x = W - boss.r - 20; boss.dir = -1; }
-      boss.fireT -= dt;
-      if (boss.fireT <= 0) {
-        boss.fireT = boss.type === 'bigeye' ? 1.4 : 1.6;
-        for (let k = -1; k <= 1; k++) {
-          ebullets.push({ x: boss.x + k * 22, y: boss.y + boss.r * 0.6, vx: k * 55, vy: 240, r: 6 });
-        }
-      }
-    }
-    if (boss.flash > 0) boss.flash -= dt;
-    if (boss.hitT > 0) boss.hitT -= dt;
-    if (hit(boss, player)) hurt();
-  }
+  // --- BOSS（专属 AI + 紧张 BGM）---
+  if (boss) { updateBoss(dt); if (!boss.entering) bgmStart(); }
+  else if (state === 'playing') bgmStop();
 
   // --- 我方子弹 ---
   for (let i = bullets.length - 1; i >= 0; i--) {
@@ -1113,8 +1407,17 @@ function update(dt) {
   // --- 敌方子弹 ---
   for (let i = ebullets.length - 1; i >= 0; i--) {
     const b = ebullets[i];
+    if (b.kind === 'seek') {                         // 追踪弹：拐弯咬住玩家
+      const dx = player.x - b.x, dy = player.y - b.y, d = Math.sqrt(dx * dx + dy * dy) || 1;
+      const sp = 290;
+      b.vx += (dx / d * sp - b.vx) * Math.min(1, dt * 4.4);
+      b.vy += (dy / d * sp - b.vy) * Math.min(1, dt * 4.4);
+    } else if (b.kind === 'beam' && Math.random() < dt * 46) {
+      parts.push({ x: b.x + rnd(-3, 3), y: b.y - 26, vx: rnd(-16, 16), vy: 150,
+        r: rnd(2, 4), c: pick(['#8fd6ff', '#fff', '#ffd34d']), life: 0.3, max: 0.3, rot: 0, spin: 0, star: false });
+    }
     b.x += b.vx * dt; b.y += b.vy * dt;
-    if (b.y > H + 20 || b.x < -20 || b.x > W + 20) { ebullets.splice(i, 1); continue; }
+    if (b.y > H + 24 || b.x < -24 || b.x > W + 24) { ebullets.splice(i, 1); continue; }
     if (hit(b, player)) { boom(b.x, b.y, '#ff5f7a', 10); ebullets.splice(i, 1); hurt(); }
   }
 
@@ -1130,7 +1433,7 @@ function update(dt) {
         if (player.power < 3) { powerTo(player.power + 1, false); SFX.power(); }
         else { score += 60; SFX.item(); }
       } else {                                  // 红心：补 1 条命
-        if (lives < 5) lives++;
+        if (lives < 3) lives++;
         bombs = Math.max(bombs, BOMBS_PER_LIFE);
         SFX.item();
       }
@@ -1171,7 +1474,18 @@ function draw() {
     drawJet(ctx, player.x, player.y, tick, blink);
   }
   for (const p of parts) drawPart(ctx, p);
-  // BOSS 大血条
+  // BOSS 入场横幅（亮名字）
+  if (boss && boss.entering) {
+    ctx.fillStyle = 'rgba(15,10,40,.55)';
+    ctx.fillRect(W / 2 - 150, 172, 300, 46);
+    ctx.strokeStyle = 'rgba(255,211,77,.8)'; ctx.lineWidth = 2;
+    ctx.strokeRect(W / 2 - 150, 172, 300, 46);
+    ctx.fillStyle = '#ffd34d';
+    ctx.font = 'bold 22px "PingFang SC", sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('⚠ ' + boss.n + ' 来了！', W / 2, 196);
+  }
+  // BOSS 大血条（含名字）
   if (boss && !boss.entering) {
     const w = 250, h = 17, x = (W - w) / 2, y = 14;
     const r = Math.max(0, boss.hp / boss.maxhp);
@@ -1195,7 +1509,7 @@ function draw() {
     ctx.fillStyle = '#fff';
     ctx.font = 'bold 11px "PingFang SC", sans-serif';
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText('大怪兽  ' + Math.max(0, boss.hp) + ' / ' + boss.maxhp, W / 2, y + h / 2 + 0.5);
+    ctx.fillText(boss.n + '  ' + Math.max(0, boss.hp) + ' / ' + boss.maxhp, W / 2, y + h / 2 + 0.5);
   }
   ctx.restore();
   // “换子弹啦！”飘字提示
@@ -1231,7 +1545,7 @@ function syncHud() {
   $('hWp').textContent = w.name;
   $('hWpBox').style.background = 'linear-gradient(' + w.color + ', #ff9a3d)';
   let h = '';
-  for (let i = 0; i < 5; i++) h += heartSvg(i < lives);
+  for (let i = 0; i < 3; i++) h += heartSvg(i < lives);
   $('hHearts').innerHTML = h;
   // 火力等级
   let pw = '';
@@ -1286,7 +1600,7 @@ document.addEventListener('visibilitychange', () => {
 
 function togglePause() {
   if (state === 'playing') {
-    state = 'pause'; pointer.active = false;
+    state = 'pause'; pointer.active = false; bgmStop();
     showOverlay(
       '<div class="card">' +
         '<h2>暂停一下</h2>' +
@@ -1298,13 +1612,14 @@ function togglePause() {
         '&nbsp;&nbsp;&nbsp;喷火龙 / 三连发 / 雷电 / 追踪弹 / 回旋镖<br>' +
         '· 红色的心：补回 1 条命<br>' +
         '· 炸弹：清掉所有火球，全场怪兽一起挨炸（随便炸）<br>' +
-        '&nbsp;&nbsp;&nbsp;每条命配 2 颗，被打中掉一级火力</p>' +
+        '&nbsp;&nbsp;&nbsp;每条命配 30 颗炸弹（共 3 条命），被打中掉一级火力</p>' +
         '<button class="btn" id="ovResume">继续开打</button>' +
       '</div>'
     );
     $('ovResume').onclick = togglePause;
   } else if (state === 'pause') {
     state = 'playing'; hideOverlay();
+    if (boss && !boss.entering) bgmStart();
   }
 }
 $('btnPause').onclick = togglePause;
@@ -1329,7 +1644,7 @@ function showMenu() {
       '· 子弹自动发射，你只管躲<br>' +
       '· 打得越多火力越猛：1 发 → 2 发 → 3 发<br>' +
       '· 吃到彩色星星会换成别的子弹<br>' +
-      '· 每条命配 100 颗炸弹，点一下全场开花<br>' +
+      '· 你有 3 条命，每条命配 30 颗炸弹，点一下全场开花<br>' +
       '· 一共 3 关，每关最后有大怪兽 BOSS</p>' +
       '<button class="btn" id="ovStart">开始闯关</button>' +
     '</div>'
@@ -1339,13 +1654,13 @@ function showMenu() {
       weapon = +el.getAttribute('data-w');
       document.querySelectorAll('#overlayBox .wp').forEach(x => x.classList.toggle('sel', x === el));
       syncHud();
-      tone(880, 0.06, 'square', 0.05);
+      SFX.swap();
     };
   });
-  $('ovStart').onclick = () => { if (!actx) tone(1, 0.01, 'sine', 0.0001); newGame(); };
+  $('ovStart').onclick = () => { try { ensureAudio(); actx.resume && actx.resume(); } catch (e) {} newGame(); };
 }
 function newGame() {
-  score = 0; kills = 0; lives = 5;
+  score = 0; kills = 0; lives = 3;
   startTime = Date.now();
   player.alive = true;
   player.power = 1; player.pwExp = 0;   // 新的一局火力从 1 级开始
