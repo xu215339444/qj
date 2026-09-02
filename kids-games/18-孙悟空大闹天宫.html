@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>18-孙悟空大闹天宫</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;background:#1a1a2e;overflow:hidden;font-family:'PingFang SC','Microsoft YaHei',sans-serif;user-select:none;touch-action:none}
+#stage{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#1a1a2e}
+#cv{background:#000;touch-action:none}
+/* DOM 覆盖层 */
+.ovl{position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:20;background:#0009}
+.ovl.show{display:flex}
+.panel{background:#fffdf5;border-radius:20px;max-width:420px;width:88%;padding:22px;text-align:center;box-shadow:0 12px 44px #000a;animation:pop .25s}
+@keyframes pop{from{transform:scale(.85);opacity:0}}
+.panel h2{color:#b8860b;font-size:21px;margin-bottom:6px}
+.panel .d{font-size:14px;color:#555;line-height:1.7}
+.bigbtn{display:inline-block;margin:8px 5px 0;font-size:16px;font-weight:900;color:#fff;border:none;border-radius:22px;padding:11px 26px;cursor:pointer}
+.b-go{background:linear-gradient(#ffb74d,#f57c00);box-shadow:0 3px 0 #c96400}
+.b-nx{background:linear-gradient(#66bb6a,#388e3c);box-shadow:0 3px 0 #2e7d32}
+.b-hm{background:linear-gradient(#bdbdbd,#9e9e9e);box-shadow:0 3px 0 #757575}
+.shopitem{display:flex;align-items:center;justify-content:space-between;background:#f6f2e2;border-radius:12px;padding:9px 12px;margin:7px 0;text-align:left}
+.shopitem .n{font-size:14px;font-weight:800;color:#5d4037}
+.shopitem .e{font-size:11.5px;color:#888}
+.shopitem button{font-size:13px;font-weight:900;color:#fff;background:linear-gradient(#ffb74d,#fb8c00);border:none;border-radius:14px;padding:7px 14px;cursor:pointer}
+.shopitem button:disabled{filter:grayscale(1);opacity:.5}
+/* 触屏按钮 */
+#pads{position:fixed;inset:0;z-index:10;display:none;pointer-events:none}
+#pads.show{display:block}
+.pad{position:fixed;bottom:22px;width:64px;height:64px;border-radius:50%;background:#ffffffcc;border:3px solid #00000030;font-size:26px;font-weight:900;color:#333;display:flex;align-items:center;justify-content:center;pointer-events:auto}
+.pad:active,.pad.on{background:#ffd54f;transform:scale(1.08)}
+#pL{left:16px}#pR{left:96px}
+#pJ{right:16px;bottom:100px;background:#ffcc80cc}
+#pA{right:96px;background:#ff8a65cc}
+#pS{right:16px;background:#90caf9cc}
+#pP{position:fixed;top:10px;right:10px;width:40px;height:40px;border-radius:12px;bottom:auto}
+/* 简单模式开关 */
+.pmRow{display:flex;align-items:center;justify-content:center;gap:6px;font-size:13px;color:#666;margin-top:10px}
+.lvlrow{display:flex;align-items:center;justify-content:space-between;background:#f6f2e2;border-radius:12px;padding:9px 12px;margin:6px 0;text-align:left}
+.lvlrow .n{font-size:14px;font-weight:800;color:#5d4037}
+.lvlrow .lk{font-size:12px;color:#aaa}
+.lvlrow button{font-size:13px;font-weight:900;color:#fff;background:linear-gradient(#66bb6a,#388e3c);border:none;border-radius:14px;padding:7px 16px;cursor:pointer}
+.lvlrow button:disabled{background:#ccc;box-shadow:none}
+</style>
+</head>
+<body>
+<div id="stage"><canvas id="cv"></canvas></div>
+
+<div id="pads">
+  <div class="pad" id="pL">◀</div><div class="pad" id="pR">▶</div>
+  <div class="pad" id="pJ">跳</div><div class="pad" id="pA">攻</div><div class="pad" id="pS">技</div>
+  <div class="pad" id="pP">⏸</div>
+</div>
+
+<div class="ovl" id="ovl"><div class="panel" id="panel"></div></div>
+
+<script>
+/* ============================================================
+   孙悟空大闹天宫 —— 儿童横版冒险（Canvas 2D 单文件版）
+   5 关 · 5 Boss · 升级+技能 · 商店 · 存档点 · 触屏+键盘
+============================================================ */
+const W=960,H=540,GY=470;                 // 逻辑分辨率 / 地面顶
+const cv=document.getElementById('cv'),cx=cv.getContext('2d');
+function fit(){
+  const r=Math.min(innerWidth/W,innerHeight/H);
+  cv.style.width=W*r+'px';cv.style.height=H*r+'px';
+  cv.width=W;cv.height=H;cx.imageSmoothingEnabled=false;
+}
+addEventListener('resize',fit);fit();
+
+const $=id=>document.getElementById(id);
+const rnd=n=>Math.floor(Math.random()*n);
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+let paused=false,gameOn=false,simple=false;
+
+/* ---------------- 音效（WebAudio 合成） ---------------- */
+let AC=null,muted=false;
+function beep(f,d,type='square',v=.12,slide=0){
+  if(muted)return;
+  try{AC=AC||new(window.AudioContext||window.webkitAudioContext)();
+  const o=AC.createOscillator(),g=AC.createGain();
+  o.type=type;o.frequency.setValueAtTime(f,AC.currentTime);
+  if(slide)o.frequency.exponentialRampToValueAtTime(Math.max(40,f+slide),AC.currentTime+d);
+  g.gain.setValueAtTime(v,AC.currentTime);
+  g.gain.exponentialRampToValueAtTime(.001,AC.currentTime+d);
+  o.connect(g);g.connect(AC.destination);o.start();o.stop(AC.currentTime+d);}catch(e){}
+}
+const sJump=()=>beep(420,.15,'square',.1,260);
+const sHit=()=>beep(180,.12,'sawtooth',.12,-80);
+const sHurt=()=>beep(140,.3,'sawtooth',.14,-100);
+const sPick=()=>{beep(880,.08);setTimeout(()=>beep(1175,.1),70)};
+const sLevel=()=>[523,659,784,1046].forEach((f,i)=>setTimeout(()=>beep(f,.18,'sine',.14),i*130));
+const sWin=()=>[523,659,784,1046,1318].forEach((f,i)=>setTimeout(()=>beep(f,.3,'sine',.15),i*170));
+const sSkill=()=>beep(700,.25,'sine',.13,500);
+const sBoss=()=>beep(110,.4,'sawtooth',.16,-40);
+
+/* ---------------- 存档 ---------------- */
+const SKEY='wukong_save_v1';
+let save={unlocked:1,level:1,jade:0,peach:0,hp:5,maxHp:5,mp:3,maxMp:3,atk:1,clear:false};
+try{const s=localStorage.getItem(SKEY);if(s)save=Object.assign(save,JSON.parse(s));}catch(e){}
+function persist(){try{localStorage.setItem(SKEY,JSON.stringify(save))}catch(e){}}
+
+/* ---------------- 技能表 ---------------- */
+const SKILLS=[
+ {lv:1,n:'棒打乾坤',e:'普通攻击范围变大（被动）',cost:0},
+ {lv:2,n:'筋斗云冲刺',e:'向前冲刺撞飞敌人',cost:1},
+ {lv:3,n:'分身术',  e:'召唤 2 个分身帮忙攻击 5 秒',cost:2},
+ {lv:4,n:'金箍棒变大',e:'攻击力翻倍，持续 10 秒',cost:3},
+ {lv:5,n:'大闹天宫',e:'全屏震动，所有敌人受 3 点伤害',cost:5}
+];
+
+/* ---------------- 关卡数据 ----------------
+   ground:[[x0,x1]..] 地面段（不连续=水/坑）
+   plat:[x,y,w] 单向平台   mov:[x,y,w,dx] 移动平台
+   en:[type,x,y]  peach/jade/chest:[x,y]  cp:[x..] 存档点  boss:{t,x}
+------------------------------------------------ */
+const LEVELS=[
+ {name:'第1关 · 花果山',sky:['#c8ecb0','#a5d8a0'],hill:'#7cb85c',len:2600,
+  ground:[[0,2100],[2180,2600]],plat:[[600,360,130],[1050,300,120],[1500,350,140],[1950,290,130]],
+  en:[['monkey',700,430],['monkey',1150,430],['flyb',1300,250],['monkey',1650,430],['flyb',1800,220]],
+  peach:[[420,380],[860,300],[1000,430],[1330,240],[1600,430],[1780,160],[2050,430],[2120,430]],
+  jade:[[520,430],[1420,430],[2000,240]],chest:[[980,290]],cp:[1150,2000],
+  boss:{t:'hunshun',x:2380}},
+ {name:'第2关 · 蟠桃园',sky:['#ffd9e8','#ffc4d8'],hill:'#f8a8c8',len:2800,
+  ground:[[0,2800]],plat:[[500,350,130],[900,280,130],[1300,340,120],[1700,270,140],[2100,340,130],[2450,280,120]],
+  en:[['shield',760,430],['tree',1000,300],['shield',1450,430],['tree',1780,240],['shield',2200,430],['shield',2560,430]],
+  peach:[[420,380],[640,300],[1080,230],[1480,300],[1840,220],[2260,300],[2620,230],[2700,430]],
+  jade:[[900,430],[1600,430],[2350,430]],chest:[[1330,300]],cp:[1400,2450],
+  boss:{t:'qixian',x:2650}},
+ {name:'第3关 · 瑶池',sky:['#d5f0ff','#bfe8ff'],hill:'#8fd0f0',len:2800,
+  ground:[[0,700],[900,1400],[1750,2100],[2450,2800]],
+  plat:[[760,400,110],[1560,390,110],[2160,400,110],[1000,300,120],[1900,300,120],[2350,280,120]],
+  water:[[700,900],[1400,1750],[2100,2450]],
+  en:[['fish',1000,300],['crane',1250,230],['fish',1950,300],['crane',2280,220],['fish',2600,430]],
+  peach:[[480,380],[820,350],[1150,250],[1500,340],[1850,250],[2250,230],[2550,430],[2680,430]],
+  jade:[[650,430],[1700,340],[2400,230]],chest:[[1180,210]],cp:[950,2500],
+  boss:{t:'juling',x:2650}},
+ {name:'第4关 · 南天门',sky:['#cfe0ff','#b8ccf5'],hill:'#9fb8e8',len:3000,
+  ground:[[0,1000],[1150,3000]],
+  plat:[[420,340,120],[700,260,120],[1000,330,110],[1400,280,130],[1800,340,120],[2200,260,140],[2600,330,120]],
+  mov:[[1050,200,110,3]],
+  en:[['shield',600,430],['archer',900,250],['shield',1500,430],['whirl',1700,430],['archer',2100,250],['whirl',2400,430],['shield',2800,430]],
+  peach:[[380,300],[760,220],[1180,300],[1550,230],[1950,300],[2380,210],[2700,300],[2880,430]],
+  jade:[[500,430],[1300,430],[2300,210]],chest:[[1900,300]],cp:[1450,2650],
+  boss:{t:'nezha',x:2860}},
+ {name:'第5关 · 凌霄宝殿',sky:['#fff0c0','#ffe3a0'],hill:'#e8c060',len:3200,
+  ground:[[0,3200]],
+  plat:[[500,350,120],[900,280,130],[1350,340,120],[1750,270,130],[2150,340,120],[2550,280,130]],
+  en:[['elite',650,430],['dog',950,430],['elite',1450,430],['dog',1850,430],['elite',2250,430],['dog',2600,430]],
+  peach:[[400,380],[700,300],[1100,230],[1500,300],[1900,220],[2300,300],[2700,230],[2950,430]],
+  jade:[[550,430],[1250,430],[2450,230]],chest:[[1380,300],[2300,210]],cp:[1500,2700],
+  boss:{t:'erlang',x:2950}}
+];
+const ENEMY_DEF={
+ monkey:{ic:'🐒',hp:2,dmg:1,jade:1,peach:1,w:36,h:34,fly:false,slow:.7},
+ flyb:  {ic:'🦋',hp:2,dmg:1,jade:1,peach:1,w:32,h:30,fly:true,shoot:180},
+ shield:{ic:'💠',hp:4,dmg:1,jade:1,peach:1,w:38,h:40,fly:false},
+ tree:  {ic:'🌳',hp:3,dmg:1,jade:1,peach:1,w:42,h:46,fly:false,drop:150},
+ fish:  {ic:'🐟',hp:2,dmg:1,jade:1,peach:1,w:36,h:30,fly:true},
+ crane: {ic:'🕊️',hp:2,dmg:1,jade:1,peach:1,w:34,h:30,fly:true,dive:true},
+ archer:{ic:'🏹',hp:2,dmg:1,jade:2,peach:2,w:36,h:38,fly:false,shoot:140},
+ whirl: {ic:'🌀',hp:2,dmg:1,jade:2,peach:2,w:34,h:32,fly:false,slow:2.2},
+ elite: {ic:'💠',hp:4,dmg:2,jade:2,peach:2,w:40,h:42,fly:false},
+ dog:   {ic:'🐕',hp:2,dmg:1,jade:2,peach:2,w:40,h:30,fly:false,slow:2.4}
+};
+const BOSS_DEF={
+ hunshun:{ic:'👹',n:'混世魔王',hp:12,dmg:2,jade:5,peach:5,w:70,h:76},
+ qixian: {ic:'👸',n:'七仙女',hp:14,dmg:2,jade:6,peach:6,w:60,h:70},
+ juling: {ic:'💪',n:'巨灵神',hp:16,dmg:2,jade:7,peach:7,w:78,h:84},
+ nezha:  {ic:'⚡',n:'哪吒',hp:18,dmg:2,jade:8,peach:8,w:56,h:66},
+ erlang: {ic:'👁️',n:'二郎神',hp:28,dmg:2,jade:0,peach:0,w:64,h:74}
+};
+
+/* ---------------- 输入 ---------------- */
+const key={L:false,R:false,J:false,A:false,S:false};
+const KMAP={ArrowLeft:'L',KeyA:'L',ArrowRight:'R',KeyD:'R',
+  ArrowUp:'J',KeyW:'J',Space:'J',KeyK:'J',KeyJ:'A',KeyX:'A',KeyL:'S',KeyC:'S'};
+addEventListener('keydown',e=>{const k=KMAP[e.code];if(k){key[k]=true;e.preventDefault();}
+  if(e.code==='Escape'&&gameOn)togglePause();});
+addEventListener('keyup',e=>{const k=KMAP[e.code];if(k)key[k]=false;});
+[['pL','L'],['pR','R'],['pJ','J'],['pA','A'],['pS','S']].forEach(([id,k])=>{
+  const el=$(id);
+  el.addEventListener('pointerdown',e=>{e.preventDefault();key[k]=true;el.classList.add('on')});
+  ['pointerup','pointerleave','pointercancel'].forEach(ev=>
+    el.addEventListener(ev,()=>{key[k]=false;el.classList.remove('on')}));
+});
+$('pP').addEventListener('pointerdown',()=>{if(gameOn)togglePause()});
+
+/* ---------------- 游戏状态 ---------------- */
+let st='title';            // title|select|play|shop|win|clear
+let P=null;                // 玩家
+let lvlIdx=0,L=null;       // 当前关卡
+let cam=0,frame=0,shakeT=0;
+let enemies=[],bullets=[],parts=[],pickups=[],boss=null;
+let wave={},cpPos={x:80,y:GY},startTime=0;
+let atkCd=0,invul=0,dashT=0,dashDir=1,shieldT=0,dblT=0,cloneT=0,clones=[];
+let shopUsed={},playPeach=0;
+
+function newPlayer(){return{x:80,y:GY-46,vx:0,vy:0,w:30,h:44,face:1,onG:false,jumps:0,
+  hp:save.maxHp,mp:save.maxMp,maxHp:save.maxHp,maxMp:save.maxMp,atk:save.atk,
+  lv:save.level,peach:save.peach,jade:save.jade,hurtT:0,atkT:0,atkDir:1};}
+
+/* ---------------- 粒子/飘字 ---------------- */
+function boom(x,y,color,n=10,spd=4){for(let i=0;i<n;i++)parts.push({x,y,vx:(Math.random()-.5)*spd*2,vy:-Math.random()*spd-1,g:.25,t:26+rnd(14),c:color,r:2+rnd(3)})}
+function floatTxt(x,y,txt,c){parts.push({x,y,vx:0,vy:-1.1,g:0,t:44,c,txt})}
+
+/* ---------------- 商店 ---------------- */
+const SHOP=[
+ {n:'小还丹',e:'恢复 2 颗红心',cost:3,f:()=>{P.hp=Math.min(P.maxHp,P.hp+2);sPick()}},
+ {n:'大还丹',e:'恢复全部红心',cost:6,f:()=>{P.hp=P.maxHp;sPick()}},
+ {n:'无敌护盾',e:'10 秒不受伤害',cost:5,f:()=>{shieldT=600;sSkill()}},
+ {n:'仙桃加倍符',e:'本关仙桃获取翻倍',cost:4,f:()=>{wave.dbl=true;sPick()}}
+];
+function openShop(){
+  st='shop';wave={};
+  const rows=SHOP.map((s,i)=>
+   `<div class="shopitem"><div><div class="n">${s.n}</div><div class="e">${s.e}</div></div>
+    <button id="sh${i}" ${P.jade<s.cost?'disabled':''}>💎${s.cost}</button></div>`).join('');
+  showPanel(`<h2>💎 仙玉商店</h2><div class="d">你的仙玉：💎 ${P.jade}</div>${rows}
+    <button class="bigbtn b-nx" id="shGo">出发！</button>`);
+  SHOP.forEach((s,i)=>{$('sh'+i).onclick=()=>{
+    if(P.jade<s.cost)return;
+    P.jade-=s.cost;s.f();persist();openShop();
+  };});
+  $('shGo').onclick=()=>{hidePanel();startLevel(lvlIdx,true)};
+}
+function showPanel(html){$('panel').innerHTML=html;$('ovl').classList.add('show')}
+function hidePanel(){$('ovl').classList.remove('show')}
+
+/* ---------------- 关卡加载 ---------------- */
+function startLevel(i,fromShop){
+  lvlIdx=i;L=LEVELS[i];st='play';gameOn=true;paused=false;
+  if(!fromShop){wave={};}
+  P=P||newPlayer();
+  P.x=80;P.y=GY-P.h;P.vx=0;P.vy=0;P.hp=P.maxHp;P.mp=P.maxMp;
+  cpPos={x:80,y:GY-P.h};
+  enemies=L.en.map(([t,x,y])=>mkEnemy(t,x,y));
+  bullets=[];parts=[];pickups=[];clones=[];boss=null;
+  pickups.push(...L.peach.map(([x,y])=>({t:'peach',x,y,w:24,h:24,vy:0})));
+  pickups.push(...L.jade.map(([x,y])=>({t:'jade',x,y,w:22,h:22,vy:0})));
+  (L.chest||[]).forEach(([x,y])=>pickups.push({t:'chest',x,y,w:30,h:26,vy:0}));
+  playPeach=0;startTime=frame;cam=0;shopUsed={};
+  $('pads').classList.add('show');
+  log(' '+L.name+' 出发！🍑×'+(10-P.peach%10)+' 升级');
+}
+function mkEnemy(t,x,y){
+  const d=ENEMY_DEF[t];
+  return{t,d,x,y:y-d.h,vx:(Math.random()<.5?-1:1)*(d.slow||1),vy:0,w:d.w,h:d.h,
+    hp:d.hp,base:d.hp,home:x,tmr:rnd(120),hitT:0,dead:false,fy:y,ph:rnd(6)};
+}
+
+/* ---------------- 物理 ---------------- */
+function solidAt(x,y){ // 地面
+  for(const[a,b]of L.ground)if(x>=a&&x<=b&&Math.abs(y-GY)<2)return true;
+  return false;
+}
+function onPlatformTop(e){ // 实体脚底是否在某平台顶
+  for(const p of (L.plat||[])){
+    if(e.x+e.w/2>p[0]&&e.x+e.w/2<p[0]+p[2]&&Math.abs(e.y+e.h-p[1])<3)return p;
+  }
+  for(const p of (L.mov||[])){
+    if(e.x+e.w/2>p[0]&&e.x+e.w/2<p[0]+p[2]&&Math.abs(e.y+e.h-p[1])<3)return p;
+  }
+  return null;
+}
+
+/* ---------------- 玩家更新 ---------------- */
+function hurtPlayer(dmg){
+  if(invul>0||shieldT>0||dashT>0)return;
+  if(simple&&dmg>1)dmg=Math.ceil(dmg/2);
+  P.hp-=dmg;invul=90;P.hurtT=30;sHurt();shakeT=14;
+  boom(P.x+P.w/2,P.y+P.h/2,'#ff5252',8,3.5);
+  if(P.hp<=0){
+    P.hp=0;gameOn=false;
+    boom(P.x+P.w/2,P.y+P.h/2,'#ffd54f',22,6);
+    showPanel(`<h2>😵 被打晕啦！</h2><div class="d">别灰心，从存档点满状态复活～<br>仙玉和等级都不会掉哦！</div>
+      <button class="bigbtn b-nx" id="revive">🚩 继续挑战</button>
+      <button class="bigbtn b-hm" id="toTitle">回标题</button>`);
+    $('revive').onclick=()=>{hidePanel();revive()};
+    $('toTitle').onclick=()=>{hidePanel();toTitle()};
+  }
+}
+function revive(){
+  P.hp=P.maxHp;P.mp=P.maxMp;P.x=cpPos.x;P.y=cpPos.y;P.vx=0;P.vy=0;
+  invul=90;gameOn=true;
+  enemies=enemies.filter(e=>!e.boss).map(e=>{if(e.dead)return mkEnemy(e.t,e.home,e.fy);return e});
+  enemies=enemies.filter(e=>!e.dead);
+  L.en.forEach(([t,x,y])=>{ // Boss与小怪重置（Boss重打）
+    if(t==='boss')return;
+  });
+  if(L.boss&&!enemies.some(e=>e.boss)){
+    const b=mkBoss(L.boss.t,L.boss.x);if(b)enemies.push(b);
+  }
+  enemies.forEach(e=>{if(!e.boss&&!e.dead){/* 巡逻怪已在过滤时重置 */}});
+}
+function toTitle(){gameOn=false;st='title';$('pads').classList.remove('show');persist();showTitle()}
+
+function updatePlayer(){
+  const acc=.55,maxV=4.2;
+  if(key.L){P.vx=Math.max(P.vx-acc,-maxV);P.face=-1}
+  else if(key.R){P.vx=Math.min(P.vx+acc,maxV);P.face=1}
+  else P.vx*=.8;
+  if(dashT>0){P.vx=dashDir*11;dashT--;if(dashT===0)P.vx=dashDir*4;}
+  // 跳跃（二段跳）
+  if(key.J&&!P.jHold){P.jHold=true;
+    if(P.onG){P.vy=-12;P.jumps=1;sJump()}
+    else if(P.jumps<2){P.vy=-10.5;P.jumps=2;sJump()}
+  }
+  if(!key.J)P.jHold=false;
+  P.vy+=.55;if(P.vy>13)P.vy=13;
+  P.x+=P.vx;P.y+=P.vy;
+  P.x=clamp(P.x,0,L.len-P.w);
+  // 落地判定
+  P.onG=false;
+  if(P.vy>=0){
+    if(P.y+P.h>=GY&&solidAt(P.x+P.w/2,P.y+P.h)){P.y=GY-P.h;P.vy=0;P.onG=true;P.jumps=0}
+    const pl=onPlatformTop(P);
+    if(pl&&!keyDownThrough(P)){P.y=pl[1]-P.h;P.vy=0;P.onG=true;P.jumps=0}
+  }
+  // 掉进水/坑
+  if(P.y>H+40){
+    hurtPlayer(1);
+    if(P.hp>0){P.x=cpPos.x;P.y=cpPos.y;P.vx=0;P.vy=0;invul=90}
+  }
+  // 攻击
+  if(atkCd>0)atkCd--;
+  if(key.A&&!P.aHold&&atkCd<=0){P.aHold=true;P.atkT=14;atkCd=22;P.atkDir=P.face;
+    beep(320,.08,'square',.09,140)}
+  if(!key.A)P.aHold=false;
+  if(P.atkT>0){P.atkT--;doAttack()}
+  // 技能
+  if(key.S&&!P.sHold){P.sHold=true;useSkill()}
+  if(!key.S)P.sHold=false;
+  // 仙力恢复
+  if(frame%140===0&&P.mp<P.maxMp)P.mp++;
+  if(shieldT>0)shieldT--;if(invul>0)invul--;if(dblT>0)dblT--;
+  if(cloneT>0){cloneT--;if(cloneT===0)clones=[]}
+  clones.forEach(c=>{c.x+=c.vx;});
+  clones=clones.filter(c=>c.x>cam-60&&c.x<cam+W+60&&c.life-->0);
+  // 存档点
+  (L.cp||[]).forEach(x=>{if(Math.abs(P.x-x)<24&&cpPos.x!==x){
+    cpPos={x,y:GY-P.h};P.hp=P.maxHp;P.mp=P.maxMp;sPick();
+    floatTxt(P.x,P.y-20,'🚩 存档！','#43a047');persist();
+  }});
+  // 拾取
+  pickups=pickups.filter(p=>{
+    if(P.x<p.x+p.w&&P.x+P.w>p.x&&P.y<p.y+p.h&&P.y+P.h>p.y){
+      if(p.t==='peach'){const n=wave.dbl?2:1;P.peach+=n;playPeach+=n;
+        floatTxt(p.x,p.y-8,'+'+n+'🍑','#e91e63');sPick();checkLevelUp()}
+      else if(p.t==='jade'){P.jade++;floatTxt(p.x,p.y-8,'+1💎','#7e57c2');sPick()}
+      else if(p.t==='chest'){
+        const j=3+rnd(4);P.jade+=j;P.hp=Math.min(P.maxHp,P.hp+1);
+        floatTxt(p.x,p.y-10,'宝箱！+'+j+'💎 +❤','#ffb300');sLevel();
+        boom(p.x+15,p.y+10,'#ffd54f',14,4);
+      }
+      persist();return false;
+    }
+    return true;
+  });
+  // Boss 触发
+  if(L.boss&&!boss&&P.x>L.boss.x-380&&P.x<L.boss.x+60){
+    boss=enemies.find(e=>e.boss);
+    if(boss){boss.awake=true;sBoss();
+      floatTxt(boss.x,boss.y-30,boss.d.n+' 来了！','#d32f2f')}
+  }
+  // 到达 Boss 且击败 → 过关
+  if(L.boss&&boss&&boss.dead&&!stClearing){stClearing=true;levelClear()}
+}
+function keyDownThrough(){return false}
+let stClearing=false;
+
+function checkLevelUp(){
+  while(P.peach>=P.lv*10&&P.lv<5){
+    P.peach-=P.lv*10;P.lv++;
+    P.maxHp=Math.min(8,P.maxHp+1);P.hp=P.maxHp;
+    P.atk++;P.maxMp=Math.min(5,P.maxMp+1);P.mp=P.maxMp;
+    save.level=P.lv;save.maxHp=P.maxHp;save.atk=P.atk;save.maxMp=P.maxMp;
+    sLevel();boom(P.x+15,P.y+20,'#ffd54f',18,5);
+    const sk=SKILLS[P.lv-1];
+    showPanel(`<h2>🎉 升级！Lv ${P.lv}</h2><div class="d">
+      ❤️ 上限 +1　⚔️ 攻击 +1　🔵 仙力 +1<br><br>
+      学会新技能：<b style="color:#1565c0">${sk.n}</b><br>${sk.e}（耗蓝 ${sk.cost}）</div>
+      <button class="bigbtn b-nx" id="lvok">继续冒险</button>`);
+    gameOn=false;
+    $('lvok').onclick=()=>{hidePanel();gameOn=true};
+    persist();
+  }
+}
+function useSkill(){
+  if(P.lv<2){floatTxt(P.x,P.y-16,'Lv2 学会技能','#999');return}
+  const sk=SKILLS[P.lv-1];
+  if(P.mp<sk.cost){floatTxt(P.x,P.y-16,'仙力不够','#999');return}
+  P.mp-=sk.cost;sSkill();
+  if(P.lv===2){dashT=12;dashDir=P.face}
+  else if(P.lv===3){cloneT=300;clones=[
+    {x:P.x,y:P.y,vx:7*P.face,life:300},{x:P.x,y:P.y,vx:-7*P.face,life:300}]}
+  else if(P.lv===4){dblT=600;floatTxt(P.x,P.y-20,'金箍棒变大！','#f57c00')}
+  else if(P.lv===5){shakeT=25;sBoss();
+    enemies.forEach(e=>{if(!e.dead&&e.awake!==false){damageEnemy(e,3)}});
+    floatTxt(P.x+15,P.y-30,'大闹天宫！！','#d32f2f')}
+}
+function doAttack(){
+  const range=P.lv>=1?58:44,dmg=P.atk*(dblT>0?2:1);
+  const ax=P.face>0?P.x+P.w:P.x-range,ay=P.y+6;
+  const box={x:ax,y:ay,w:range,h:34};
+  const hitOne=e=>{
+    if(e.dead||!e.awake&&e.boss)return;
+    if(e.x<box.x+box.w&&e.x+e.w>box.x&&e.y<box.y+box.h&&e.y+e.h>box.y){
+      if((e.t==='shield'||e.t==='elite')&&P.face===((e.x>e.x)?1:1)&&P.y+P.h<e.y+10){}
+      damageEnemy(e,dmg);return true;
+    }return false;
+  };
+  enemies.forEach(e=>{if(!e.dead)hitOne(e)});
+  bullets=bullets.filter(b=>{
+    if(b.x<box.x+box.w&&b.x+b.w>box.x&&b.y<box.y+box.h&&b.y+b.h>box.y){
+      boom(b.x,b.y,'#90caf9',5,2.5);return false}return true});
+  clones.forEach(c=>{
+    enemies.forEach(e=>{if(!e.dead&&Math.abs(e.x-c.x)<36&&Math.abs(e.y-c.y)<44)damageEnemy(e,1)})});
+  if(dashT>0){enemies.forEach(e=>{if(!e.dead&&Math.abs(e.x-P.x)<50&&Math.abs(e.y-P.y)<50)damageEnemy(e,2)})}
+}
+function damageEnemy(e,dmg){
+  e.hp-=dmg;e.hitT=8;sHit();
+  boom(e.x+e.w/2,e.y+e.h/2,'#fff176',6,3);
+  if(e.hp<=0&&!e.dead){
+    e.dead=true;
+    const j=e.boss?e.d.jade:e.d.jade,pc=e.boss?e.d.peach:e.d.peach;
+    P.jade+=j;const pn=wave.dbl?pc*2:pc;P.peach+=pn;playPeach+=pn;
+    floatTxt(e.x,e.y-10,'+'+j+'💎 +'+pn+'🍑','#7e57c2');
+    boom(e.x+e.w/2,e.y+e.h/2,'#b0bec5',16,4.5);
+    checkLevelUp();persist();
+    if(e.boss)setTimeout(()=>{if(!stClearing){stClearing=true;levelClear()}},900);
+  }
+}
+
+/* ---------------- 敌人 ---------------- */
+function mkBoss(t,x){
+  const d=BOSS_DEF[t];
+  return{t,boss:true,d,x,y:GY-d.h,vx:0,vy:0,w:d.w,h:d.h,hp:d.hp,base:d.hp,
+    hitT:0,dead:false,awake:false,tmr:90,ph:0,fy:GY-d.h,dir:-1};
+}
+function updateEnemies(){
+  enemies.forEach(e=>{
+    if(e.dead)return;
+    if(e.hitT>0)e.hitT--;
+    const d=e.d;
+    if(e.boss){updateBoss(e);return}
+    if(d.fly){
+      e.ph+=.03;e.y=e.fy+Math.sin(e.ph)*26;
+      if(d.dive&&e.tmr%240<60&&Math.abs(P.x-e.x)<260){e.y+=3.2}
+      e.tmr++;
+      if(d.shoot&&e.awake!==false&&e.tmr%d.shoot===0&&Math.abs(P.x-e.x)<420){
+        const dx=P.x-e.x,dy=P.y-e.y,dd=Math.hypot(dx,dy)||1;
+        bullets.push({x:e.x+e.w/2,y:e.y+e.h/2,vx:dx/dd*2.6,vy:dy/dd*2.6,w:12,h:12,c:'#f48fb1'});
+        beep(600,.1,'sine',.07,-200);
+      }
+      // 缓慢水平漂
+      e.x+=Math.sin(e.ph*.6)*.5;
+    }else{
+      // 巡逻
+      e.x+=e.vx;
+      if(e.x>e.home+90||e.x<e.home-90||!solidAt(e.x+e.w/2,e.y+e.h+4))e.vx*=-1,e.x+=e.vx*2;
+      if(d.shoot&&e.tmr%d.shoot===0&&Math.abs(P.x-e.x)<400){
+        const dir=P.x>e.x?1:-1;
+        bullets.push({x:e.x+e.w/2,y:e.y+10,vx:dir*3,vy:0,w:12,h:12,c:'#ffcc80'});
+        e.tmr++;
+      }
+      if(d.drop&&e.tmr%d.drop===0&&Math.abs(P.x-e.x)<200){
+        bullets.push({x:P.x,y:e.y+e.h,vx:0,vy:3,w:18,h:18,c:'#ffab91',grav:true});
+      }
+      e.tmr++;
+    }
+    // 碰到玩家
+    if(e.awake!==false&&Math.abs(P.x-e.x)<(e.w+P.w)/2-4&&Math.abs(P.y-e.y)<(e.h+P.h)/2-4){
+      hurtPlayer(d.dmg);
+      P.vx=P.x<e.x?-5:5;P.vy=-5;
+    }
+  });
+  // 子弹
+  bullets=bullets.filter(b=>{
+    if(b.grav)b.vy+=.2;
+    b.x+=b.vx;b.y+=b.vy;
+    if(b.x<cam-60||b.x>cam+W+60||b.y>H+60)return false;
+    if(P.x<b.x+b.w&&P.x+P.w>b.x&&P.y<b.y+b.h&&P.y+P.h>b.y){
+      hurtPlayer(1);boom(b.x,b.y,'#ff8a80',5,2.5);return false}
+    return true;
+  });
+  parts=parts.filter(p=>{p.x+=p.vx;p.y+=p.vy;p.vy+=p.g;return --p.t>0});
+}
+function updateBoss(b){
+  if(!b.awake)return;
+  b.tmr++;if(b.hitT>0)b.hitT--;
+  const D=BOSS_DEF[b.t],px=P.x+P.w/2,bx=b.x+b.w/2;
+  const speed=simple?.75:1;
+  const toward=()=>{b.x+=Math.sign(px-bx)*1.1*speed};
+  switch(b.t){
+   case'hunshun':
+    if(b.tmr%150<110)toward();
+    else if(b.tmr%150===110){b.vx=Math.sign(px-bx)*8;sBoss()}
+    if(Math.abs(b.vx)>1){b.x+=b.vx;b.vx*=.985;
+      if(Math.abs(P.x-b.x)<b.w&&Math.abs(P.y-b.y)<b.h)hurtPlayer(D.dmg)}
+    if(b.tmr%300===140){shakeT=12;sBoss();
+      bullets.push({x:bx-30,y:GY-16,vx:-4,vy:0,w:24,h:16,c:'#ffcc80'});
+      bullets.push({x:bx+30,y:GY-16,vx:4,vy:0,w:24,h:16,c:'#ffcc80'});}
+    break;
+   case'qixian':
+    b.ph+=.05;b.y=b.fy+Math.sin(b.ph)*40;toward();
+    if(b.tmr%110===0){for(let i=-1;i<=1;i++){
+      const dx=P.x-b.x,dy=P.y-b.y,dd=Math.hypot(dx,dy)||1,ang=Math.atan2(dy,dx)+i*.3;
+      bullets.push({x:bx,y:b.y+20,vx:Math.cos(ang)*3.2,vy:Math.sin(ang)*3.2,w:14,h:14,c:'#f48fb1'})}
+      beep(760,.12,'sine',.08,-150)}
+    break;
+   case'juling':
+    if(b.tmr%180<130)toward();
+    if(b.tmr%180===130){shakeT=20;sBoss();
+      [-5,-3.4].forEach(v=>bullets.push({x:bx,y:GY-18,vx:v,vy:0,w:26,h:18,c:'#ffe082'}));
+      [3.4,5].forEach(v=>bullets.push({x:bx,y:GY-18,vx:v,vy:0,w:26,h:18,c:'#ffe082'}));}
+    break;
+   case'nezha':
+    if(b.tmr%170<100){b.x+=Math.sign(px-bx)*1.5*speed}
+    if(b.tmr%170===100){b.vx=Math.sign(px-bx)*9;sBoss()}
+    if(Math.abs(b.vx)>1){b.x+=b.vx;b.vx*=.98;
+      if(Math.abs(P.x-b.x)<b.w&&Math.abs(P.y-b.y)<b.h)hurtPlayer(D.dmg)}
+    if(b.tmr%120===60){const st2=Math.atan2(P.y-b.y,P.x-b.x);
+      bullets.push({x:bx,y:b.y+22,vx:Math.cos(st2)*3.6,vy:Math.sin(st2)*3.6,w:20,h:20,c:'#4fc3f7',curve:.06});
+      beep(820,.1,'sine',.08,-120)}
+    break;
+   case'erlang':{
+    const p3=b.hp<=D.hp/3,p2=b.hp<=D.hp*2/3;
+    if(p3&&!b.laserMode){b.laserMode=true;floatTxt(bx,b.y-24,'天眼开启！','#d32f2f')}
+    if(p2&&!b.dogs&&b.tmr>60){b.dogs=true;
+      enemies.push(mkEnemy('dog',b.x-120,GY),mkEnemy('dog',b.x+120,GY));
+      floatTxt(bx,b.y-24,'召唤哮天犬！','#5d4037')}
+    if(b.laserMode){
+      if(b.tmr%200===0){b.laserWarn=50}
+      if(b.laserWarn>0){b.laserWarn--;
+        if(b.laserWarn===0){shakeT=16;sBoss();
+          // 激光：横向扫过玩家高度
+          bullets.push({x:b.x+b.w/2,y:P.y+10,vx:9,vy:0,w:46,h:20,c:'#ef5350'});
+          bullets.push({x:b.x+b.w/2,y:P.y+10,vx:-9,vy:0,w:46,h:20,c:'#ef5350'});}}
+    }
+    if(b.tmr%130<80)toward();
+    if(b.tmr%130===80&&Math.abs(px-bx)<150){b.slashT=18;sHit();
+      if(Math.abs(px-bx)<110&&Math.abs(P.y-b.y)<b.h)hurtPlayer(D.dmg)}
+    if(b.tmr%160===120&&!b.laserMode){const dd=Math.hypot(P.x-b.x,P.y-b.y)||1;
+      bullets.push({x:bx,y:b.y+20,vx:(P.x-b.x)/dd*3,vy:(P.y-b.y)/dd*3,w:14,h:14,c:'#ef9a9a'})}
+    break;}
+  }
+  b.x=clamp(b.x,cam-100,L.len-b.w);
+  // Boss 碰触
+  if(Math.abs(P.x-b.x)<(b.w+P.w)/2-6&&Math.abs(P.y-b.y)<(b.h+P.h)/2-6)hurtPlayer(D.dmg);
+  // curve 子弹
+  bullets.forEach(bl=>{if(bl.curve)bl.vy+=bl.curve});
+}
+
+/* ---------------- 关卡过关 ---------------- */
+function levelClear(){
+  gameOn=false;stClearing=false;
+  $('pads').classList.remove('show');
+  if(lvlIdx===4){ // 最终胜利
+    save.clear=true;save.unlocked=5;persist();sWin();
+    showPanel(`<h2>🏆 齐天大圣！</h2><div class="d">
+      你打败了二郎神，坐上了凌霄宝殿的宝座！<br><br>
+      ⭐ 恭喜获得称号：<b style="color:#d32f2f">齐天大圣</b> ⭐<br><br>
+      最终等级 Lv${P.lv} · 仙玉 💎${P.jade}</div>
+      <button class="bigbtn b-go" id="ag">再玩一次</button>
+      <button class="bigbtn b-hm" id="hm">回标题</button>`);
+    $('ag').onclick=()=>{hidePanel();resetAll();startLevel(0)};
+    $('hm').onclick=()=>{hidePanel();toTitle()};
+    return;
+  }
+  save.unlocked=Math.max(save.unlocked,lvlIdx+2);persist();
+  showPanel(`<h2>🎉 ${L.name} 通过！</h2><div class="d">
+    本关收集：🍑 ${playPeach} · 仙玉 💎${P.jade}<br>下一关：<b>${LEVELS[lvlIdx+1].name}</b></div>
+    <button class="bigbtn b-go" id="shopbtn">💎 逛商店</button>
+    <button class="bigbtn b-nx" id="nextlv">下一关</button>
+    <button class="bigbtn b-hm" id="hm">回标题</button>`);
+  $('shopbtn').onclick=()=>{hidePanel();openShop()};
+  $('nextlv').onclick=()=>{hidePanel();startLevel(lvlIdx+1)};
+  $('hm').onclick=()=>{hidePanel();toTitle()};
+}
+function resetAll(){
+  save={unlocked:1,level:1,jade:0,peach:0,hp:5,maxHp:5,mp:3,maxMp:3,atk:1,clear:false};
+  persist();P=null;
+}
+
+/* ---------------- 渲染 ---------------- */
+function draw(){
+  cx.save();
+  if(shakeT>0){shakeT--;cx.translate((Math.random()-.5)*10,(Math.random()-.5)*10)}
+  // 背景
+  const g=cx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,L?L.sky[0]:'#c8ecb0');g.addColorStop(1,L?L.sky[1]:'#a5d8a0');
+  cx.fillStyle=g;cx.fillRect(-10,-10,W+20,H+20);
+  if(!L){cx.restore();return}
+  // 远景装饰（emoji）
+  cx.globalAlpha=.5;cx.font='64px serif';
+  for(let i=0;i<6;i++){const dx=(i*520-cam*.3)%(L.len*.5);
+    cx.fillText(i%2?'☁️':'🌸',dx,90+((i*53)%80))}
+  cx.globalAlpha=1;
+  // 地面
+  cx.fillStyle=L.hill;
+  L.ground.forEach(([a,b])=>cx.fillRect(a-cam,GY,b-a,H-GY));
+  cx.fillStyle='#00000018';
+  L.ground.forEach(([a,b])=>cx.fillRect(a-cam,GY,b-a,8));
+  // 水
+  if(L.water){cx.fillStyle='#4fc3f7cc';
+    L.water.forEach(([a,b])=>{cx.fillRect(a-cam,GY+14,b-a,H-GY);
+      cx.fillStyle='#81d4fa';cx.fillRect(a-cam,GY+14,b-a,6);cx.fillStyle='#4fc3f7cc';})}
+  // 平台
+  (L.plat||[]).forEach(([x,y,w])=>{
+    cx.fillStyle='#ffffffd0';roundRect(x-cam,y,w,14,7);cx.fill();
+    cx.fillStyle='#00000022';roundRect(x-cam,y+10,w,4,2);cx.fill();});
+  (L.mov||[]).forEach(([x,y,w,dx])=>{
+    const mx=x+Math.sin(frame*.012)*dx*8;
+    cx.fillStyle='#b39ddbcc';roundRect(mx-cam,y,w,14,7);cx.fill();});
+  // 存档点旗
+  (L.cp||[]).forEach(x=>{
+    cx.font='30px serif';cx.fillText('🚩',x-cam-12,GY-2)});
+  // 拾取物
+  pickups.forEach(p=>{
+    const bob=Math.sin(frame*.09+p.x)*4;
+    cx.font=(p.t==='chest'?'30px':'24px')+' serif';
+    cx.fillText(p.t==='peach'?'🍑':p.t==='jade'?'💎':'🎁',p.x-cam,p.y+22+bob)});
+  // 敌人
+  enemies.forEach(e=>{
+    if(e.dead)return;
+    cx.save();
+    if(e.hitT>0){cx.globalAlpha=.6}
+    cx.font=(e.boss?Math.round(e.w*.9):Math.round(e.w*.95))+'px serif';
+    cx.textAlign='center';
+    cx.fillText(e.d.ic,e.x+e.w/2-cam,e.y+e.h-4);
+    cx.textAlign='left';
+    if(e.boss&&e.awake){ // Boss 血条
+      cx.fillStyle='#00000055';roundRect(e.x-cam-6,e.y-20,e.w+12,10,5);cx.fill();
+      cx.fillStyle='#ef5350';roundRect(e.x-cam-6,e.y-20,(e.w+12)*e.hp/e.base,10,5);cx.fill();}
+    cx.restore();
+  });
+  // 分身
+  cx.globalAlpha=.55;
+  clones.forEach(c=>{cx.font='34px serif';cx.textAlign='center';cx.fillText('🐵',c.x-cam,c.y+38)});
+  cx.globalAlpha=1;cx.textAlign='left';
+  // 玩家
+  if(P){
+    if(!(invul>0&&frame%8<4)){
+      cx.save();
+      if(P.face<0){cx.translate(P.x+P.w/2-cam,0);cx.scale(-1,1);cx.translate(-(P.x+P.w/2-cam),0)}
+      // 身体
+      cx.fillStyle='#e53935';roundRect(P.x-cam+4,P.y+16,P.w-8,P.h-16,9);cx.fill();
+      cx.fillStyle='#ffcc80';cx.beginPath();cx.arc(P.x+P.w/2-cam,P.y+10,13,0,7);cx.fill();
+      cx.fillStyle='#5d4037';cx.beginPath();cx.arc(P.x+P.w/2-cam,P.y+2,11,Math.PI,0);cx.fill();
+      cx.fillStyle='#ffb300';cx.beginPath();cx.arc(P.x+P.w/2-cam,P.y-4,4,0,7);cx.fill();
+      cx.fillStyle='#333';cx.beginPath();cx.arc(P.x+P.w/2-cam+4,P.y+9,2,0,7);cx.arc(P.x+P.w/2-cam-4,P.y+9,2,0,7);cx.fill();
+      // 金箍棒
+      if(P.atkT>0){
+        const prog=1-P.atkT/14,ang=-.9+prog*1.8;
+        const cxp=P.x+P.w/2-cam,cyp=P.y+P.h/2;
+        cx.save();cx.translate(cxp,cyp);cx.rotate(ang*P.face);
+        const len=dblT>0?66:48;
+        cx.fillStyle='#c9a227';roundRect(6,-4,len,8,4);cx.fill();
+        cx.fillStyle='#e6c35c';roundRect(6,-4,len,3,2);cx.fill();
+        cx.restore();
+      }else{
+        cx.fillStyle='#c9a227';roundRect(P.x+P.w/2-cam+(P.face>0?8:-16),P.y+26,24,5,2);cx.fill();
+      }
+      if(shieldT>0){cx.strokeStyle='#4fc3f7cc';cx.lineWidth=4;
+        cx.beginPath();cx.arc(P.x+P.w/2-cam,P.y+P.h/2,32,0,7);cx.stroke()}
+      cx.restore();
+    }
+    // 攻击范围提示
+    if(P.atkT>6){cx.globalAlpha=.25;cx.fillStyle='#fff';
+      const r=P.lv>=1?58:44;
+      cx.fillRect((P.face>0?P.x+P.w:P.x-r)-cam,P.y+6,r,34);cx.globalAlpha=1}
+  }
+  // 子弹
+  bullets.forEach(b=>{cx.font='16px serif';cx.fillText('✦',b.x-cam,b.y+14)});
+  // 粒子
+  parts.forEach(p=>{
+    cx.globalAlpha=clamp(p.t/30,0,1);
+    if(p.txt){cx.font='bold 15px sans-serif';cx.fillStyle=p.c;cx.fillText(p.txt,p.x-cam,p.y)}
+    else{cx.fillStyle=p.c;cx.beginPath();cx.arc(p.x-cam,p.y,p.r,0,7);cx.fill()}
+    cx.globalAlpha=1});
+  cx.restore();
+  // HUD
+  if(P&&(st==='play')){
+    for(let i=0;i<P.maxHp;i++){cx.font='19px serif';
+      cx.fillText(i<P.hp?'❤️':'🖤',10+i*24,28)}
+    for(let i=0;i<P.maxMp;i++){
+      cx.fillStyle=i<P.mp?'#4fc3f7':'#cfd8dc';
+      roundRect(10+i*17,38,13,13,4);cx.fill()}
+    cx.font='16px serif';
+    cx.fillText('🍑'+P.peach+'  💎'+P.jade,10,72);
+    cx.font='bold 13px sans-serif';cx.fillStyle='#333';
+    cx.fillText(L.name+'  Lv'+P.lv,10,92);
+    if(dblT>0){cx.fillStyle='#f57c00';cx.fillText('棒变'+Math.ceil(dblT/60)+'s',10,110)}
+    if(shieldT>0){cx.fillStyle='#0288d1';cx.fillText('护盾'+Math.ceil(shieldT/60)+'s',10,110)}
+  }
+}
+function roundRect(x,y,w,h,r){cx.beginPath();cx.moveTo(x+r,y);cx.arcTo(x+w,y,x+w,y+h,r);
+  cx.arcTo(x+w,y+h,x,y+h,r);cx.arcTo(x,y+h,x,y,r);cx.arcTo(x,y,x+w,y,r);cx.closePath()}
+
+/* ---------------- 主循环 ---------------- */
+function loop(){
+  if(st==='play'&&gameOn&&!paused){
+    frame++;
+    updatePlayer();
+    updateEnemies();
+    // 相机
+    const tx=clamp(P.x+P.w/2-W/2.4,0,Math.max(0,L.len-W));
+    cam+=(tx-cam)*.08;
+  }
+  draw();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+/* ---------------- 面板流程 ---------------- */
+function togglePause(){
+  if(st!=='play')return;
+  paused=!paused;
+  if(paused){
+    const sk=SKILLS[P.lv-1];
+    showPanel(`<h2>⏸ 暂停</h2><div class="d">
+      Lv${P.lv} · ❤️${P.hp}/${P.maxHp} · ⚔️${P.atk} · 🔵${P.mp}/${P.maxMp}<br>
+      🍑${P.peach} · 💎${P.jade}<br><br>
+      当前技能：<b>${sk.n}</b>（${sk.e}，耗蓝${sk.cost}）</div>
+      <button class="bigbtn b-nx" id="cont">继续</button>
+      <button class="bigbtn b-hm" id="quit">放弃本关</button>`);
+    $('cont').onclick=()=>{paused=false;hidePanel()};
+    $('quit').onclick=()=>{paused=false;hidePanel();toTitle()};
+  }else hidePanel();
+}
+
+function showTitle(){
+  st='title';gameOn=false;$('pads').classList.remove('show');
+  showPanel(`<h2>🐵 孙悟空大闹天宫</h2>
+    <div class="d">闯过 5 关，打败二郎神，成为<b style="color:#d32f2f">齐天大圣</b>！<br>
+    💻 键盘：←→移动 / ↑跳（可二段跳）/ J攻 / C技 / Esc暂停<br>
+    📱 手机：屏幕下方虚拟按键</div>
+    <div class="pmRow"><input type="checkbox" id="simp" ${simple?'checked':''}>
+    <label for="simp">简单模式（Boss伤害减半）</label></div>
+    <button class="bigbtn b-go" id="play">⚡ 出发！</button>
+    <div class="d" style="margin-top:10px">进度：已解锁第 ${save.unlocked} 关 · Lv${save.level} · 💎${save.jade}</div>`);
+  $('simp').onchange=e=>{simple=e.target.checked};
+  $('play').onclick=()=>{hidePanel();showSelect()};
+}
+function showSelect(){
+  st='select';
+  let rows='';
+  for(let i=0;i<5;i++){
+    const lk=i<save.unlocked;
+    rows+=`<div class="lvlrow"><div><div class="n">${LEVELS[i].name}</div>
+      ${i===4?'<div class="lk">最终Boss：二郎神</div>':''}</div>
+      <button ${lk?'':'disabled'} data-i="${i}">${lk?'闯':'🔒'}</button></div>`;
+  }
+  showPanel(`<h2>选择关卡</h2>${rows}
+    <button class="bigbtn b-hm" id="hm">返回</button>`);
+  document.querySelectorAll('[data-i]').forEach(b=>{
+    b.onclick=()=>{hidePanel();P=newPlayer();startLevel(+b.dataset.i)};
+  });
+  $('hm').onclick=()=>{hidePanel();showTitle()};
+}
+showTitle();
+
+/* 阻止触屏滚动 */
+document.addEventListener('touchmove',e=>e.preventDefault(),{passive:false});
+</script>
+</body>
+</html>
