@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>17-动物森林大冒险</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:'PingFang SC','Microsoft YaHei',sans-serif;background:linear-gradient(160deg,#c8ecb0,#e8f7d8 55%,#d0f0f8);min-height:100vh;color:#333;user-select:none}
+#app{max-width:520px;margin:0 auto;padding:8px 8px 20px}
+/* 顶栏 */
+#top{display:flex;align-items:center;gap:8px;padding:6px 4px}
+#top h1{font-size:17px;font-weight:900;color:#2e7d32;flex:1}
+#timer{font-size:12px;font-weight:700;color:#666;background:#ffffffaa;padding:3px 8px;border-radius:10px}
+#sndBtn{width:34px;height:34px;border:none;border-radius:50%;background:#fff;font-size:16px;box-shadow:0 1px 4px #0002}
+/* 棋盘 */
+#boardWrap{position:relative}
+#board{display:grid;grid-template-columns:repeat(7,1fr);grid-template-rows:repeat(7,1fr);aspect-ratio:1/1;gap:2px;background:#7cb85c;border:4px solid #5d9440;border-radius:14px;padding:4px;box-shadow:0 4px 14px #0003}
+.cell{position:relative;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;background:#f7fbef;box-shadow:inset 0 0 0 1px #00000014}
+.cell .ic{font-size:clamp(14px,5.4vw,22px);line-height:1}
+.cell .nm{font-size:clamp(6px,2vw,9px);font-weight:700;color:#555;text-align:center;line-height:1.15;padding:0 1px}
+.cell .pr{font-size:clamp(6px,1.9vw,9px);color:#b8860b;font-weight:800}
+.cell.start{background:#ffe3a3}.cell.event{background:#ffe0c2}.cell.chance{background:#cfe6ff}
+.cell.star{background:#fff3b8}.cell.rest{background:#e0e0e0}.cell.magic{background:#e8d8ff}.cell.bridge{background:#f3d8ff}
+.cell.owned0{outline:3px solid #ff7043;outline-offset:-3px}.cell.owned1{outline:3px solid #42a5f5;outline-offset:-3px}
+.cell.owned2{outline:3px solid #ab47bc;outline-offset:-3px}.cell.owned3{outline:3px solid #26a69a;outline-offset:-3px}
+.cell .lv{position:absolute;top:1px;right:2px;font-size:clamp(7px,2.2vw,10px)}
+.cell .ow{position:absolute;top:1px;left:2px;font-size:clamp(8px,2.4vw,11px)}
+.cell .tok{position:absolute;bottom:1px;width:100%;display:flex;justify-content:center;gap:1px}
+.cell .tok span{font-size:clamp(11px,3.8vw,16px);filter:drop-shadow(0 1px 1px #0004);transition:transform .18s}
+.cell .tok span.hop{transform:translateY(-8px) scale(1.25)}
+/* 中心区 */
+#center{grid-column:2/7;grid-row:2/7;background:linear-gradient(150deg,#fdfbef,#f2f8e6);border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:8px;box-shadow:inset 0 0 0 1px #00000010}
+#turnTip{font-size:clamp(12px,3.6vw,15px);font-weight:900;color:#33691e;text-align:center}
+#dice{font-size:clamp(34px,12vw,52px);line-height:1;height:1.2em;transition:transform .15s}
+#dice.shake{animation:sh .12s infinite}
+@keyframes sh{0%{transform:rotate(-14deg) scale(1.1)}50%{transform:rotate(14deg) scale(1.18)}100%{transform:rotate(-10deg) scale(1.1)}}
+#rollBtn{font-size:clamp(15px,4.6vw,19px);font-weight:900;color:#fff;background:linear-gradient(#ff9800,#f57c00);border:none;border-radius:24px;padding:10px 30px;box-shadow:0 3px 0 #c96400,0 4px 10px #0003;cursor:pointer}
+#rollBtn:disabled{filter:grayscale(.7);opacity:.6}
+#log{font-size:clamp(10px,3vw,12px);color:#556;min-height:2.4em;text-align:center;line-height:1.4}
+/* 玩家条 */
+#players{display:flex;gap:6px;margin-top:8px}
+.pcard{flex:1;background:#fff;border-radius:10px;padding:5px 4px;text-align:center;box-shadow:0 1px 5px #0002;border:3px solid transparent;position:relative}
+.pcard.cur{border-color:#ffca28;box-shadow:0 0 10px #ffca2888}
+.pcard.dead{opacity:.4;filter:grayscale(1)}
+.pcard .av{font-size:clamp(16px,5vw,22px)}
+.pcard .pn{font-size:clamp(8px,2.6vw,11px);font-weight:800;color:#444;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pcard .st{font-size:clamp(9px,2.8vw,12px);font-weight:800}
+.pcard .st .c{color:#c8860a}.pcard .st .s{color:#c68400}
+.pcard .zzz{position:absolute;top:-6px;right:-4px;font-size:13px}
+/* 弹窗 */
+#mask{position:fixed;inset:0;background:#0007;display:none;align-items:center;justify-content:center;z-index:50;padding:18px}
+#mask.show{display:flex}
+#dlg{background:#fffdf5;border-radius:18px;max-width:360px;width:100%;padding:18px;text-align:center;box-shadow:0 10px 40px #0005;animation:pop .22s}
+@keyframes pop{from{transform:scale(.8);opacity:0}}
+#dlg .dic{font-size:44px;line-height:1.1}
+#dlg .dt{font-size:17px;font-weight:900;color:#4a2fa0;margin:6px 0 4px}
+#dlg .db{font-size:14px;color:#444;line-height:1.55}
+#dlg .dp{display:none;margin-top:8px;font-size:12px;color:#888;background:#f4f4ec;border-radius:8px;padding:6px 8px;text-align:left}
+body.pm #dlg .dp{display:block}
+#dlgBtns{display:flex;gap:10px;justify-content:center;margin-top:14px;flex-wrap:wrap}
+.btn{font-size:15px;font-weight:900;border:none;border-radius:20px;padding:10px 22px;cursor:pointer;color:#fff}
+.b-ok{background:linear-gradient(#66bb6a,#43a047);box-shadow:0 3px 0 #2e7d32}
+.b-no{background:linear-gradient(#bdbdbd,#9e9e9e);box-shadow:0 3px 0 #757575}
+.b-buy{background:linear-gradient(#ffb74d,#fb8c00);box-shadow:0 3px 0 #c96400}
+.b-up{background:linear-gradient(#4fc3f7,#0288d1);box-shadow:0 3px 0 #01579b}
+/* 设置页 */
+#setup{max-width:360px;margin:24px auto;background:#fffdf5;border-radius:18px;padding:20px;box-shadow:0 6px 24px #0003;text-align:center}
+#setup h2{color:#2e7d32;font-size:20px;margin-bottom:4px}
+#setup .sub{font-size:12px;color:#888;margin-bottom:14px}
+.srow{display:flex;align-items:center;gap:8px;background:#f4f8ec;border-radius:12px;padding:8px 10px;margin-bottom:8px}
+.srow .em{font-size:26px}
+.srow input{flex:1;border:none;border-bottom:1px dashed #bbb;background:transparent;font-size:15px;font-weight:700;text-align:center;padding:3px}
+.srow select{border:none;background:#fff;border-radius:8px;padding:5px;font-size:13px;font-weight:700}
+#startBtn{margin-top:12px;width:100%;font-size:18px;font-weight:900;color:#fff;background:linear-gradient(#66bb6a,#388e3c);border:none;border-radius:24px;padding:12px;box-shadow:0 4px 0 #2e6b32;cursor:pointer}
+.hint{font-size:11px;color:#999;margin-top:10px;line-height:1.5}
+.pmRow{display:flex;align-items:center;justify-content:center;gap:6px;font-size:13px;color:#666;margin-top:10px}
+/* 飘字 */
+.fly{position:fixed;font-size:20px;font-weight:900;z-index:99;pointer-events:none;animation:fly 1s forwards;text-shadow:0 1px 2px #fff}
+@keyframes fly{from{opacity:1;transform:translateY(0)}to{opacity:0;transform:translateY(-46px)}}
+/* 胜利彩带 */
+#winfx{position:fixed;inset:0;pointer-events:none;display:none;z-index:60}
+#winfx div{position:absolute;top:-20px;width:10px;height:16px;border-radius:3px;animation:fall linear forwards}
+@keyframes fall{to{transform:translateY(105vh) rotate(720deg)}}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="top">
+    <h1>🎲 动物森林大冒险</h1>
+    <span id="timer">00:00</span>
+    <button id="sndBtn" onclick="toggleSnd()">🔊</button>
+  </div>
+  <div id="boardWrap"><div id="board"></div></div>
+  <div id="players"></div>
+</div>
+
+<div id="setup">
+  <h2>🦊 动物森林大冒险</h2>
+  <div class="sub">2~4 人轮流玩 · 集满 10 颗快乐星星获胜！</div>
+  <div id="rows"></div>
+  <div class="pmRow"><input type="checkbox" id="pmChk"><label for="pmChk">家长模式（显示效果说明）</label></div>
+  <button id="startBtn">▶ 开始游戏</button>
+  <div class="hint">掷骰子前进 · 买地收租 · 集星星<br>💰 经过起点 +2 金币　⭐ 星星格 +1 星<br>🏆 先集满 10 颗星星就赢啦！</div>
+</div>
+
+<div id="mask"><div id="dlg"></div></div>
+<div id="winfx"></div>
+
+<script>
+/* ================= 棋盘数据（24格） ================= */
+const BOARD=[
+ {t:'start', n:'星星广场', ic:'🏰'},
+ {t:'prop',  n:'兔子萝卜屋', ic:'🐰', p:3, r:1, u:3, r2:3},
+ {t:'event', n:'事件', ic:'❓'},
+ {t:'prop',  n:'小熊蜂蜜店', ic:'🐻', p:4, r:1, u:4, r2:4},
+ {t:'chance',n:'机会', ic:'🎁'},
+ {t:'prop',  n:'小鸟树屋', ic:'🐦', p:3, r:1, u:3, r2:3},
+ {t:'star',  n:'快乐星星', ic:'⭐'},
+ {t:'prop',  n:'小鹿花园', ic:'🦌', p:5, r:2, u:5, r2:5},
+ {t:'event', n:'事件', ic:'❓'},
+ {t:'rest',  n:'休息站', ic:'😴'},
+ {t:'prop',  n:'小猴香蕉园', ic:'🐵', p:4, r:1, u:4, r2:4},
+ {t:'chance',n:'机会', ic:'🎁'},
+ {t:'magic', n:'魔法森林', ic:'🌲'},
+ {t:'prop',  n:'小猫鱼塘', ic:'🐱', p:5, r:2, u:5, r2:5},
+ {t:'event', n:'事件', ic:'❓'},
+ {t:'star',  n:'快乐星星', ic:'⭐'},
+ {t:'prop',  n:'小狗骨头屋', ic:'🐶', p:4, r:1, u:4, r2:4},
+ {t:'chance',n:'机会', ic:'🎁'},
+ {t:'prop',  n:'大象喷泉', ic:'🐘', p:6, r:3, u:6, r2:6},
+ {t:'event', n:'事件', ic:'❓'},
+ {t:'star',  n:'快乐星星', ic:'⭐'},
+ {t:'prop',  n:'熊猫竹林', ic:'🐼', p:5, r:2, u:5, r2:5},
+ {t:'chance',n:'机会', ic:'🎁'},
+ {t:'bridge',n:'幸运桥', ic:'🌈'}
+];
+const PROP_COUNT=BOARD.filter(b=>b.t==='prop').length;
+
+/* ================= 卡片 ================= */
+const CHANCE=[
+ {t:'森林联欢会', d:'大家都很喜欢你！其他玩家每人送你 1 金币。', tag:'+金币', f:p=>{players.forEach(o=>{if(o!==p&&!o.bankrupt){o.coins--;p.coins++;}});}},
+ {t:'捡到幸运橡果', d:'你在草丛里捡到 2 个金币！', tag:'+金币', f:p=>gain(p,2,0)},
+ {t:'帮助小动物', d:'你帮小鸟回了家，奖励 1 颗快乐星星！', tag:'+星星', f:p=>gain(p,0,1)},
+ {t:'蜂蜜大丰收', d:'蜂蜜罐满出来啦，+3 金币！', tag:'+金币', f:p=>gain(p,3,0)},
+ {t:'彩虹出现', d:'好漂亮的彩虹！+1 星 +1 金币。', tag:'+金币+星星', f:p=>gain(p,1,1)},
+ {t:'动物朋友送礼物', d:'随机一块没有主人的土地送给你！', tag:'得土地', f:p=>{
+    const free=props.map((v,i)=>({v,i})).filter(x=>x.v.o<0);
+    if(free.length){const x=free[Math.floor(Math.random()*free.length)];x.v.o=players.indexOf(p);setTimeout(()=>renderBoard(),600);}
+    else gain(p,2,0);}},
+ {t:'小鸟带路', d:'小鸟带你飞向前 2 格（不触发格子效果）。', tag:'移动', f:async p=>{await slide(p,2);}},
+ {t:'找到藏宝图', d:'挖到宝藏，+4 金币！', tag:'+金币', f:p=>gain(p,4,0)},
+ {t:'大家为你鼓掌', d:'掌声变成 1 颗快乐星星！', tag:'+星星', f:p=>gain(p,0,1)},
+ {t:'小熊请你吃蜂蜜', d:'甜甜的蜂蜜，+2 金币！', tag:'+金币', f:p=>gain(p,2,0)},
+ {t:'魔法师送你星星', d:'哇！魔法师送你 2 颗快乐星星！', tag:'+星星', f:p=>gain(p,0,2)},
+ {t:'森林银行发红包', d:'森林银行给你发了 3 金币红包！', tag:'+金币', f:p=>gain(p,3,0)}
+];
+const EVENTS=[
+ {t:'下雨了', d:'衣服淋湿了，花 1 金币烘干（不够就没关系）。', tag:'-金币', f:p=>{if(p.coins>=1)p.coins--;}},
+ {t:'帮助迷路的小兔', d:'小兔找到妈妈啦，送你 1 颗星星！', tag:'+星星', f:p=>gain(p,0,1)},
+ {t:'踩到泥坑', d:'哎呀，后退 1 格（不触发效果）。', tag:'移动', f:async p=>{await slide(p,-1);}},
+ {t:'果树大丰收', d:'果子又大又甜，+2 金币！', tag:'+金币', f:p=>gain(p,2,0)},
+ {t:'小猴偷香蕉', d:'小猴拿走你 1 个金币（没有就没关系）。', tag:'-金币', f:p=>{if(p.coins>=1)p.coins--;}},
+ {t:'生日派对', d:'大家给你 1 金币，还有 1 颗星星！', tag:'+金币+星星', f:p=>{players.forEach(o=>{if(o!==p&&!o.bankrupt&&o.coins>0){o.coins--;p.coins++;}});gain(p,0,1);}},
+ {t:'遇到大灰狼', d:'给它 2 金币，或者给它 1 颗星星。', tag:'选择', f:p=>chooseWolf(p)},
+ {t:'捡到漂亮石头', d:'亮晶晶的石头，+1 金币！', tag:'+金币', f:p=>gain(p,1,0)},
+ {t:'帮助大象洗澡', d:'大象好开心，送你 1 颗星星！', tag:'+星星', f:p=>gain(p,0,1)},
+ {t:'森林火灾警报', d:'虚惊一场！大家各付 1 金币维修（不够就没关系）。', tag:'-金币', f:p=>{players.forEach(o=>{if(!o.bankrupt&&o.coins>0)o.coins--;});}},
+ {t:'发现秘密花园', d:'好美的花！前进 3 格（不触发效果）。', tag:'移动', f:async p=>{await slide(p,3);}},
+ {t:'动物们的感谢信', d:'信里掉出 2 颗快乐星星！', tag:'+星星', f:p=>gain(p,0,2)}
+];
+
+/* ================= 状态 ================= */
+const $=id=>document.getElementById(id);
+let players=[],props=[],turnIdx=0,busy=false,muted=false,startTime=0,over=false;
+const COLORS=['#ff7043','#42a5f5','#ab47bc','#26a69a'];
+const ANIMALS=['🐰','🐻','🐵','🦌'];
+const ANAMES=['小兔','小熊','小猴','小鹿'];
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const rnd=n=>Math.floor(Math.random()*n);
+
+/* ================= 音效 ================= */
+let AC=null;
+function beep(f,d,type='sine',v=.15){if(muted)return;try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();const o=AC.createOscillator(),g=AC.createGain();o.type=type;o.frequency.value=f;g.gain.value=v;o.connect(g);g.connect(AC.destination);o.start();g.gain.exponentialRampToValueAtTime(.001,AC.currentTime+d);o.stop(AC.currentTime+d);}catch(e){}}
+const sDice=()=>{let i=0;const t=setInterval(()=>{beep(300+rnd(300),.05,'square');if(++i>5)clearInterval(t)},90)};
+const sCoin=()=>{beep(880,.09,'sine');setTimeout(()=>beep(1320,.12),70)};
+const sStar=()=>{beep(1046,.1);setTimeout(()=>beep(1568,.15),90)};
+const sBad=()=>{beep(220,.2,'sawtooth',.1)};
+const sWin=()=>{[523,659,784,1046].forEach((f,i)=>setTimeout(()=>beep(f,.25),i*160))};
+function toggleSnd(){muted=!muted;$('sndBtn').textContent=muted?'🔇':'🔊'}
+
+/* ================= 设置页 ================= */
+function initSetup(){
+  let html='';
+  for(let i=0;i<4;i++){
+    html+=`<div class="srow"><span class="em">${ANIMALS[i]}</span>
+      <input id="nm${i}" value="${ANAMES[i]}" maxlength="6">
+      <select id="tp${i}">
+        <option value="off"${i>1?' selected':''}>不参加</option>
+        <option value="human"${i===0?' selected':''}>小朋友玩</option>
+        <option value="ai"${i===1?' selected':''}>电脑玩</option>
+      </select></div>`;
+  }
+  $('rows').innerHTML=html;
+  $('startBtn').onclick=start;
+  $('pmChk').onchange=e=>document.body.classList.toggle('pm',e.target.checked);
+}
+function start(){
+  players=[];
+  for(let i=0;i<4;i++){
+    const t=$('tp'+i).value;
+    if(t==='off')continue;
+    players.push({name:$('nm'+i).value.trim()||ANAMES[i],ic:ANIMALS[i],ai:t==='ai',pos:0,coins:20,stars:0,rest:0,bankrupt:false,ci:i});
+  }
+  if(players.length<2){alert('至少要 2 个玩家哦！');return;}
+  props=BOARD.map(b=>b.t==='prop'?{o:-1,lv:0}:null);
+  $('setup').style.display='none';
+  $('app').style.display='block';
+  startTime=Date.now();over=false;turnIdx=0;
+  buildBoard();renderPlayers();renderBoard();
+  log('游戏开始！大家轮流掷骰子吧！ '+players[0].name+' 先来～');
+  runTurn();
+}
+
+/* ================= 棋盘渲染 ================= */
+function ringPos(i){ // 0..23 → [row,col] 顺时针
+  if(i<=6)return[0,i];
+  if(i<=11)return[i-6,6];
+  if(i<=18)return[6,18-i+6];
+  return[6-(i-18),0];
+}
+function buildBoard(){
+  const bd=$('board');bd.innerHTML='';
+  for(let r=0;r<7;r++)for(let c=0;c<7;c++){
+    const d=document.createElement('div');
+    if(r===0&&c===0){d.className='cell start';d.dataset.g=0}
+    else if(r===0&&c>0)d.dataset.g=c;
+    else if(c===6&&r>0&&r<6)d.dataset.g=6+r;
+    else if(r===6&&c<6)d.dataset.g=12+(6-c);
+    else if(c===0&&r>0&&r<6)d.dataset.g=24-r;
+    if(r>=1&&r<=5&&c>=1&&c<=5){d.id='center';d.innerHTML='<div id="center"></div>';}
+    else d.className='cell '+BOARD[d.dataset.g].t;
+    bd.appendChild(d);
+  }
+  const c2=document.getElementById('center');
+  c2.innerHTML='<div id="turnTip"></div><div id="dice">🎲</div><button id="rollBtn" onclick="humanRoll()">🎲 掷骰子！</button><div id="log"></div>';
+  BOARD.forEach((b,i)=>{
+    const el=bd.querySelector(`[data-g="${i}"]`);
+    el.innerHTML=`<span class="ic">${b.ic}</span><span class="nm">${b.n}</span>`+
+      (b.t==='prop'?`<span class="pr">💰${b.p}</span><span class="ow"></span><span class="lv"></span>`:'')+
+      `<div class="tok" id="tok${i}"></div>`;
+  });
+}
+function renderBoard(){
+  BOARD.forEach((b,i)=>{
+    if(b.t!=='prop')return;
+    const el=$('board').querySelector(`[data-g="${i}"]`);
+    el.className='cell prop '+b.t+(props[i].o>=0?' owned'+props[i].o:'');
+    el.querySelector('.ow').textContent=props[i].o>=0?players[props[i].o].ic:'';
+    el.querySelector('.lv').textContent=props[i].lv>0?'🏠':'';
+    el.querySelector('.pr').textContent=props[i].o>=0?(props[i].lv?'租金💰'+b.r2:'租金💰'+b.r):'💰'+b.p;
+  });
+}
+function renderTokens(hopIdx=-1){
+  const map={};players.forEach(p=>{if(p.bankrupt)return;(map[p.pos]=map[p.pos]||[]).push(p)});
+  for(let i=0;i<24;i++){
+    const box=$('tok'+i);if(!box)continue;box.innerHTML='';
+    (map[i]||[]).forEach(p=>{
+      const s=document.createElement('span');s.textContent=p.ic;s.title=p.name;
+      if(hopIdx>=0&&p===players[hopIdx])s.className='hop';box.appendChild(s);
+    });
+  }
+}
+function renderPlayers(){
+  $('players').innerHTML=players.map((p,i)=>
+    `<div class="pcard${i===turnIdx&&!over?' cur':''}${p.bankrupt?' dead':''}">
+      ${p.rest&&!p.bankrupt?'<span class="zzz">😴</span>':''}
+      <div class="av">${p.ic}</div><div class="pn">${p.name}${p.ai?' 🤖':''}</div>
+      <div class="st"><span class="c">🪙${p.coins}</span> <span class="s">⭐${p.stars}</span></div>
+    </div>`).join('');
+}
+function log(m){$('log').innerHTML=m}
+function fly(txt,el){
+  const f=document.createElement('div');f.className='fly';f.textContent=txt;f.style.color='#e65100';
+  const r=(el||$('dice')).getBoundingClientRect();f.style.left=r.left+r.width/2-14+'px';f.style.top=r.top-6+'px';
+  document.body.appendChild(f);setTimeout(()=>f.remove(),1000);
+}
+
+/* ================= 弹窗 ================= */
+function dlg(html,btns){
+  $('dlg').innerHTML=html+'<div id="dlgBtns"></div>';
+  const bx=$('dlgBtns');
+  btns.forEach(b=>{const x=document.createElement('button');x.className='btn '+b.c;x.textContent=b.t;x.onclick=()=>{closeDlg();b.f&&b.f();};bx.appendChild(x);});
+  $('mask').classList.add('show');
+}
+function closeDlg(){$('mask').classList.remove('show')}
+const waitDlg=(html,btns)=>new Promise(res=>dlg(html,btns.map(b=>({...b,f:()=>res(b.v)}))));
+function info(html,ms=1400){$('dlg').innerHTML=html;$('mask').classList.add('show');return new Promise(r=>setTimeout(()=>{closeDlg();r()},ms))}
+
+/* ================= 金币星星 ================= */
+function gain(p,c,s){
+  if(c){p.coins+=c;fly('+'+c+'🪙');sCoin()}
+  if(s){p.stars+=s;fly('+'+s+'⭐');sStar()}
+  renderPlayers();renderBoard();
+}
+
+/* 付款：不够时可 1星=3金币 抵扣；还不行则破产 */
+async function pay(payer,amount,receiver){
+  while(payer.coins<amount&&payer.stars>0){
+    let use=true;
+    if(!payer.ai){
+      use=await waitDlg(`<div class="dic">🪙</div><div class="dt">金币不够啦！</div>
+        <div class="db">${payer.name} 要付 ${amount} 金币，现在只有 ${payer.coins} 个。<br>用 1 颗星星换 3 个金币吗？<br>（现在有 ${payer.stars} 颗星星）</div>`,
+        [{t:'⭐ 换金币',c:'b-up',v:true},{t:'不用了',c:'b-no',v:false}]);
+    }
+    if(!use)break;
+    payer.stars--;payer.coins+=3;sCoin();renderPlayers();
+  }
+  const real=Math.min(payer.coins,amount);
+  payer.coins-=real;
+  if(receiver)receiver.coins+=real;
+  if(real>0)fly('-'+real+'🪙');
+  sBad();renderPlayers();renderBoard();
+  return payer.coins>=0&&payer.coins+real>=amount;
+}
+
+async function bankruptOut(p){
+  p.bankrupt=true;
+  props.forEach((v,i)=>{if(v&&v.o===players.indexOf(p)){v.o=-1;v.lv=0}});
+  renderBoard();renderPlayers();
+  await info(`<div class="dic">😭</div><div class="dt">${p.name} 没有钱也没有星星了…</div><div class="db">它的土地都还给森林银行，先休息一下吧。</div>`,2000);
+  const alive=players.filter(x=>!x.bankrupt);
+  if(alive.length===1)await winGame(alive[0]);
+}
+
+/* ================= 移动 ================= */
+async function slide(p,step,trigger=false,skipStartBonus=false){
+  let dir=step>0?1:-1,left=Math.abs(step);
+  while(left-->0){
+    p.pos=(p.pos+dir+24)%24;
+    if(dir>0&&p.pos===0&&!skipStartBonus){p.coins+=2;fly('+2🪙');sCoin();renderPlayers();}
+    renderTokens(players.indexOf(p));beep(500,.04);
+    await sleep(200);
+  }
+  renderTokens(players.indexOf(p));
+}
+async function rollMove(p,dice,bonus=true){
+  $('dice').textContent='🎲';$('dice').classList.add('shake');sDice();
+  for(let i=0;i<8;i++){$('dice').textContent='⚀⚁⚂⚃⚄⚅'[rnd(6)];await sleep(90)}
+  $('dice').classList.remove('shake');$('dice').textContent=dice;
+  await slide(p,dice,true);
+  return p.pos;
+}
+
+/* ================= 回合流程 ================= */
+let resolveHuman=null;
+function humanRoll(){if(resolveHuman){const f=resolveHuman;resolveHuman=null;f()}}
+
+async function runTurn(){
+  if(over)return;
+  const p=players[turnIdx];
+  renderPlayers();
+  if(p.bankrupt){return endTurn()}
+  $('turnTip').textContent=p.ai?p.name+'（电脑）想一下…':'轮到 '+p.name+' 掷骰子！';
+  $('rollBtn').disabled=p.ai;
+  if(p.rest){
+    p.rest=0;renderPlayers();
+    log(p.name+' 😴 在休息站歇息，这回合跳过～');
+    await info(`<div class="dic">😴</div><div class="dt">${p.name} 在休息！</div><div class="db">休息一回合，下回合再出发～</div>`,1500);
+    return endTurn();
+  }
+  if(p.ai){await sleep(900);await doRoll(p);}
+  else await new Promise(r=>{resolveHuman=()=>doRoll(p)});
+}
+async function doRoll(p){
+  if(busy||over)return;busy=true;$('rollBtn').disabled=true;
+  const dice=1+rnd(6);
+  await rollMove(p,dice);
+  await resolveCell(p);
+  busy=false;
+  if(!over)endTurn();
+}
+function endTurn(){
+  checkTimeUp();
+  if(over)return;
+  turnIdx=(turnIdx+1)%players.length;
+  renderTokens();renderPlayers();
+  setTimeout(runTurn,350);
+}
+
+/* ================= 格子结算 ================= */
+async function resolveCell(p){
+  const g=p.pos,b=BOARD[g];
+  if(b.t==='prop')return resolveProp(p,g);
+  if(b.t==='star'){gain(p,0,1);log(p.name+' 踩到星星格，+1⭐！');return}
+  if(b.t==='rest'){p.rest=1;renderPlayers();log(p.name+' 到休息站了，下回合要睡觉～');return}
+  if(b.t==='event'){const c=EVENTS[rnd(EVENTS.length)];await playCard(p,c,'❓ 事件卡');return}
+  if(b.t==='chance'){const c=CHANCE[rnd(CHANCE.length)];await playCard(p,c,'🎁 机会卡');return}
+  if(b.t==='magic'){
+    log(p.name+' 走进魔法森林，再掷一次传送！');
+    await info(`<div class="dic">🌲✨</div><div class="dt">魔法森林！</div><div class="db">再掷一次骰子，按点数传送到对应格子（不触发效果）。</div>`,1400);
+    const d2=1+rnd(6);
+    await rollMove(p,d2,false); /* 传送不触发、不发起点奖励 */
+    p.pos=(p.pos)%24;
+    log(p.name+' 被传送到了 '+BOARD[p.pos].n);
+    return;
+  }
+  if(b.t==='bridge'){
+    const d=1+rnd(6);
+    $('dice').textContent=d;sDice();await sleep(600);
+    if(d%2===0){log(p.name+' 幸运桥掷出 '+d+'（偶数）+2🪙！');gain(p,2,0)}
+    else{log(p.name+' 幸运桥掷出 '+d+'（奇数）+1⭐！');gain(p,0,1)}
+    return;
+  }
+  if(b.t==='start'){log(p.name+' 停在起点广场，+2🪙！');gain(p,2,0);return}
+}
+async function resolveProp(p,g){
+  const b=BOARD[g],v=props[g],me=players.indexOf(p);
+  if(v.o<0){
+    if(p.ai){
+      if(p.coins>=b.p+2){v.o=me;sCoin();renderBoard();renderPlayers();log(p.name+' 买下了 '+b.n+'！');await info(`<div class="dic">${b.ic}</div><div class="dt">${p.name} 买下 ${b.n}！</div><div class="db">花 ${b.p} 金币，以后别人踩到要付租金～</div>`,1500)}
+      else log(p.name+' 金币不够，没买 '+b.n);
+    }else{
+      const buy=await waitDlg(`<div class="dic">${b.ic}</div><div class="dt">${b.n} 要卖啦！</div>
+        <div class="db">价格：<b>💰${b.p}</b>　基础租金：💰${b.r}<br>升级后租金：💰${b.r2}<br><br>你有 🪙${p.coins}，要买吗？</div>`,
+        [{t:`💰 买下它`,c:'b-buy',v:true},{t:'先不买',c:'b-no',v:false}]);
+      if(buy){
+        if(p.coins<b.p){await info(`<div class="dic">🪙</div><div class="dt">金币不够呀！</div>`,1200);return}
+        p.coins-=b.p;v.o=me;sCoin();renderBoard();renderPlayers();
+        log(p.name+' 买下了 '+b.n+'！');
+        await info(`<div class="dic">🎉${b.ic}</div><div class="dt">恭喜买下 ${b.n}！</div><div class="db">以后别人踩到这里，要付你租金哦～</div>`,1500);
+      }
+    }
+    return;
+  }
+  if(v.o===me){
+    if(v.lv>0){log(p.name+' 回自己家看看～');return}
+    if(p.ai){
+      if(p.coins>=b.u+3){p.coins-=b.u;v.lv=1;sCoin();renderBoard();renderPlayers();log(p.name+' 把 '+b.n+' 升级了！');}
+    }else{
+      const up=await waitDlg(`<div class="dic">${b.ic}🏠</div><div class="dt">升级 ${b.n}？</div>
+        <div class="db">升级费：<b>💰${b.u}</b><br>租金 💰${b.r} → <b>💰${b.r2}</b><br><br>你有 🪙${p.coins}</div>`,
+        [{t:`🏠 升级`,c:'b-up',v:true},{t:'不升了',c:'b-no',v:false}]);
+      if(up&&p.coins>=b.u){p.coins-=b.u;v.lv=1;sCoin();renderBoard();renderPlayers();log(p.name+' 把 '+b.n+' 升级了！租金变 💰'+b.r2)}
+      else if(up){await info(`<div class="dic">🪙</div><div class="dt">金币不够呀！</div>`,1200)}
+    }
+    return;
+  }
+  const owner=players[v.o];
+  const rent=v.lv?b.r2:b.r;
+  log(p.name+' 踩到 '+owner.name+' 的 '+b.n+'，要付 💰'+rent);
+  await info(`<div class="dic">${b.ic}</div><div class="dt">这是 ${owner.name} 的家！</div><div class="db">${p.name} 要付租金 💰${rent} 给 ${owner.name}。</div>`,1400);
+  const okPay=await pay(p,rent,owner);
+  if(!okPay)await bankruptOut(p);
+}
+
+/* ================= 卡片 ================= */
+async function playCard(p,card,title){
+  const go=await waitDlg(`<div class="dic">${title.startsWith('🎁')?'🎁':'❓'}</div>
+    <div class="dt">${card.t}</div><div class="db">${card.d}</div><div class="dp">家长看：${card.tag}</div>`,
+    [{t:'👋 知道啦',c:'b-ok',v:true}]);
+  if(!go)return;
+  await card.f(p);
+  checkWin(p);
+}
+async function chooseWolf(p){
+  const canCoin=p.coins>=2,canStar=p.stars>=1;
+  if(p.ai||( !canCoin&&!canStar)){if(canCoin)p.coins-=2;else if(canStar)p.stars--;sBad();renderPlayers();return}
+  const c=await waitDlg(`<div class="dic">🐺</div><div class="dt">遇到大灰狼！</div>
+    <div class="db">给它 2 金币，还是给它 1 颗星星？<br>你有 🪙${p.coins}　⭐${p.stars}</div>`,
+    [{t:'🪙 给2金币',c:'b-buy',v:'c',},{t:'⭐ 给1星星',c:'b-up',v:'s'}]);
+  if(c==='c'&&canCoin)p.coins-=2;else if(c==='s'&&canStar)p.stars--;else if(canCoin)p.coins-=2;
+  sBad();renderPlayers();
+}
+
+/* ================= 胜负 ================= */
+function checkWin(p){if(p&&p.stars>=10&&!over)winGame(p)}
+async function winGame(p){
+  over=true;$('rollBtn').disabled=true;
+  sWin();confetti();
+  await info(`<div class="dic">🏆${p.ic}</div><div class="dt">${p.name} 赢啦！</div>
+    <div class="db">集满了 10 颗快乐星星！<br>🪙 ${p.coins}　⭐ ${p.stars}<br><br>大家给冠军鼓掌～👏</div>`,1e9);
+}
+function checkTimeUp(){
+  if(over)return false;
+  if(Date.now()-startTime<30*60*1000)return false;
+  over=true;$('rollBtn').disabled=true;
+  const alive=players.filter(p=>!p.bankrupt).sort((a,b)=>b.stars-a.stars||b.coins-a.coins);
+  const w=alive[0];
+  sWin();confetti();
+  info(`<div class="dic">⏰🏆</div><div class="dt">时间到！${w?w.name+' 赢啦！':''}</div>
+    <div class="db">${alive.map(p=>`${p.ic}${p.name}：⭐${p.stars} 🪙${p.coins}`).join('<br>')}<br><br>下次再一起玩～</div>`,1e9);
+  return true;
+}
+function confetti(){
+  const fx=$('winfx');fx.style.display='block';
+  const cs=['#ff8a65','#ffd54f','#4fc3f7','#aed581','#ba68c8','#f06292'];
+  for(let i=0;i<70;i++){const d=document.createElement('div');d.style.left=rnd(100)+'vw';
+    d.style.background=cs[rnd(cs.length)];d.style.animationDuration=(1.6+rnd(1.6))+'s';d.style.animationDelay=(rnd(6)/10)+'s';
+    fx.appendChild(d);}
+  setTimeout(()=>fx.style.display='none',4000);
+}
+
+/* ================= 计时 ================= */
+setInterval(()=>{
+  if(!startTime||over)return;
+  const s=Math.floor((Date.now()-startTime)/1000);
+  $('timer').textContent=String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
+},500);
+
+initSetup();
+</script>
+</body>
+</html>
