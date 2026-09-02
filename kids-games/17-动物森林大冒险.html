@@ -87,6 +87,7 @@ body.pm #dlg .dp{display:block}
 <body>
 <div id="app">
   <div id="top">
+    <button id="homeBtn" onclick="goLobby()" title="返回游戏大厅">🏠</button>
     <h1>🎲 动物森林大冒险</h1>
     <span id="timer">00:00</span>
     <button id="sndBtn" onclick="toggleSnd()">🔊</button>
@@ -188,6 +189,10 @@ const sStar=()=>{beep(1046,.1);setTimeout(()=>beep(1568,.15),90)};
 const sBad=()=>{beep(220,.2,'sawtooth',.1)};
 const sWin=()=>{[523,659,784,1046].forEach((f,i)=>setTimeout(()=>beep(f,.25),i*160))};
 function toggleSnd(){muted=!muted;$('sndBtn').textContent=muted?'🔇':'🔊'}
+function goLobby(){ /* 在大厅 iframe 中时调用大厅的返回；单独打开时直接跳转 */
+  try{ if(window.parent&&window.parent.goHome){window.parent.goHome();return;} }catch(e){}
+  location.href='游戏大厅.html';
+}
 
 /* ================= 设置页 ================= */
 function initSetup(){
@@ -232,18 +237,22 @@ function ringPos(i){ // 0..23 → [row,col] 顺时针
 function buildBoard(){
   const bd=$('board');bd.innerHTML='';
   for(let r=0;r<7;r++)for(let c=0;c<7;c++){
+    if(r>=1&&r<=5&&c>=1&&c<=5)continue; /* 中心区单独创建，避免重复 id 叠盖 */
     const d=document.createElement('div');
-    if(r===0&&c===0){d.className='cell start';d.dataset.g=0}
-    else if(r===0&&c>0)d.dataset.g=c;
-    else if(c===6&&r>0&&r<6)d.dataset.g=6+r;
-    else if(r===6)d.dataset.g=12+(6-c);
-    else if(c===0&&r>0&&r<6)d.dataset.g=24-r;
-    if(r>=1&&r<=5&&c>=1&&c<=5){d.id='center';d.innerHTML='<div id="center"></div>';}
-    else d.className='cell '+BOARD[d.dataset.g].t;
+    let g=-1;
+    if(r===0&&c===0)g=0;
+    else if(r===0&&c>0)g=c;
+    else if(c===6&&r>0&&r<6)g=6+r;
+    else if(r===6)g=12+(6-c);
+    else if(c===0&&r>0&&r<6)g=24-r;
+    d.className='cell '+BOARD[g].t;
+    d.dataset.g=g;
     bd.appendChild(d);
   }
-  const c2=document.getElementById('center');
+  const c2=document.createElement('div');
+  c2.id='center';
   c2.innerHTML='<div id="turnTip"></div><div id="dice">🎲</div><button id="rollBtn" onclick="humanRoll()">🎲 掷骰子！</button><div id="log"></div>';
+  bd.appendChild(c2);
   BOARD.forEach((b,i)=>{
     const el=bd.querySelector(`[data-g="${i}"]`);
     el.innerHTML=`<span class="ic">${b.ic}</span><span class="nm">${b.n}</span>`+
