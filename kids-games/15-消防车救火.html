@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>消防车救火</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0; height: 100%; overflow: hidden;
+    font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+    background: #5b8f3c; color: #fff; user-select: none; -webkit-user-select: none;
+    touch-action: none; overscroll-behavior: none;
+  }
+  #app { display: flex; flex-direction: column; height: 100%; }
+  #hud {
+    flex: none; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    padding: 8px 10px; background: rgba(40,70,20,.6); z-index: 5;
+  }
+  .hudbox {
+    display: flex; align-items: center; gap: 5px; background: rgba(255,255,255,.18);
+    border-radius: 11px; padding: 5px 11px; font-size: 14px; font-weight: 800; white-space: nowrap;
+  }
+  #weaponTxt { background: #ffb43d; color: #5b3a00; }
+  #menuBtn { margin-left: auto; border: 0; cursor: pointer; font-family: inherit; font-weight: 800;
+    font-size: 13px; padding: 6px 12px; border-radius: 11px; background: rgba(255,255,255,.22); color: #fff; }
+  #stage { flex: 1; min-height: 0; position: relative; display: flex; }
+  canvas { display: block; width: 100%; height: 100%; }
+
+  .overlay { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+    background: rgba(20,35,10,.72); z-index: 20; padding: 16px; overflow-y: auto; }
+  .card {
+    background: #fffdf6; color: #4a5b3b; border-radius: 28px; padding: 22px 24px;
+    max-width: 430px; width: 100%; text-align: center; box-shadow: 0 18px 50px rgba(0,0,0,.45);
+  }
+  .card h1 { margin: 0 0 8px; font-size: 30px; color: #d8481e; }
+  .card h2 { margin: 0 0 8px; font-size: 27px; color: #e08a12; }
+  .stars { font-size: 34px; letter-spacing: 6px; color: #ffca28; margin: 6px 0 10px; text-shadow: 0 2px 0 rgba(0,0,0,.12); }
+  .rule { font-size: 15px; font-weight: 700; line-height: 1.8; color: #6a7a58; }
+  .rule b { color: #e06a20; }
+  .small { font-size: 12.5px; font-weight: 700; color: #9aa88a; margin-top: 6px; line-height: 1.7; }
+  .rows { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin: 10px 0 2px; }
+  .pill { font-size: 13px; font-weight: 800; border-radius: 999px; padding: 5px 12px; background: #fff0e0; color: #d8481e; }
+  .pill.y { background: #fff3d6; color: #b57a10; }
+  .pill.g { background: #e8f6e0; color: #3d8c4a; }
+  .bigbtn {
+    display: block; width: 100%; margin-top: 14px; padding: 15px; border: 0; border-radius: 999px;
+    background: linear-gradient(180deg, #ff8a4a, #e05a1e); color: #fff; font-family: inherit;
+    font-size: 23px; font-weight: 900; box-shadow: 0 6px 0 #a83a10; cursor: pointer;
+  }
+  .bigbtn.green { background: linear-gradient(180deg,#8fe07a,#3fa03c); box-shadow: 0 6px 0 #1d6b28; }
+  .bigbtn:active { transform: translateY(3px); box-shadow: none; }
+  .smallbtn {
+    display: block; width: 100%; margin-top: 10px; padding: 12px; border: 0; border-radius: 999px;
+    background: #eef1f6; color: #5b6a5b; font-family: inherit; font-size: 17px; font-weight: 800; cursor: pointer;
+  }
+  /* 升级界面 */
+  .upgrade { display: flex; gap: 10px; margin-top: 12px; }
+  .upg {
+    flex: 1; border-radius: 18px; padding: 12px 6px 10px; cursor: pointer; text-align: center;
+    background: #f3eefe; border: 3px solid #e2d8f5;
+  }
+  .upg .nm { font-size: 14px; font-weight: 900; color: #5b4b8a; }
+  .upg .ds { font-size: 11px; font-weight: 700; color: #8a7ab0; margin-top: 3px; line-height: 1.4; }
+  .upg .pr { font-size: 13px; font-weight: 900; color: #e08a12; margin-top: 4px; }
+  .upg.sel { border-color: #ffb43d; background: #fff4dc; }
+  .upg.lock { opacity: .45; }
+  .upg svg { width: 40px; height: 40px; margin-bottom: 3px; }
+  .homelink {
+    position: fixed; bottom: 4px; left: 50%; transform: translateX(-50%); z-index: 99;
+    color: rgba(255,255,255,.85); font-size: 13px; text-decoration: none;
+    background: rgba(0,0,0,.35); padding: 4px 14px; border-radius: 999px;
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="hud">
+    <div class="hudbox" id="lvTxt">第 1 关</div>
+    <div class="hudbox" id="timeTxt">时间 60</div>
+    <div class="hudbox" id="hurtTxt">受伤 0</div>
+    <div class="hudbox" id="goldTxt">金币 0</div>
+    <div class="hudbox" id="weaponTxt">水枪</div>
+    <button id="menuBtn">菜单</button>
+  </div>
+  <div id="stage"><canvas id="cv"></canvas></div>
+  <div id="overlayBox"></div>
+</div>
+<a class="homelink" href="游戏大厅.html" target="_top">← 游戏大厅</a>
+
+<script>
+(function () {
+'use strict';
+function $(id) { return document.getElementById(id); }
+function clamp(v, a, b) { return v < a ? a : (v > b ? b : v); }
+function rnd(a, b) { return a + Math.random() * (b - a); }
+
+/* ================= 音效 ================= */
+var AC = null;
+function audio() {
+  if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { AC = null; } }
+  if (AC && AC.state === 'suspended') { try { AC.resume(); } catch (e) {} }
+  return AC;
+}
+function tone(f, d, ty, v, delay) {
+  if (!AC) return;
+  try {
+    var o = AC.createOscillator(), g = AC.createGain(), t0 = AC.currentTime + (delay || 0);
+    o.type = ty || 'sine'; o.frequency.value = f;
+    g.gain.setValueAtTime(v || 0.3, t0);
+    g.gain.exponentialRampToValueAtTime(0.001, t0 + d);
+    o.connect(g); g.connect(AC.destination); o.start(t0); o.stop(t0 + d + 0.02);
+  } catch (e) {}
+}
+function hiss(dur) {   // 水声
+  if (!AC) return;
+  try {
+    var n = AC.createBufferSource(), len = AC.sampleRate * (dur || 0.4);
+    var buf = AC.createBuffer(1, len, AC.sampleRate), data = buf.getChannelData(0);
+    for (var i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * 0.25;
+    n.buffer = buf; var g = AC.createGain();
+    g.gain.setValueAtTime(0.12, AC.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, AC.currentTime + (dur || 0.4));
+    n.connect(g); g.connect(AC.destination); n.start();
+  } catch (e) {}
+}
+var sfxSpray = function () { if (!AC) return; try { var o = AC.createOscillator(), g = AC.createGain(); o.type = 'sawtooth'; o.frequency.value = 1400; g.gain.setValueAtTime(0.05, AC.currentTime); g.gain.exponentialRampToValueAtTime(0.001, AC.currentTime + 0.14); o.connect(g); g.connect(AC.destination); o.start(); o.stop(AC.currentTime + 0.15); } catch (e) {} };
+var sfxPut = function () { tone(300, 0.2, 'sawtooth', 0.22); tone(180, 0.28, 'sine', 0.2, 0.05); };
+var sfxHurt = function () { tone(520, 0.12, 'square', 0.2); tone(390, 0.14, 'square', 0.2, 0.09); tone(260, 0.18, 'square', 0.2, 0.18); };
+var sfxWin = function () { [523, 659, 784, 1047, 1319, 1568].forEach(function (f, i) { tone(f, 0.26, 'triangle', 0.3, i * 0.1); }); };
+var sfxLose = function () { [440, 392, 330, 262].forEach(function (f, i) { tone(f, 0.24, 'sine', 0.24, i * 0.1); }); };
+var sfxCoin = function () { tone(880, 0.08, 'triangle', 0.22); tone(1319, 0.14, 'triangle', 0.22, 0.06); };
+var sfxTick = function () { tone(660, 0.05, 'triangle', 0.16); };
+
+/* ================= 武器 ================= */
+var WEAPONS = [
+  { name: '水枪',   range: 150, power: 9,  cost: 0,  icon: '<svg viewBox="0 0 48 48"><rect x="10" y="24" width="26" height="8" rx="3" fill="#d8481e"/><path d="M36 28 L44 26 V30 Z" fill="#3a7bd5"/><rect x="8" y="34" width="8" height="6" rx="2" fill="#c9c2e0"/></svg>' },
+  { name: '水炮',   range: 220, power: 17, cost: 45, icon: '<svg viewBox="0 0 48 48"><rect x="8" y="22" width="22" height="12" rx="4" fill="#e05a1e"/><path d="M30 28 L42 24 V32 Z" fill="#3a7bd5"/><circle cx="12" cy="18" r="3" fill="#ffd34d"/><rect x="6" y="34" width="9" height="6" rx="2" fill="#c9c2e0"/></svg>' },
+  { name: '高压水枪', range: 300, power: 27, cost: 75, icon: '<svg viewBox="0 0 48 48"><rect x="6" y="21" width="20" height="14" rx="4" fill="#e05a1e"/><path d="M26 28 L40 22 V34 Z" fill="#3a7bd5"/><path d="M8 18 L12 12 M14 19 L19 13" stroke="#ffd34d" stroke-width="2.4" stroke-linecap="round"/><rect x="4" y="35" width="10" height="6" rx="2" fill="#c9c2e0"/></svg>' },
+  { name: '大水管', range: 400, power: 40, cost: 110, icon: '<svg viewBox="0 0 48 48"><rect x="5" y="19" width="19" height="16" rx="4" fill="#e05a1e"/><path d="M24 27 L42 20 V34 Z" fill="#3a7bd5"/><circle cx="9" cy="14" r="3.4" fill="#ff5f6d"/><path d="M15 14 L20 8 M16 18 L22 12" stroke="#ffd34d" stroke-width="2.4" stroke-linecap="round"/><rect x="3" y="35" width="11" height="6" rx="2" fill="#c9c2e0"/></svg>' }
+];
+
+/* ================= 关卡 ================= */
+var LEVELS = [
+  { houses: 3, time: 45, rate: 3.0,  wind: 0,  trees: 0, initFire: 1, name: '第一处小火' },
+  { houses: 4, time: 50, rate: 3.6,  wind: 0,  trees: 0, initFire: 1, name: '火苗变多' },
+  { houses: 5, time: 55, rate: 4.2,  wind: 0,  trees: 0, initFire: 2, name: '两处着火' },
+  { houses: 5, time: 60, rate: 5.0,  wind: 1,  trees: 1, initFire: 2, name: '起风了' },
+  { houses: 6, time: 65, rate: 6.0,  wind: 1,  trees: 2, initFire: 3, name: '森林大火' }
+];
+
+/* ================= 状态 ================= */
+var cv = $('cv'), ctx = cv.getContext('2d');
+var W = 0, H = 0, DPR = 1;
+var level = 0, state = 'menu';          // menu | play | over | upgrade
+var houses = [];                         // {x,w,h,burn,type:'house'|'tree',alive,boom}
+var truckX = 0;                          // 消防车 x（像素）
+var truckW = 110;
+var sprayOn = false, sprayT = 0;
+var timeLeft = 0, hurtCount = 0, gold = 0, goldEarn = 0;
+var weapon = 0, bestWeapon = 0;          // 当前武器 / 已解锁最高武器
+var drops = [];                          // 水滴粒子
+var smoke = [];                          // 烟雾
+var ambulance = null;                    // 救护车 {x,dir,phase}
+var sirenT = 0;
+var parts = [], confetti = [];
+var msgT = 0, msgTxt = '', msgCol = '#fff';
+var lastT = 0, tick = 0;
+var roundId = 0;
+var dragged = false;
+
+/* ================= 布局 ================= */
+function resize() {
+  var r = $('stage').getBoundingClientRect();
+  W = Math.max(1, r.width); H = Math.max(1, r.height);
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
+  cv.style.width = W + 'px'; cv.style.height = H + 'px';
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+}
+function groundY() { return Math.round(H * 0.88); }
+function truckY() { return groundY() - 18; }
+
+/* ================= 关卡布置 ================= */
+function startLevel() {
+  var L = LEVELS[level];
+  houses = [];
+  var n = L.houses + L.trees;
+  var slotW = W / n;
+  // 先把房子排好（从左到右均匀 + 抖动）
+  for (var i = 0; i < n; i++) {
+    var isTree = i >= L.houses;
+    var hw = isTree ? 40 : rnd(56, 78);
+    var cx = slotW * (i + 0.5) + rnd(-12, 12);
+    cx = clamp(cx, hw / 2 + 8, W - hw / 2 - 8);
+    var hh = isTree ? rnd(70, 90) : rnd(64, 84);
+    houses.push({
+      x: cx - hw / 2, w: hw, h: hh,
+      baseY: groundY() - rnd(0, 18),
+      burn: 0, type: isTree ? 'tree' : 'house', alive: true, boom: 0
+    });
+  }
+  // 初始着火
+  var idxs = [];
+  for (var j = 0; j < n; j++) if (houses[j].type === 'house') idxs.push(j);
+  var init = Math.min(L.initFire, idxs.length);
+  for (var k = 0; k < init; k++) {
+    var pick = idxs.splice(Math.floor(Math.random() * idxs.length), 1)[0];
+    houses[pick].burn = rnd(18, 40);
+  }
+  timeLeft = L.time;
+  hurtCount = 0; goldEarn = 0;
+  sprayOn = false; sprayT = 0;
+  drops = []; smoke = []; ambulance = null; sirenT = 0;
+  truckX = W / 2;
+  state = 'play';
+  hideOverlay();
+  syncHud();
+  showMsg('第 ' + (level + 1) + ' 关 · ' + L.name, '#ffd34d');
+  sfxTick();
+}
+function startGame() {
+  level = 0;
+  gold = 0; weapon = 0; bestWeapon = 0;
+  startLevel();
+}
+function retryLevel() { startLevel(); }
+
+/* ================= 升级 ================= */
+function showUpgrade() {
+  state = 'upgrade';
+  var L = LEVELS[level];
+  sfxCoin();
+  // 计算本关金币
+  var earned = goldEarn;
+  gold += earned;
+  var html = '<div class="overlay"><div class="card">' +
+    '<h2>升级消防车！</h2>' +
+    '<div class="rule">本关灭火赚了 <b>' + earned + '</b> 金币<br>现在有 <b>' + gold + '</b> 金币</div>' +
+    '<div class="upgrade">';
+  for (var i = 0; i < WEAPONS.length; i++) {
+    var w = WEAPONS[i];
+    var locked = i > bestWeapon + 1;          // 只能逐级解锁
+    var canBuy = i <= bestWeapon + 1 && i > bestWeapon && gold >= w.cost;
+    var cls = i === weapon ? ' sel' : (locked ? ' lock' : '');
+    html += '<div class="upg' + cls + '" data-w="' + i + '"' +
+      (canBuy || i === weapon || i <= bestWeapon ? '' : ' style="pointer-events:none"') + '>' +
+      w.icon + '<div class="nm">' + w.name + '</div>' +
+      '<div class="ds">射程 ' + w.range + ' · 灭火更快</div>' +
+      '<div class="pr">' + (i <= bestWeapon ? '已拥有' : (locked ? '先升上一级' : '需要 ' + w.cost + ' 金币')) + '</div>' +
+    '</div>';
+  }
+  html += '</div>' +
+    '<button class="bigbtn green" id="ovGo">出车救火！</button>' +
+    '<button class="smallbtn" id="ovMenu2">回菜单</button>' +
+    '</div></div>';
+  $('overlayBox').innerHTML = html;
+  var rid = ++roundId;
+  $('ovGo').onclick = function () { if (rid !== roundId) return; level++; startLevel(); };
+  $('ovMenu2').onclick = function () { if (rid !== roundId) return; showMenu(); };
+  var ups = $('overlayBox').querySelectorAll('.upg');
+  for (var u = 0; u < ups.length; u++) {
+    ups[u].addEventListener('click', function (e) {
+      var w = +e.currentTarget.getAttribute('data-w');
+      if (w > bestWeapon + 1) return;
+      if (w <= bestWeapon) { weapon = w; }
+      else if (gold >= WEAPONS[w].cost) {
+        gold -= WEAPONS[w].cost; weapon = w; bestWeapon = w;
+        sfxCoin();
+      } else return;
+      showUpgrade();   // 重新渲染
+    });
+  }
+}
+
+/* ================= 过关/失败 ================= */
+function rateLevel() {
+  if (hurtCount === 0) return 3;
+  if (hurtCount === 1) return 2;
+  return 1;
+}
+function calcGold() {
+  var L = LEVELS[level];
+  var rescued = houses.filter(function (h) { return h.type === 'house' && h.alive && h.burn === 0; }).length;
+  return rescued * 8 + Math.round(Math.max(0, timeLeft) * 0.6);
+}
+function levelClear() {
+  state = 'over';
+  var star = rateLevel();
+  goldEarn = calcGold();
+  sfxWin();
+  var last = level >= LEVELS.length - 1;
+  var rid = ++roundId;
+  $('overlayBox').innerHTML =
+    '<div class="overlay"><div class="card">' +
+      '<h2>大火扑灭啦！</h2>' +
+      '<div class="stars">' + '★'.repeat(star) + '☆'.repeat(3 - star) + '</div>' +
+      '<div class="rule">' + (hurtCount === 0 ? '没有人受伤，太棒了！' : '有 <b>' + hurtCount + '</b> 个人受伤，下次更快一点') +
+        '<br>赚了 <b>' + goldEarn + '</b> 金币</div>' +
+      (last
+        ? '<button class="bigbtn" id="ovAgain">领奖状！</button>'
+        : '<button class="bigbtn green" id="ovNext">去升级！</button>') +
+      '<button class="smallbtn" id="ovReplay">再打一次</button>' +
+    '</div></div>';
+  $('ovNext') && ($('ovNext').onclick = function () { if (rid !== roundId) return; showUpgrade(); });
+  $('ovAgain') && ($('ovAgain').onclick = function () { if (rid !== roundId) return; showFinal(); });
+  $('ovReplay').onclick = function () { if (rid !== roundId) return; retryLevel(); };
+}
+function showLose() {
+  state = 'over';
+  sfxLose();
+  var rid = ++roundId;
+  $('overlayBox').innerHTML =
+    '<div class="overlay"><div class="card">' +
+      '<h2>呜呜，房子烧掉啦！</h2>' +
+      '<div class="rule">有 <b>' + hurtCount + '</b> 个人受伤了…<br>别灰心，升级武器再冲一次！</div>' +
+      '<button class="bigbtn" id="ovRetry">再来一次</button>' +
+      '<button class="smallbtn" id="ovUpg">先去升级</button>' +
+    '</div></div>';
+  $('ovRetry').onclick = function () { if (rid !== roundId) return; retryLevel(); };
+  $('ovUpg').onclick = function () { if (rid !== roundId) return; showUpgrade(); };
+}
+function showFinal() {
+  state = 'over';
+  sfxWin();
+  var rid = ++roundId;
+  $('overlayBox').innerHTML =
+    '<div class="overlay"><div class="card">' +
+      '<h1>金牌消防员！</h1>' +
+      '<div class="stars">★★★</div>' +
+      '<div class="rule">5 场大火全都扑灭啦！<br>森林平安，大家都得救啦～</div>' +
+      '<button class="bigbtn green" id="ovAgain2">再救一次火</button>' +
+      '<button class="smallbtn" id="ovMenu3">回菜单</button>' +
+    '</div></div>';
+  $('ovAgain2').onclick = function () { if (rid !== roundId) return; startGame(); };
+  $('ovMenu3').onclick = function () { if (rid !== roundId) return; showMenu(); };
+}
+function showMenu() {
+  state = 'menu';
+  hideOverlay();
+  $('overlayBox').innerHTML =
+    '<div class="overlay"><div class="card">' +
+      '<h1>消防车救火</h1>' +
+      '<div class="rule">把消防车<b>拖到</b>着火的房子下面，<br>按住屏幕<b>喷水</b>灭火！</div>' +
+      '<div class="rows">' +
+        '<span class="pill">5 关</span><span class="pill y">倒计时救火</span><span class="pill g">升级武器</span>' +
+        '<span class="pill">别让人受伤</span>' +
+      '</div>' +
+      '<div class="small">火烧久了会有人受伤，救护车会来哦 · 灭火赚金币升级水枪水炮大水管</div>' +
+      '<button class="bigbtn" id="ovStart">出发救火！</button>' +
+    '</div></div>';
+  $('ovStart').onclick = function () { audio(); startGame(); };
+}
+function hideOverlay() { $('overlayBox').innerHTML = ''; }
+function syncHud() {
+  $('lvTxt').textContent = '第 ' + (level + 1) + ' 关';
+  $('timeTxt').textContent = '时间 ' + Math.max(0, Math.ceil(timeLeft));
+  $('hurtTxt').textContent = '受伤 ' + hurtCount;
+  $('goldTxt').textContent = '金币 ' + gold;
+  $('weaponTxt').textContent = WEAPONS[weapon].name;
+}
+function showMsg(t, c) { msgT = 1.8; msgTxt = t; msgCol = c || '#fff'; }
+
+/* ================= 更新 ================= */
+function update(dt) {
+  tick++;
+  if (msgT > 0) msgT -= dt;
+  if (state !== 'play') return;
+  var L = LEVELS[level];
+
+  timeLeft -= dt;
+  if (timeLeft <= 0) {
+    timeLeft = 0;
+    endByTime();
+    return;
+  }
+
+  // 火势增长
+  var burning = houses.filter(function (h) { return h.alive && h.burn > 0; }).length;
+  for (var i = 0; i < houses.length; i++) {
+    var h = houses[i];
+    if (!h.alive) continue;
+    if (h.burn > 0) {
+      var grow = L.rate * (1 + burning * 0.12) * dt;
+      if (L.wind) grow *= 1.35;
+      h.burn += grow;
+      // 烟雾
+      if (Math.random() < dt * 2) smoke.push({ x: h.x + h.w / 2 + rnd(-8, 8), y: h.baseY - h.h * (0.35 + h.burn / 140), vx: rnd(-8, 8), vy: rnd(-22, -10), life: rnd(0.5, 1), max: 1 });
+    }
+    // 风助火势：蔓延到邻居
+    if (L.wind && h.burn > 40 && Math.random() < dt * 0.5) {
+      var nb = houses[i + 1] || houses[i - 1];
+      if (nb && nb.alive && nb.burn === 0) nb.burn = 6;
+    }
+    // 烧毁
+    if (h.burn >= 100) {
+      h.burn = 100; h.alive = false; h.boom = 1;
+      if (h.type === 'house') {
+        hurtCount++;
+        sfxHurt();
+        sirenT = 1.2;
+        spawnAmbulance();
+        showMsg(hurtCount >= 3 ? '3 个人受伤了…' : '有人受伤了！救护车来了', '#ff8a8a');
+        if (hurtCount >= 3) { endLose(); return; }
+      }
+      syncHud();
+    }
+  }
+
+  // 喷水
+  if (sprayOn) {
+    sprayT += dt;
+    var w = WEAPONS[weapon];
+    var topY = truckY() - w.range;
+    // 命中判定：水柱顶端 x 在车头附近，y 扫过房子
+    var hit = null;
+    for (var j = 0; j < houses.length; j++) {
+      var hh = houses[j];
+      if (!hh.alive) continue;
+      if (truckX >= hh.x - 16 && truckX <= hh.x + hh.w + 16) {
+        var hTop = hh.baseY - hh.h;
+        if (truckY() - w.range <= hTop + 10) { hit = hh; break; }
+      }
+    }
+    if (hit) {
+      hit.burn = Math.max(0, hit.burn - w.power * dt * (hit.type === 'tree' ? 1.6 : 1));
+      if (hit.burn === 0) { sfxPut(); smoke = smoke.filter(function (s) { return Math.abs(s.x - (hit.x + hit.w / 2)) > 40; }); }
+      if (sprayT > 0.14) { sfxSpray(); sprayT = 0; }
+    }
+    // 水滴粒子
+    for (var d = 0; d < 3; d++) {
+      drops.push({ x: truckX + rnd(-14, 14), y: truckY() - 6, vx: rnd(-20, 20), vy: rnd(-60, -20), life: rnd(0.3, 0.6), max: 0.6 });
+    }
+    if (hit) {
+      for (var d2 = 0; d2 < 4; d2++) {
+        drops.push({ x: hit.x + hit.w / 2 + rnd(-20, 20), y: hit.baseY - rnd(10, 40), vx: rnd(-30, 30), vy: rnd(-50, -10), life: rnd(0.3, 0.7), max: 0.7 });
+      }
+    }
+  }
+
+  // 全部火灭掉 → 过关（不用等倒计时）
+  if (!houses.some(function (h) { return h.alive && h.burn > 0; })) {
+    levelClear();
+    return;
+  }
+
+  // 救护车
+  if (ambulance) {
+    sirenT -= dt;
+    ambulance.x += ambulance.dir * (ambulance.phase === 'in' ? 260 : 340) * dt;
+    if (ambulance.phase === 'in' && ambulance.x >= ambulance.stopX) {
+      ambulance.phase = 'stop'; ambulance.stopT = 1.6;
+    }
+    if (ambulance.phase === 'stop') {
+      ambulance.stopT -= dt;
+      if (ambulance.stopT <= 0) ambulance.phase = 'out';
+    }
+    if (ambulance.phase === 'out' && ambulance.x > W + 80) ambulance = null;
+  }
+
+  // 粒子
+  for (var k = drops.length - 1; k >= 0; k--) {
+    var p = drops[k];
+    p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 220 * dt; p.life -= dt;
+    if (p.life <= 0 || p.y > groundY()) drops.splice(k, 1);
+  }
+  for (var s2 = smoke.length - 1; s2 >= 0; s2--) {
+    var sm = smoke[s2];
+    sm.x += sm.vx * dt; sm.y += sm.vy * dt; sm.life -= dt;
+    if (sm.life <= 0) smoke.splice(s2, 1);
+  }
+  for (var m = parts.length - 1; m >= 0; m--) {
+    var pp = parts[m];
+    pp.y -= 26 * dt; pp.life -= dt;
+    if (pp.life <= 0) parts.splice(m, 1);
+  }
+  for (var c = confetti.length - 1; c >= 0; c--) {
+    var cf = confetti[c];
+    cf.x += cf.vx * dt; cf.y += cf.vy * dt; cf.vy += 300 * dt; cf.rot += cf.spin * dt; cf.life -= dt;
+    if (cf.life <= 0) confetti.splice(c, 1);
+  }
+  syncHud();
+}
+function endByTime() {
+  state = 'over';
+  goldEarn = calcGold();
+  var star = rateLevel();
+  if (hurtCount >= 3) { endLose(); return; }
+  sfxWin();
+  var rid = ++roundId;
+  $('overlayBox').innerHTML =
+    '<div class="overlay"><div class="card">' +
+      '<h2>时间到！</h2>' +
+      '<div class="stars">' + '★'.repeat(star) + '☆'.repeat(3 - star) + '</div>' +
+      '<div class="rule">救火完成！赚了 <b>' + goldEarn + '</b> 金币' +
+        (hurtCount ? '<br>有 <b>' + hurtCount + '</b> 个人受伤' : '<br>没有人受伤！') + '</div>' +
+      '<button class="bigbtn green" id="ovNext2">去升级！</button>' +
+      '<button class="smallbtn" id="ovReplay2">再打一次</button>' +
+    '</div></div>';
+  $('ovNext2').onclick = function () { if (rid !== roundId) return; showUpgrade(); };
+  $('ovReplay2').onclick = function () { if (rid !== roundId) return; retryLevel(); };
+}
+function endLose() {
+  state = 'over';
+  sfxLose();
+  var rid = ++roundId;
+  $('overlayBox').innerHTML =
+    '<div class="overlay"><div class="card">' +
+      '<h2>哎呀，火太大了！</h2>' +
+      '<div class="rule">3 个人受伤了…<br>升级武器，冲得再快一点！</div>' +
+      '<button class="bigbtn" id="ovRetry3">再来一次</button>' +
+      '<button class="smallbtn" id="ovUpg3">先去升级</button>' +
+    '</div></div>';
+  $('ovRetry3').onclick = function () { if (rid !== roundId) return; retryLevel(); };
+  $('ovUpg3').onclick = function () { if (rid !== roundId) return; showUpgrade(); };
+}
+function spawnAmbulance() {
+  var fromLeft = Math.random() < 0.5;
+  var tx = clamp(truckX, 60, W - 60);
+  ambulance = { x: fromLeft ? -100 : W + 100, dir: fromLeft ? 1 : -1, phase: 'in', stopX: tx, stopT: 0 };
+}
+
+/* ================= 绘制 ================= */
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+  var gy = groundY();
+  // 天空
+  var sky = ctx.createLinearGradient(0, 0, 0, gy);
+  sky.addColorStop(0, '#ffd9a8'); sky.addColorStop(0.6, '#ffe8c4'); sky.addColorStop(1, '#fff4dc');
+  ctx.fillStyle = sky; ctx.fillRect(0, 0, W, gy);
+  // 太阳
+  ctx.fillStyle = '#ffca28';
+  ctx.beginPath(); ctx.arc(W * 0.88, H * 0.09, 26, 0, 7); ctx.fill();
+  // 远山
+  ctx.fillStyle = 'rgba(120,160,80,.5)';
+  ctx.beginPath(); ctx.moveTo(0, gy); ctx.quadraticCurveTo(W * 0.25, gy - 90, W * 0.5, gy - 30); ctx.quadraticCurveTo(W * 0.75, gy - 110, W, gy - 40); ctx.lineTo(W, gy); ctx.closePath(); ctx.fill();
+  // 地面
+  var g2 = ctx.createLinearGradient(0, gy, 0, H);
+  g2.addColorStop(0, '#6da53f'); g2.addColorStop(1, '#4a7a2c');
+  ctx.fillStyle = g2; ctx.fillRect(0, gy, W, H - gy);
+  ctx.fillStyle = 'rgba(255,255,255,.08)';
+  for (var gx = 0; gx < W; gx += 36) { ctx.beginPath(); ctx.ellipse(gx, gy + 14, 16, 5, 0, 0, 7); ctx.fill(); }
+
+  // 房子和树
+  for (var i = 0; i < houses.length; i++) {
+    var h = houses[i];
+    if (h.type === 'house') drawHouse(h);
+    else drawTree(h);
+  }
+  // 烟雾
+  for (var s2 = 0; s2 < smoke.length; s2++) {
+    var sm = smoke[s2];
+    ctx.save();
+    ctx.globalAlpha = clamp(sm.life / 0.6, 0, 0.5);
+    ctx.fillStyle = '#6b6b6b';
+    ctx.beginPath(); ctx.arc(sm.x, sm.y, 12 + (1 - sm.life / sm.max) * 14, 0, 7); ctx.fill();
+    ctx.restore();
+  }
+  // 救护车
+  if (ambulance) drawAmbulance(ambulance);
+
+  // 消防车
+  drawTruck();
+
+  // 水滴
+  ctx.fillStyle = 'rgba(90,180,255,.8)';
+  for (var d = 0; d < drops.length; d++) {
+    ctx.beginPath(); ctx.arc(drops[d].x, drops[d].y, 2.6, 0, 7); ctx.fill();
+  }
+
+  // 消息
+  if (msgT > 0) {
+    ctx.save();
+    ctx.globalAlpha = clamp(msgT / 0.4, 0, 1);
+    ctx.textAlign = 'center';
+    ctx.font = '900 ' + Math.round(clamp(W * 0.05, 20, 34)) + 'px "PingFang SC","Microsoft YaHei",sans-serif';
+    ctx.lineWidth = 7; ctx.strokeStyle = 'rgba(60,30,10,.75)';
+    ctx.strokeText(msgTxt, W / 2, H * 0.14);
+    ctx.fillStyle = msgCol; ctx.fillText(msgTxt, W / 2, H * 0.14);
+    ctx.restore();
+  }
+  // 飘字
+  for (var k = 0; k < parts.length; k++) {
+    var pp = parts[k];
+    ctx.save();
+    ctx.globalAlpha = clamp(pp.life / 0.5, 0, 1);
+    ctx.font = '900 ' + Math.round(clamp(W * 0.042, 16, 26)) + 'px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(60,30,10,.7)';
+    ctx.strokeText(pp.txt, pp.x, pp.y);
+    ctx.fillStyle = pp.c; ctx.fillText(pp.txt, pp.x, pp.y);
+    ctx.restore();
+  }
+  // 彩带
+  for (var c = 0; c < confetti.length; c++) {
+    var cf = confetti[c];
+    ctx.save();
+    ctx.globalAlpha = clamp(cf.life / 0.6, 0, 1);
+    ctx.translate(cf.x, cf.y); ctx.rotate(cf.rot);
+    ctx.fillStyle = cf.c;
+    ctx.fillRect(-cf.s / 2, -cf.s / 3, cf.s, cf.s * 0.66);
+    ctx.restore();
+  }
+}
+function roundRect(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+function drawHouse(h) {
+  var x = h.x, y = h.baseY, w = h.w, hh = h.h;
+  var burn = h.burn / 100;
+  // 烧毁的房子
+  if (!h.alive) {
+    ctx.fillStyle = '#5a4a3a';
+    roundRect(x, y - hh * 0.45, w, hh * 0.45, 4); ctx.fill();
+    ctx.strokeStyle = '#4a3a2a'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(x + w * 0.3, y - hh * 0.45); ctx.lineTo(x + w * 0.3, y - hh * 0.8); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x + w * 0.7, y - hh * 0.45); ctx.lineTo(x + w * 0.7, y - hh * 0.75); ctx.stroke();
+    return;
+  }
+  // 墙体（烧得越黑）
+  var gray = Math.round(burn * 60);
+  ctx.fillStyle = 'rgb(' + (255 - gray) + ',' + (244 - gray) + ',' + (230 - gray) + ')';
+  roundRect(x, y - hh * 0.62, w, hh * 0.62, 5); ctx.fill();
+  ctx.strokeStyle = 'rgba(0,0,0,.15)'; ctx.lineWidth = 2;
+  roundRect(x, y - hh * 0.62, w, hh * 0.62, 5); ctx.stroke();
+  // 屋顶
+  ctx.fillStyle = '#e06a3a';
+  ctx.beginPath(); ctx.moveTo(x - 6, y - hh * 0.62); ctx.lineTo(x + w / 2, y - hh * 0.95); ctx.lineTo(x + w + 6, y - hh * 0.62); ctx.closePath(); ctx.fill();
+  // 窗户（冒烟窗）
+  ctx.fillStyle = '#ffd34d';
+  roundRect(x + w * 0.12, y - hh * 0.5, w * 0.22, hh * 0.16, 3); ctx.fill();
+  ctx.fillStyle = '#ff9a3c';
+  roundRect(x + w * 0.62, y - hh * 0.5, w * 0.24, hh * 0.16, 3); ctx.fill();
+  // 门
+  ctx.fillStyle = '#8a5a3a';
+  roundRect(x + w * 0.38, y - hh * 0.28, w * 0.26, hh * 0.28, 3); ctx.fill();
+  // 火
+  if (burn > 0.02) drawFire(x + w / 2, y - hh * 0.62, w * (0.4 + burn * 0.8), burn);
+}
+function drawTree(h) {
+  var x = h.x, y = h.baseY, w = h.w, hh = h.h;
+  if (!h.alive) {
+    ctx.strokeStyle = '#6a4a2a'; ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.moveTo(x + w / 2, y); ctx.lineTo(x + w / 2, y - hh * 0.5); ctx.stroke();
+    ctx.fillStyle = '#4a5a2a';
+    ctx.beginPath(); ctx.arc(x + w / 2, y - hh * 0.62, w * 0.2, 0, 7); ctx.fill();
+    return;
+  }
+  var burn = h.burn / 100;
+  // 树干
+  ctx.fillStyle = '#7a5a3a';
+  ctx.fillRect(x + w / 2 - 6, y - hh * 0.45, 12, hh * 0.45);
+  // 树冠
+  ctx.fillStyle = burn > 0.3 ? '#6a8a3a' : '#4a9a4a';
+  ctx.beginPath(); ctx.arc(x + w / 2, y - hh * 0.75, w * 0.5, 0, 7); ctx.fill();
+  ctx.beginPath(); ctx.arc(x + w * 0.2, y - hh * 0.6, w * 0.32, 0, 7); ctx.fill();
+  ctx.beginPath(); ctx.arc(x + w * 0.8, y - hh * 0.6, w * 0.32, 0, 7); ctx.fill();
+  if (burn > 0.02) drawFire(x + w / 2, y - hh * 0.95, w * (0.5 + burn * 0.9), burn);
+}
+function drawFire(x, y, w, burn) {
+  var layers = 3;
+  for (var i = layers - 1; i >= 0; i--) {
+    var fh = w * (1.2 + i * 0.5) * (0.7 + burn * 0.5);
+    var fw = w * (0.5 + i * 0.22);
+    ctx.save();
+    ctx.globalAlpha = 0.85;
+    ctx.fillStyle = i === 0 ? '#ff5f2a' : (i === 1 ? '#ff8a2a' : '#ffca28');
+    ctx.beginPath();
+    ctx.moveTo(x - fw / 2, y + 4);
+    ctx.quadraticCurveTo(x - fw / 2 - 2, y - fh * 0.5, x - fw * 0.16, y - fh);
+    ctx.quadraticCurveTo(x + fw * 0.1, y - fh * 0.55, x, y - fh * 0.88);
+    ctx.quadraticCurveTo(x + fw * 0.24, y - fh * 0.7, x + fw * 0.3, y - fh * 0.62);
+    ctx.quadraticCurveTo(x + fw * 0.4, y - fh * 0.4, x + fw / 2, y + 4);
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+  ctx.fillStyle = 'rgba(255,255,255,.75)';
+  ctx.beginPath(); ctx.ellipse(x, y + 2, w * 0.5, 3, 0, 0, 7); ctx.fill();
+}
+function drawTruck() {
+  var x = truckX, y = truckY();
+  ctx.save();
+  ctx.translate(x, y);
+  // 喷水柱
+  if (sprayOn) {
+    var w = WEAPONS[weapon];
+    var topY = -w.range;
+    var g = ctx.createLinearGradient(0, 0, 0, topY);
+    g.addColorStop(0, 'rgba(90,180,255,.95)');
+    g.addColorStop(1, 'rgba(160,220,255,.55)');
+    ctx.strokeStyle = g; ctx.lineWidth = 10 + weapon * 2;
+    ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(0, -8); ctx.lineTo(0, topY); ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,255,255,.7)'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(0, -8); ctx.lineTo(0, topY); ctx.stroke();
+  }
+  // 车轮
+  ctx.fillStyle = '#333';
+  ctx.beginPath(); ctx.arc(-26, 10, 9, 0, 7); ctx.fill();
+  ctx.beginPath(); ctx.arc(26, 10, 9, 0, 7); ctx.fill();
+  ctx.fillStyle = '#999';
+  ctx.beginPath(); ctx.arc(-26, 10, 3.5, 0, 7); ctx.fill();
+  ctx.beginPath(); ctx.arc(26, 10, 3.5, 0, 7); ctx.fill();
+  // 车身
+  ctx.fillStyle = '#e53935';
+  roundRect(-52, -16, 104, 26, 7); ctx.fill();
+  // 驾驶室
+  ctx.fillStyle = '#ff6a5a';
+  roundRect(24, -30, 34, 16, 6); ctx.fill();
+  ctx.fillStyle = '#bfe8ff';
+  roundRect(30, -27, 24, 10, 3); ctx.fill();
+  // 警灯（闪）
+  if (Math.floor(tick / 12) % 2 === 0) {
+    ctx.fillStyle = '#ffd34d';
+    ctx.beginPath(); ctx.arc(14, -18, 5, 0, 7); ctx.fill();
+  }
+  // 武器炮管
+  var w2 = WEAPONS[weapon];
+  ctx.fillStyle = '#b8321e';
+  roundRect(-8, -34 - weapon * 3, 16, 12, 4); ctx.fill();
+  ctx.fillStyle = '#3a7bd5';
+  ctx.fillRect(-3, -40 - weapon * 3, 6, 8);
+  // 云梯（大水管有）
+  if (weapon >= 3) {
+    ctx.strokeStyle = '#f5f5f5'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(-46, -14); ctx.lineTo(-52, -40); ctx.stroke();
+  }
+  ctx.restore();
+}
+function drawAmbulance(a) {
+  var x = a.x, y = groundY() - 26;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.fillStyle = '#fff';
+  roundRect(-30, -22, 60, 22, 6); ctx.fill();
+  ctx.fillStyle = '#e53935';
+  ctx.fillRect(-30, -22, 60, 6);
+  ctx.fillStyle = '#e53935';
+  ctx.font = '900 10px sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText('救护', 0, -8);
+  ctx.fillStyle = '#333';
+  ctx.beginPath(); ctx.arc(-18, 4, 6, 0, 7); ctx.fill();
+  ctx.beginPath(); ctx.arc(18, 4, 6, 0, 7); ctx.fill();
+  if (Math.floor(tick / 8) % 2 === 0) {
+    ctx.fillStyle = '#5fb0ff';
+    ctx.beginPath(); ctx.arc(24, -12, 4, 0, 7); ctx.fill();
+  }
+  ctx.restore();
+}
+
+/* ================= 输入 ================= */
+function pos(e) {
+  var r = cv.getBoundingClientRect();
+  return { x: e.clientX - r.left, y: e.clientY - r.top };
+}
+// 按下=拖车+开始喷水；按住=持续喷；松开=停水
+cv.addEventListener('pointerdown', function (e) {
+  e.preventDefault(); audio();
+  if (state !== 'play') return;
+  dragged = true;
+  sprayOn = true;
+  truckX = clamp(pos(e).x, 40, W - 40);
+});
+cv.addEventListener('pointermove', function (e) {
+  e.preventDefault();
+  if (dragged && state === 'play') truckX = clamp(pos(e).x, 40, W - 40);
+});
+cv.addEventListener('pointerup', function (e) {
+  e.preventDefault();
+  dragged = false;
+  if (state === 'play') sprayOn = false;
+});
+cv.addEventListener('pointercancel', function () { dragged = false; sprayOn = false; });
+$('menuBtn').onclick = function () { audio(); sfxTick(); showMenu(); };
+
+/* ================= 测试钩子 ================= */
+window.__fire = {
+  get state() { return state; },
+  get level() { return level + 1; },
+  get houses() { return houses.map(function (h) { return { x: Math.round(h.x), w: Math.round(h.w), burn: Math.round(h.burn), type: h.type, alive: h.alive }; }); },
+  get timeLeft() { return timeLeft; },
+  get hurt() { return hurtCount; },
+  get gold() { return gold; },
+  get weapon() { return weapon; },
+  get bestWeapon() { return bestWeapon; },
+  get truckX() { return truckX; },
+  get sprayOn() { return sprayOn; },
+  get anyFire() { return houses.some(function (h) { return h.alive && h.burn > 0; }); },
+  get allOut() { return houses.every(function (h) { return !h.alive || h.burn === 0; }); },
+  start: function () { startGame(); },
+  toLevel: function (n) { level = clamp(n, 0, LEVELS.length - 1); startLevel(); },
+  moveTruck: function (x) { truckX = clamp(x, 40, W - 40); },
+  setSpray: function (v) { sprayOn = !!v; },
+  setGold: function (v) { gold = v; },
+  setWeapon: function (v) { weapon = clamp(v, 0, WEAPONS.length - 1); bestWeapon = Math.max(bestWeapon, weapon); syncHud(); },
+  forceHurt: function (n) { hurtCount = n; syncHud(); },
+  // 自动通关：不断把车移到着火房子下喷水
+  autoPlay: function () {
+    var guard = 0;
+    while (state === 'play' && guard++ < 3000) {
+      // 找一个着火的
+      var target = null;
+      for (var i = 0; i < houses.length; i++) {
+        if (houses[i].alive && houses[i].burn > 0) { target = houses[i]; break; }
+      }
+      if (!target) break;
+      truckX = target.x + target.w / 2;
+      sprayOn = true;
+      // 等一小段时间（真实 dt 由 rAF 提供）
+      break;  // 单帧动作，交由外部循环配合 wait
+    }
+    return { state: state, hurt: hurtCount, timeLeft: timeLeft };
+  },
+  tick: function (sec) {
+    // 测试用：手动推进游戏时间（跳过 rAF），让自动灭火逻辑跑起来
+    var steps = Math.max(1, Math.round(sec / 0.05));
+    for (var s = 0; s < steps; s++) update(0.05);
+    return { state: state, hurt: hurtCount, timeLeft: timeLeft, anyFire: this.anyFire };
+  },
+  clearFire: function () { for (var i = 0; i < houses.length; i++) houses[i].burn = 0; },
+  forceTime: function (t) { timeLeft = t; }
+};
+
+/* ================= 启动 ================= */
+function loop(t) {
+  var dt = Math.min((t - lastT) / 1000 || 0.016, 0.05);
+  lastT = t;
+  update(dt);
+  draw();
+  requestAnimationFrame(loop);
+}
+window.addEventListener('resize', function () { resize(); });
+resize();
+startLevel();   // 垫一关，保证首帧有画面
+showMenu();
+requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
