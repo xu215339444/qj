@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="description" content="铁头功 - 撞开软软的东西，躲开硬邦邦的东西！">
+<title>铁头功</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;overflow:hidden;}
+body{font-family:"PingFang SC","Microsoft YaHei","Noto Sans CJK SC",sans-serif;background:#1a2b4a;color:#fff;user-select:none;-webkit-user-select:none;touch-action:none;overscroll-behavior:none;}
+#app{position:fixed;inset:0;display:flex;flex-direction:column;}
+
+#hud{flex:none;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;background:rgba(10,25,45,.55);z-index:5;}
+.hudbox{display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.16);border-radius:12px;padding:5px 10px;font-size:15px;font-weight:800;white-space:nowrap;}
+#hearts{display:flex;gap:3px;}
+.heart{width:16px;height:15px;background:#5a6572;clip-path:polygon(50% 92%,0 36%,8% 16%,28% 10%,50% 24%,72% 10%,92% 16%,100% 36%);}
+.heart.on{background:#ff5252;}
+#scoreTxt{color:#ffd23f;}
+#progTxt{color:#aee4ff;}
+#tipBtn{font-size:12px;padding:5px 9px;border-radius:10px;background:rgba(255,255,255,.16);border:0;color:#fff;font-family:inherit;font-weight:800;cursor:pointer;}
+#tipBtn.off{opacity:.45;}
+
+#stage{flex:1;min-height:0;position:relative;}
+canvas{position:absolute;inset:0;width:100%;height:100%;display:block;}
+
+#ctrl{flex:none;display:flex;gap:14px;padding:10px 12px 16px;background:rgba(10,25,45,.6);z-index:5;}
+.bigbtn2{flex:1;height:82px;border-radius:24px;border:4px solid #fff;font-family:inherit;font-size:26px;font-weight:900;color:#fff;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.15;box-shadow:0 6px 0 rgba(0,0,0,.3);}
+.bigbtn2:active{transform:translateY(4px);box-shadow:0 2px 0 rgba(0,0,0,.3);}
+.bigbtn2 small{font-size:13px;font-weight:700;opacity:.9;}
+#btnHit{background:linear-gradient(180deg,#ff8a5c,#e8443a);}
+#btnDodge{background:linear-gradient(180deg,#7fd4ff,#2b7fd8);}
+
+.overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(8,18,35,.74);z-index:20;padding:18px;overflow-y:auto;}
+.card{background:#fffdf6;color:#4a3b6b;border-radius:28px;padding:24px 28px;max-width:430px;width:100%;text-align:center;box-shadow:0 18px 50px rgba(0,0,0,.5);}
+.card h1{font-size:36px;margin-bottom:4px;color:#e8443a;}
+.card h2{font-size:27px;margin-bottom:8px;}
+.rule{font-size:16.5px;line-height:1.95;color:#5b4b8a;font-weight:700;margin-bottom:4px;}
+.rule b{color:#e8443a;}
+.rule .b2{color:#2b7fd8;}
+.softlist{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:10px 0 4px;}
+.pill{font-size:14px;font-weight:800;border-radius:999px;padding:5px 12px;background:#e8f6e0;color:#3d8c4a;}
+.pill.hard{background:#ffe6e0;color:#c93b2b;}
+.bigbtn{display:block;width:100%;margin-top:14px;padding:16px;border:0;border-radius:999px;background:linear-gradient(180deg,#ff8a5c,#e8443a);color:#fff;font-family:inherit;font-size:25px;font-weight:900;box-shadow:0 6px 0 #a82a20;cursor:pointer;}
+.bigbtn:active{transform:translateY(3px);box-shadow:0 2px 0 #a82a20;}
+.bigbtn.green{background:linear-gradient(180deg,#7de07a,#2fa03c);box-shadow:0 6px 0 #1d6b28;}
+.bigbtn.green:active{box-shadow:0 2px 0 #1d6b28;}
+.stars{font-size:38px;color:#ffb02e;letter-spacing:6px;margin:6px 0;}
+.small{font-size:13.5px;color:#8a7ab0;margin-top:8px;}
+.homelink{position:fixed;bottom:4px;left:50%;transform:translateX(-50%);z-index:99;color:rgba(255,255,255,.7);font-size:13px;text-decoration:none;background:rgba(0,0,0,.3);padding:4px 14px;border-radius:999px;}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="hud">
+    <div class="hudbox"><span id="hearts"></span></div>
+    <div class="hudbox"><span id="progTxt">第 1 关</span></div>
+    <button id="tipBtn">提示 开</button>
+    <div class="hudbox"><span id="scoreTxt">0</span></div>
+  </div>
+  <div id="stage"><canvas id="cv"></canvas></div>
+  <div id="ctrl">
+    <button class="bigbtn2" id="btnHit">撞！<small>软软的才撞</small></button>
+    <button class="bigbtn2" id="btnDodge">躲开！<small>硬邦邦别碰</small></button>
+  </div>
+  <div id="overlayBox"></div>
+</div>
+<a class="homelink" href="游戏大厅.html" target="_top">← 游戏大厅</a>
+
+<script>
+(function(){
+'use strict';
+function $(id){return document.getElementById(id);}
+function clamp(v,a,b){return v<a?a:(v>b?b:v);}
+function rnd(a,b){return a+Math.random()*(b-a);}
+
+/* ---------- 音效 ---------- */
+var AC=null;
+function audio(){
+  if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)();}catch(e){AC=null;}}
+  if(AC&&AC.state==='suspended'){try{AC.resume();}catch(e){}}
+  return AC;
+}
+function tone(f,d,ty,v,delay){
+  if(!AC)return;
+  try{
+    var o=AC.createOscillator(),g=AC.createGain(),t0=AC.currentTime+(delay||0);
+    o.type=ty||'sine';o.frequency.value=f;
+    g.gain.setValueAtTime(v||0.3,t0);
+    g.gain.exponentialRampToValueAtTime(0.001,t0+d);
+    o.connect(g);g.connect(AC.destination);o.start(t0);o.stop(t0+d+0.02);
+  }catch(e){}
+}
+var sfxSmash=function(){tone(220,0.1,'square',0.32);tone(120,0.14,'sine',0.3,0.03);tone(700,0.07,'triangle',0.16,0.02);};
+var sfxDodge=function(){tone(520,0.12,'sine',0.24);tone(780,0.14,'sine',0.18,0.06);};
+var sfxCry=function(){tone(400,0.35,'sawtooth',0.26);tone(300,0.4,'sine',0.22,0.18);};
+var sfxSiren=function(){
+  for(var i=0;i<6;i++){tone(i%2?620:880,0.22,'sine',0.2,i*0.24);}
+};
+var sfxWin=function(){[523,659,784,1047,1319].forEach(function(f,i){tone(f,0.3,'triangle',0.34,i*0.12);});};
+var sfxLose=function(){[392,330,262,196].forEach(function(f,i){tone(f,0.24,'sine',0.3,i*0.13);});};
+var sfxClick=function(){tone(640,0.08,'triangle',0.28);};
+
+/* ---------- 物品绘制（全部手绘，无 emoji） ---------- */
+function ellipse(c,x,y,rx,ry,col){c.fillStyle=col;c.beginPath();c.ellipse(x,y,rx,ry,0,0,7);c.fill();}
+var DRAW={
+  egg:function(c,r){                                   // 鸡蛋：白椭圆
+    ellipse(c,0,0,r*0.82,r*1.06,'#fdfaf2');
+    c.fillStyle='rgba(255,255,255,.9)';c.beginPath();c.ellipse(-r*0.28,-r*0.42,r*0.2,r*0.3,-0.4,0,7);c.fill();
+    c.strokeStyle='#e8e0cf';c.lineWidth=2;c.beginPath();c.ellipse(0,0,r*0.82,r*1.06,0,0,7);c.stroke();
+  },
+  watermelon:function(c,r){                            // 西瓜：绿皮条纹
+    ellipse(c,0,0,r,r*0.95,'#4caf50');
+    c.fillStyle='#2e7d32';
+    for(var i=-2;i<=2;i++){
+      c.beginPath();
+      c.ellipse(i*r*0.42,0,r*0.13,r*0.95,0,0,7);c.fill();
+    }
+    c.fillStyle='#66bb6a';c.beginPath();c.ellipse(-r*0.4,-r*0.4,r*0.18,r*0.24,-0.5,0,7);c.fill();
+  },
+  balloon:function(c,r){                               // 气球
+    ellipse(c,0,-r*0.15,r*0.82,r*0.95,'#ef5350');
+    c.fillStyle='#ff8a80';c.beginPath();c.ellipse(-r*0.3,-r*0.5,r*0.2,r*0.26,-0.5,0,7);c.fill();
+    c.fillStyle='#c62828';c.beginPath();c.moveTo(-r*0.14,r*0.78);c.lineTo(r*0.14,r*0.78);c.lineTo(0,r*1.0);c.closePath();c.fill();
+    c.strokeStyle='#8d6e63';c.lineWidth=2.5;c.beginPath();c.moveTo(0,r*1.0);c.quadraticCurveTo(r*0.3,r*1.4,-r*0.1,r*1.6);c.stroke();
+  },
+  bread:function(c,r){                                 // 面包
+    c.fillStyle='#d9a05b';c.beginPath();c.ellipse(0,r*0.1,r*0.95,r*0.72,0,Math.PI,0);c.fill();
+    c.fillStyle='#f0c088';c.beginPath();c.ellipse(0,r*0.1,r*0.95,r*0.42,0,Math.PI,0);c.fill();
+    c.fillStyle='#c98c47';
+    for(var i=-1;i<=1;i++){c.beginPath();c.ellipse(i*r*0.4,-r*0.3,r*0.1,r*0.26,0,0,7);c.fill();}
+  },
+  box:function(c,r){                                   // 纸箱
+    c.fillStyle='#c99b6a';c.fillRect(-r*0.85,-r*0.7,r*1.7,r*1.4);
+    c.fillStyle='#b3854f';c.fillRect(-r*0.85,-r*0.7,r*1.7,r*0.22);
+    c.fillStyle='#e8d5b7';c.fillRect(-r*0.1,-r*0.7,r*0.2,r*1.4);
+    c.strokeStyle='#9c6f42';c.lineWidth=2;c.strokeRect(-r*0.85,-r*0.7,r*1.7,r*1.4);
+  },
+  cake:function(c,r){                                  // 蛋糕
+    c.fillStyle='#f8bbd0';c.fillRect(-r*0.8,r*0.05,r*1.6,r*0.6);
+    c.fillStyle='#fff';c.beginPath();c.ellipse(-r*0.8,r*0.05,r*0.16,r*0.16,0,0,7);c.fill();
+    c.beginPath();c.ellipse(-r*0.4,r*0.02,r*0.16,r*0.16,0,0,7);c.fill();
+    c.beginPath();c.ellipse(0,r*0.05,r*0.16,r*0.16,0,0,7);c.fill();
+    c.beginPath();c.ellipse(r*0.4,r*0.02,r*0.16,r*0.16,0,0,7);c.fill();
+    c.beginPath();c.ellipse(r*0.8,r*0.05,r*0.16,r*0.16,0,0,7);c.fill();
+    c.fillStyle='#f48fb1';c.fillRect(-r*0.8,-r*0.4,r*1.6,r*0.45);
+    c.fillStyle='#e91e63';c.beginPath();c.arc(0,-r*0.55,r*0.17,0,7);c.fill();
+    c.strokeStyle='#388e3c';c.lineWidth=3;c.beginPath();c.moveTo(0,-r*0.72);c.lineTo(r*0.1,-r*0.92);c.stroke();
+  },
+  tomato:function(c,r){
+    ellipse(c,0,r*0.05,r*0.9,r*0.85,'#e53935');
+    c.fillStyle='#ef9a9a';c.beginPath();c.ellipse(-r*0.32,-r*0.35,r*0.2,r*0.26,-0.5,0,7);c.fill();
+    c.fillStyle='#43a047';
+    for(var i=0;i<5;i++){
+      var a=i/5*Math.PI*2;
+      c.beginPath();c.ellipse(Math.cos(a)*r*0.22,-r*0.78+Math.sin(a)*r*0.12,r*0.2,r*0.09,a,0,7);c.fill();
+    }
+    c.fillStyle='#2e7d32';c.fillRect(-r*0.06,-r*0.95,r*0.12,r*0.2);
+  },
+  stone:function(c,r){                                 // 石头：灰色多边形
+    c.fillStyle='#8d8d8d';
+    c.beginPath();
+    c.moveTo(-r*0.9,r*0.5);c.lineTo(-r*0.95,-r*0.25);c.lineTo(-r*0.35,-r*0.8);
+    c.lineTo(r*0.45,-r*0.7);c.lineTo(r*0.92,-r*0.1);c.lineTo(r*0.7,r*0.62);c.closePath();c.fill();
+    c.fillStyle='#a6a6a6';
+    c.beginPath();c.moveTo(-r*0.35,-r*0.8);c.lineTo(r*0.45,-r*0.7);c.lineTo(r*0.1,-r*0.2);c.lineTo(-r*0.5,-r*0.25);c.closePath();c.fill();
+    c.fillStyle='#6f6f6f';
+    c.beginPath();c.arc(-r*0.35,r*0.15,r*0.09,0,7);c.fill();
+    c.beginPath();c.arc(r*0.3,r*0.3,r*0.07,0,7);c.fill();
+  },
+  durian:function(c,r){                                // 榴莲：带刺
+    c.fillStyle='#8d6e3a';
+    for(var i=0;i<14;i++){
+      var a=i/14*Math.PI*2;
+      var x1=Math.cos(a)*r*0.72,y1=Math.sin(a)*r*0.72;
+      var x2=Math.cos(a)*r*1.15,y2=Math.sin(a)*r*1.15;
+      c.beginPath();c.moveTo(Math.cos(a-0.22)*r*0.7,Math.sin(a-0.22)*r*0.7);
+      c.lineTo(x2,y2);c.lineTo(Math.cos(a+0.22)*r*0.7,Math.sin(a+0.22)*r*0.7);c.closePath();c.fill();
+    }
+    ellipse(c,0,0,r*0.78,r*0.78,'#b8873f');
+    c.fillStyle='#a06f30';
+    for(var i=0;i<8;i++){
+      var a2=i/8*Math.PI*2+0.3;
+      c.beginPath();c.arc(Math.cos(a2)*r*0.42,Math.sin(a2)*r*0.42,r*0.09,0,7);c.fill();
+    }
+    c.strokeStyle='#6b5228';c.lineWidth=5;c.lineCap='round';
+    c.beginPath();c.moveTo(0,-r*0.9);c.lineTo(r*0.14,-r*1.3);c.stroke();
+  },
+  iron:function(c,r){                                  // 铁球
+    ellipse(c,0,0,r*0.88,r*0.88,'#5a6470');
+    c.fillStyle='#7d8896';c.beginPath();c.ellipse(-r*0.3,-r*0.32,r*0.3,r*0.24,-0.5,0,7);c.fill();
+    c.fillStyle='#43505c';
+    [[-0.42,0.3],[0.35,0.42],[0.42,-0.25]].forEach(function(p){
+      c.beginPath();c.arc(p[0]*r,p[1]*r,r*0.07,0,7);c.fill();
+    });
+    c.strokeStyle='#39434e';c.lineWidth=3;
+    c.beginPath();c.arc(0,0,r*0.62,0.4,2.2);c.stroke();
+  },
+  brick:function(c,r){                                 // 砖头
+    c.fillStyle='#b71c1c';c.fillRect(-r*0.95,-r*0.6,r*1.9,r*1.2);
+    c.fillStyle='#d32f2f';c.fillRect(-r*0.95,-r*0.6,r*1.9,r*0.35);
+    c.strokeStyle='#8e0000';c.lineWidth=3;c.strokeRect(-r*0.95,-r*0.6,r*1.9,r*1.2);
+    c.beginPath();c.moveTo(-r*0.3,-r*0.6);c.lineTo(-r*0.3,r*0.6);c.stroke();
+    c.beginPath();c.moveTo(r*0.35,-r*0.6);c.lineTo(r*0.35,r*0.6);c.stroke();
+    c.fillStyle='#e57373';c.fillRect(-r*0.95,-r*0.6,r*1.9,r*0.1);
+  },
+  cactus:function(c,r){                                // 仙人掌
+    c.fillStyle='#43a047';
+    c.fillRect(-r*0.24,-r*0.95,r*0.48,r*1.9);
+    c.fillRect(-r*0.75,-r*0.35,r*0.51,r*0.32);
+    c.fillRect(-r*0.75,-r*0.35,r*0.32,r*0.75);
+    c.fillRect(r*0.28,-r*0.6,r*0.47,r*0.32);
+    c.fillRect(r*0.5,-r*0.6,r*0.28,r*0.7);
+    c.fillStyle='#388e3c';c.fillRect(-r*0.24,-r*0.95,r*0.16,r*1.9);
+    c.fillStyle='#fff';
+    for(var i=0;i<16;i++){
+      var yy=-r*0.85+ (i%8)*r*0.24, xx=(i<8?-r*0.3:r*0.3);
+      c.beginPath();c.arc(xx,yy,r*0.055,0,7);c.fill();
+    }
+    c.fillStyle='#e53935';c.beginPath();c.arc(0,-r*1.05,r*0.14,0,7);c.fill();
+  },
+  bottle:function(c,r){                                // 玻璃瓶
+    c.fillStyle='rgba(144,202,249,.85)';
+    c.beginPath();
+    c.moveTo(-r*0.26,-r*1.0);c.lineTo(r*0.26,-r*1.0);c.lineTo(r*0.26,-r*0.62);
+    c.quadraticCurveTo(r*0.62,-r*0.45,r*0.62,r*0.1);c.lineTo(r*0.62,r*0.85);
+    c.lineTo(-r*0.62,r*0.85);c.lineTo(-r*0.62,r*0.1);
+    c.quadraticCurveTo(-r*0.62,-r*0.45,-r*0.26,-r*0.62);c.closePath();c.fill();
+    c.strokeStyle='rgba(33,150,243,.9)';c.lineWidth=2.5;c.stroke();
+    c.fillStyle='rgba(255,255,255,.65)';c.fillRect(-r*0.34,-r*0.4,r*0.16,r*1.0);
+    c.fillStyle='#0d47a1';c.fillRect(-r*0.3,-r*1.18,r*0.6,r*0.2);
+  }
+};
+
+/* ---------- 物品数据 ---------- */
+var ITEMS=[
+  {k:'egg',   name:'鸡蛋',   soft:true},
+  {k:'watermelon',name:'西瓜',soft:true},
+  {k:'balloon',name:'气球',  soft:true},
+  {k:'bread', name:'面包',   soft:true},
+  {k:'box',   name:'纸箱',   soft:true},
+  {k:'cake',  name:'蛋糕',   soft:true},
+  {k:'tomato',name:'西红柿', soft:true},
+  {k:'stone', name:'石头',   soft:false},
+  {k:'durian',name:'榴莲',   soft:false},
+  {k:'iron',  name:'铁球',   soft:false},
+  {k:'brick', name:'砖头',   soft:false},
+  {k:'cactus',name:'仙人掌', soft:false},
+  {k:'bottle',name:'玻璃瓶', soft:false}
+];
+var ITEM_BY={};ITEMS.forEach(function(o){ITEM_BY[o.k]=o;});
+
+var LEVELS=[
+  {name:'认识软和硬', pool:['egg','watermelon','stone','durian'], n:10, spd:62},
+  {name:'更多东西',   pool:['egg','watermelon','balloon','bread','box','stone','durian','iron','brick'], n:12, spd:78},
+  {name:'铁头大师',   pool:['egg','watermelon','balloon','bread','box','cake','tomato','stone','durian','iron','brick','cactus','bottle'], n:14, spd:95}
+];
+
+var cv=$('cv'),ctx=cv.getContext('2d');
+var W=0,H=0,DPR=1,BELT=0,KID_X=0,JUDGE_X=0,GROUND=0;
+// 速度按屏幕宽度归一化：宽屏上物品要跑的像素更多，不缩放的话会慢得离谱
+function spdK(){return clamp(W/420,1,3);}
+function spdNow(){return LEVELS[level].spd*spdK();}
+function resize(){
+  var r=$('stage').getBoundingClientRect();
+  W=Math.max(1,r.width);H=Math.max(1,r.height);
+  DPR=Math.min(window.devicePixelRatio||1,2);
+  cv.width=Math.round(W*DPR);cv.height=Math.round(H*DPR);
+  cv.style.width=W+'px';cv.style.height=H+'px';
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  BELT=Math.round(H*0.72);
+  GROUND=Math.round(H*0.94);
+  KID_X=Math.round(W*0.24);
+  // 判定点正好在娃娃身前，撞的时候看起来就是头撞上去
+  JUDGE_X=Math.round(KID_X+Math.min(78,W*0.16));
+}
+window.addEventListener('resize',resize);
+
+/* ---------- 状态 ---------- */
+var state='menu';                 // menu | playing | dead | win | ambulance
+var level=0,idx=0,score=0,hp=4,showTip=true;
+var done=0,need=0,wrong=0,trips=0;   // done=分对的个数 need=过关要求 wrong=连续错误 trips=救护车趟数
+var queue=[],cur=null,nextT=0;
+var parts=[],pops=[];
+var kid={act:'idle',t:0,shake:0};
+var amb={on:false,x:0,t:0,phase:0};
+var lastT=0,tick=0;
+
+function makeQueue(count){
+  var L=LEVELS[level];
+  var N=count||L.n;
+  var soft=L.pool.filter(function(k){return ITEM_BY[k].soft;});
+  var hard=L.pool.filter(function(k){return !ITEM_BY[k].soft;});
+  var q=[];
+  for(var i=0;i<N;i++){
+    var use=(i%2===0)?soft:hard;                    // 软硬交替，节奏清楚
+    q.push(use[Math.floor(Math.random()*use.length)]);
+  }
+  // 洗牌，避免同类扎堆
+  for(var s=q.length-1;s>0;s--){var j=Math.floor(Math.random()*(s+1));var t=q[s];q[s]=q[j];q[j]=t;}
+  return q;
+}
+function startLevel(n){
+  level=n;idx=0;done=0;wrong=0;
+  need=Math.max(3,LEVELS[n].n-2);          // 分对这么多个才算过关，防止什么都不按也能过
+  queue=makeQueue();cur=null;nextT=0.8;
+  parts=[];pops=[];
+  syncHud();
+}
+function spawnNext(){
+  if(idx>=queue.length){
+    if(done<need){                                  // 漏掉的太多，温柔地再来一轮
+      queue=makeQueue(Math.max(3,(need-done)+2));
+      idx=0;cur=null;nextT=1.0;
+      pop('还有几个没分出来，再来！','#ffd23f');
+      return;
+    }
+    if(level>=LEVELS.length-1){win();return;}
+    var lv=level+1;
+    startLevel(lv);
+    pop('第 '+(lv+1)+' 关 '+LEVELS[lv].name+'！','#a5f39a');
+    return;
+  }
+  var k=queue[idx++];
+  cur={k:k,x:W+60,y:BELT-42,r:Math.min(46,W*0.1),handled:false,spin:rnd(-0.12,0.12),bob:rnd(0,7)};
+  syncHud();
+}
+function syncHud(){
+  var h='';
+  for(var i=0;i<4;i++)h+='<span class="heart'+(i<hp?' on':'')+'"></span>';
+  $('hearts').innerHTML=h;
+  $('scoreTxt').textContent=score;
+  $('progTxt').textContent='第'+(level+1)+'关 '+Math.min(done,need)+'/'+need;
+  $('tipBtn').textContent='提示 '+(showTip?'开':'关');
+  $('tipBtn').className=showTip?'':'off';
+}
+
+/* ---------- 判定 ---------- */
+function inWindow(){return cur&&Math.abs(cur.x-JUDGE_X)<=Math.max(90,W*0.22);}
+// 连着错 2 次就自动把提示打开，别让小朋友干着急
+function maybeHelp(){
+  if(wrong>=2&&!showTip){showTip=true;pop('提示打开啦，看颜色！','#a5f39a');}
+}
+function actHit(){
+  if(state!=='playing'||!cur||cur.handled)return;
+  var o=ITEM_BY[cur.k];
+  if(!inWindow())return;                                  // 还没到 / 已经过
+  cur.handled=true;
+  if(o.soft){
+    done++;wrong=0;score+=10;sfxSmash();
+    kid.act='hit';kid.t=0.34;
+    pop('撞开啦！','#ffd23f');
+    burst(cur.x,cur.y,o.k,true);
+    for(var i=0;i<6;i++)pops.push({x:cur.x+rnd(-20,20),y:cur.y+rnd(-10,10),txt:'+10',life:0.8,max:0.8,c:'#ffd23f'});
+    nextT=0.45;
+  }else{
+    hp--;wrong++;trips++;sfxCry();
+    kid.act='cry';kid.t=1.0;
+    pop('哎哟！好痛！','#ff8a8a');
+    burst(cur.x,cur.y,o.k,false);
+    maybeHelp();
+    startAmbulance();
+    nextT=0.5;
+  }
+  cur=null;
+  syncHud();
+}
+function actDodge(){
+  if(state!=='playing'||!cur||cur.handled)return;
+  if(!inWindow())return;
+  cur.handled=true;
+  var o=ITEM_BY[cur.k];
+  if(!o.soft){
+    done++;wrong=0;score+=5;sfxDodge();
+    pop('躲得真棒！','#8fd6ff');
+    for(var i=0;i<4;i++)pops.push({x:cur.x,y:cur.y-20,txt:'+5',life:0.8,max:0.8,c:'#8fd6ff'});
+  }else{
+    sfxClick();
+    pop('这个可以撞哦','#c9c2e0');
+  }
+  nextT=0.45;
+  cur=null;
+  syncHud();
+}
+function pop(txt,col){pops.push({x:JUDGE_X,y:BELT-140,txt:txt,life:1.0,max:1.0,c:col});}
+
+function burst(x,y,k,soft){
+  var o=ITEM_BY[k];
+  var cols=soft?['#ffd23f','#fff','#ff8a5c','#7ad46b']:['#9e9e9e','#fff','#cfd8dc'];
+  for(var i=0;i<22;i++){
+    var a=rnd(0,Math.PI*2),sp=rnd(90,320);
+    parts.push({x:x,y:y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-60,life:rnd(0.35,0.8),max:0.8,
+      r:rnd(3,9),c:cols[Math.floor(Math.random()*cols.length)],rot:rnd(0,7),spin:rnd(-9,9)});
+  }
+  kid.shake=Math.max(kid.shake,soft?5:9);
+}
+
+/* ---------- 救护车 ---------- */
+function startAmbulance(){
+  amb.on=true;amb.t=0;amb.phase=0;amb.x=W+140;
+  trips=Math.max(trips,1);
+  sfxSiren();
+  state='ambulance';
+}
+function updateAmbulance(dt){
+  amb.t+=dt;
+  if(amb.phase===0){                       // 开来
+    amb.x-=(W*0.55)*dt;
+    if(amb.x<=W*0.62){amb.x=W*0.62;amb.phase=1;amb.t=0;}
+  }else if(amb.phase===1){                 // 停一下，娃上车
+    if(amb.t>0.9){amb.phase=2;amb.t=0;}
+  }else if(amb.phase===2){                 // 开走
+    amb.x+=(W*0.6)*dt;
+    if(amb.x>W+150){
+      amb.on=false;
+      if(hp<=0){dead();}
+      else{state='playing';nextT=0.4;}
+    }
+  }
+}
+
+/* ---------- 结算 ---------- */
+function hideOverlay(){$('overlayBox').innerHTML='';}
+function dead(){
+  state='dead';amb.on=false;
+  setTimeout(function(){
+    $('overlayBox').innerHTML=
+    '<div class="overlay"><div class="card">'+
+      '<h2>头撞疼啦！</h2>'+
+      '<div class="rule">救护车来了 <b>'+trips+'</b> 趟，得分 <b>'+score+'</b></div>'+
+      '<div class="rule">硬邦邦的东西要<b class="b2">躲开</b>，别用头撞哦！<br>软软的才可以用头撞～</div>'+
+      '<div class="row2" style="display:flex;gap:12px;margin-top:16px;">'+
+        '<button class="bigbtn green" id="ovRetry" style="margin-top:0;flex:1;font-size:19px;">再来一次</button>'+
+        '<button class="bigbtn" id="ovMenu" style="margin-top:0;flex:1;font-size:19px;">回主页</button>'+
+      '</div>'+
+    '</div></div>';
+    $('ovRetry').onclick=function(){hideOverlay();hp=4;score=0;trips=0;startLevel(level);state='playing';};
+    $('ovMenu').onclick=function(){hideOverlay();showMenu();};
+  },500);
+}
+function win(){
+  state='win';amb.on=false;
+  var star=hp>=4?3:(hp>=2?2:1);
+  sfxWin();
+  setTimeout(function(){
+    $('overlayBox').innerHTML=
+    '<div class="overlay"><div class="card">'+
+      '<h1>铁头功大师！</h1>'+
+      '<div class="stars">'+'★'.repeat(star)+'☆'.repeat(3-star)+'</div>'+
+      '<div class="rule">你分清了软软的和硬邦邦的！<br>总分 <b>'+score+'</b></div>'+
+      '<div class="row2" style="display:flex;gap:12px;margin-top:16px;">'+
+        '<button class="bigbtn green" id="ovAgain" style="margin-top:0;flex:1;font-size:19px;">再玩一次</button>'+
+        '<button class="bigbtn" id="ovMenu2" style="margin-top:0;flex:1;font-size:19px;">回主页</button>'+
+      '</div>'+
+    '</div></div>';
+    $('ovAgain').onclick=function(){hideOverlay();startGame();};
+    $('ovMenu2').onclick=function(){hideOverlay();showMenu();};
+  },600);
+}
+function showMenu(){
+  state='menu';
+  hideOverlay();
+  $('overlayBox').innerHTML=
+  '<div class="overlay"><div class="card">'+
+    '<h1>铁头功</h1>'+
+    '<div class="rule">软软的东西，用头<b>撞开</b>！<br>硬邦邦的东西，赶紧<b class="b2">躲开</b>！</div>'+
+    '<div class="softlist">'+
+      '<span class="pill">鸡蛋</span><span class="pill">西瓜</span><span class="pill">气球</span>'+
+      '<span class="pill">面包</span><span class="pill">纸箱</span><span class="pill">蛋糕</span>'+
+    '</div>'+
+    '<div class="softlist">'+
+      '<span class="pill hard">榴莲</span><span class="pill hard">石头</span><span class="pill hard">铁球</span>'+
+      '<span class="pill hard">砖头</span><span class="pill hard">仙人掌</span><span class="pill hard">玻璃瓶</span>'+
+    '</div>'+
+    '<div class="rule" style="margin-top:8px;">撞到硬东西会<b>哭</b>，<br>救护车就会来接你啦！<br>东西走到<b>黄色虚线</b>这里就按按钮～</div>'+
+    '<button class="bigbtn" id="ovStart">开始练铁头功！</button>'+
+    '<div class="small">3 关 · 4 条命 · 撞开软的 +10 分，躲开硬的 +5 分</div>'+
+  '</div></div>';
+  $('ovStart').onclick=function(){hideOverlay();startGame();};
+}
+function startGame(){
+  score=0;hp=4;trips=0;
+  startLevel(0);
+  state='playing';
+  syncHud();
+}
+
+/* ---------- 更新 ---------- */
+function update(dt){
+  tick++;
+  if(kid.t>0){kid.t-=dt;if(kid.t<=0)kid.act='idle';}
+  if(kid.shake>0)kid.shake=Math.max(0,kid.shake-30*dt);
+
+  if(!cur){
+    nextT-=dt;
+    if(nextT<=0)spawnNext();
+  }else{
+    cur.x-=spdNow()*dt;
+    cur.bob+=dt*3;
+    if(cur.x<-90){                       // 飘走了
+      if(!cur.handled){
+        var o=ITEM_BY[cur.k];
+        if(o.soft)pop('可惜，能撞的！','#c9c2e0');
+      }
+      cur=null;nextT=0.35;
+    }
+  }
+  for(var i=parts.length-1;i>=0;i--){
+    var p=parts[i];
+    p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=420*dt;p.rot+=p.spin*dt;p.life-=dt;
+    if(p.life<=0)parts.splice(i,1);
+  }
+  for(var i=pops.length-1;i>=0;i--){
+    var q=pops[i];
+    q.y-=26*dt;q.life-=dt;
+    if(q.life<=0)pops.splice(i,1);
+  }
+}
+
+/* ---------- 绘制 ---------- */
+function drawBack(){
+  var g=ctx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,'#8fd6ff');g.addColorStop(0.6,'#cdeeff');g.addColorStop(1,'#a8e08a');
+  ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='#ffe27a';ctx.beginPath();ctx.arc(W-70,52,28,0,7);ctx.fill();
+  ctx.fillStyle='rgba(255,240,150,.35)';ctx.beginPath();ctx.arc(W-70,52,42,0,7);ctx.fill();
+  var off=(tick*7)%(W+180);
+  ctx.fillStyle='rgba(255,255,255,.9)';
+  [[0.16,0.13,20],[0.52,0.09,15],[0.84,0.17,18]].forEach(function(c){
+    var x=c[0]*W-off+90;
+    ctx.beginPath();
+    ctx.arc(x,c[1]*H,c[2],0,7);
+    ctx.arc(x+c[2]*0.9,c[1]*H-7,c[2]*0.7,0,7);
+    ctx.arc(x+c[2]*1.8,c[1]*H,c[2]*0.55,0,7);
+    ctx.fill();
+  });
+  ctx.fillStyle='#9dd188';
+  ctx.beginPath();ctx.moveTo(0,GROUND+2);
+  ctx.lineTo(W*0.2,GROUND-110);ctx.lineTo(W*0.42,GROUND+2);
+  ctx.lineTo(W*0.66,GROUND-90);ctx.lineTo(W,GROUND+2);ctx.closePath();ctx.fill();
+  ctx.fillStyle='#6fae57';ctx.fillRect(0,GROUND,W,H-GROUND+4);
+}
+function drawBelt(){
+  // 传送带
+  ctx.fillStyle='#5b6672';
+  ctx.fillRect(0,BELT,W,26);
+  ctx.fillStyle='#7a8794';
+  ctx.fillRect(0,BELT,W,7);
+  ctx.fillStyle='#3f4854';
+  var off=(tick*2.2*spdK())%34;
+  for(var x=-34+off;x<W;x+=34){ctx.fillRect(x,BELT+8,16,12);}
+  // 支架
+  ctx.fillStyle='#4a5560';
+  for(var x=40;x<W;x+=Math.max(90,W/6)){ctx.fillRect(x-6,BELT+26,12,GROUND-BELT-26);}
+}
+function drawKid(){
+  var sh=kid.shake>0?(Math.random()-0.5)*kid.shake:0;
+  ctx.save();
+  ctx.translate(KID_X+sh,GROUND);
+  var lean=0,headY=-128,headX=0;
+  if(kid.act==='hit'){lean=0.28;headX=26;}
+  if(kid.act==='cry'){lean=-0.15;headX=-6;}
+  ctx.rotate(lean);
+  // 腿
+  ctx.strokeStyle='#3f6fb5';ctx.lineWidth=11;ctx.lineCap='round';
+  var step=Math.sin(tick*0.12)*4;
+  ctx.beginPath();ctx.moveTo(-8,-58);ctx.lineTo(-12+step,-2);
+  ctx.moveTo(8,-58);ctx.lineTo(12-step,-2);ctx.stroke();
+  ctx.fillStyle='#2b3a5c';
+  ctx.beginPath();ctx.ellipse(-12+step,-2,10,5,0,0,7);ctx.fill();
+  ctx.beginPath();ctx.ellipse(12-step,-2,10,5,0,0,7);ctx.fill();
+  // 身体
+  ctx.fillStyle='#ffca28';
+  ctx.beginPath();ctx.moveTo(-22,-118);ctx.lineTo(22,-118);ctx.lineTo(18,-52);ctx.lineTo(-18,-52);ctx.closePath();ctx.fill();
+  ctx.fillStyle='#ff8f00';
+  ctx.fillRect(-22,-70,44,8);
+  // 手臂
+  ctx.strokeStyle='#f5b942';ctx.lineWidth=9;ctx.lineCap='round';
+  if(kid.act==='hit'){
+    ctx.beginPath();ctx.moveTo(-16,-110);ctx.lineTo(30,-104);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(16,-110);ctx.lineTo(40,-98);ctx.stroke();
+  }else if(kid.act==='cry'){
+    ctx.beginPath();ctx.moveTo(-16,-110);ctx.lineTo(-6,-64);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(16,-110);ctx.lineTo(6,-64);ctx.stroke();
+  }else{
+    var sw=Math.sin(tick*0.12)*6;
+    ctx.beginPath();ctx.moveTo(-18,-112);ctx.lineTo(-28,-70+sw);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(18,-112);ctx.lineTo(28,-70-sw);ctx.stroke();
+  }
+  // 头
+  ctx.save();
+  ctx.translate(headX,headY+Math.sin(tick*0.1)*2);
+  ctx.fillStyle='#ffe0bd';
+  ctx.beginPath();ctx.arc(0,0,34,0,7);ctx.fill();
+  // 铁头盔
+  ctx.fillStyle='#b9c2cc';
+  ctx.beginPath();ctx.arc(0,-2,35,Math.PI,0);ctx.fill();
+  ctx.fillStyle='#8d99a6';
+  ctx.fillRect(-35,-4,70,7);
+  ctx.fillStyle='#e3e9ef';
+  ctx.beginPath();ctx.arc(-14,-16,7,0,7);ctx.fill();
+  // 眼睛
+  if(kid.act==='cry'){
+    ctx.strokeStyle='#333';ctx.lineWidth=4;ctx.lineCap='round';
+    ctx.beginPath();ctx.moveTo(-18,-2);ctx.lineTo(-8,6);ctx.moveTo(-8,-2);ctx.lineTo(-18,6);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(8,-2);ctx.lineTo(18,6);ctx.moveTo(18,-2);ctx.lineTo(8,6);ctx.stroke();
+    // 眼泪
+    ctx.fillStyle='#4fc3f7';
+    for(var i=0;i<3;i++){
+      var ty=8+((tick*2+i*9)%26);
+      ctx.beginPath();ctx.ellipse(-14,ty,4,6,0,0,7);ctx.fill();
+      ctx.beginPath();ctx.ellipse(14,ty-6,4,6,0,0,7);ctx.fill();
+    }
+  }else if(kid.act==='hit'){
+    ctx.strokeStyle='#333';ctx.lineWidth=4.5;ctx.lineCap='round';
+    ctx.beginPath();ctx.moveTo(-19,2);ctx.lineTo(-9,-4);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(9,-4);ctx.lineTo(19,2);ctx.stroke();
+  }else{
+    ctx.fillStyle='#333';
+    ctx.beginPath();ctx.arc(-13,0,4.5,0,7);ctx.fill();
+    ctx.beginPath();ctx.arc(13,0,4.5,0,7);ctx.fill();
+    ctx.fillStyle='#fff';
+    ctx.beginPath();ctx.arc(-14,-1.5,1.6,0,7);ctx.fill();
+    ctx.beginPath();ctx.arc(12,-1.5,1.6,0,7);ctx.fill();
+  }
+  // 嘴
+  ctx.strokeStyle='#c62828';ctx.lineWidth=3.5;ctx.lineCap='round';
+  if(kid.act==='cry'){
+    ctx.fillStyle='#c62828';
+    ctx.beginPath();ctx.ellipse(0,16,9,11,0,0,7);ctx.fill();
+    ctx.fillStyle='#fff';ctx.fillRect(-5,10,10,4);
+  }else if(kid.act==='hit'){
+    ctx.fillStyle='#c62828';
+    ctx.beginPath();ctx.ellipse(0,13,11,9,0,0,7);ctx.fill();
+  }else{
+    ctx.beginPath();ctx.arc(0,10,8,0.2,Math.PI-0.2);ctx.stroke();
+  }
+  // 腮红
+  ctx.fillStyle='rgba(255,138,101,.5)';
+  ctx.beginPath();ctx.arc(-22,8,6,0,7);ctx.fill();
+  ctx.beginPath();ctx.arc(22,8,6,0,7);ctx.fill();
+  ctx.restore();
+  ctx.restore();
+}
+function drawItem(){
+  if(!cur)return;
+  var o=ITEM_BY[cur.k];
+  ctx.save();
+  ctx.translate(cur.x,cur.y+Math.sin(cur.bob)*3);
+  ctx.rotate(cur.spin*Math.sin(cur.bob*0.6));
+  DRAW[cur.k](ctx,cur.r);
+  ctx.restore();
+  // 名字 + 提示
+  ctx.save();
+  ctx.textAlign='center';
+  ctx.font='900 '+Math.round(Math.min(26,W*0.055))+'px "PingFang SC","Microsoft YaHei",sans-serif';
+  ctx.lineWidth=5;ctx.strokeStyle='rgba(30,40,60,.85)';
+  ctx.strokeText(o.name,cur.x,cur.y-cur.r-24);
+  ctx.fillStyle='#fff';
+  ctx.fillText(o.name,cur.x,cur.y-cur.r-24);
+  if(showTip){
+    ctx.font='900 '+Math.round(Math.min(20,W*0.043))+'px "PingFang SC","Microsoft YaHei",sans-serif';
+    var tip=o.soft?'软软的～':'硬邦邦！';
+    ctx.lineWidth=5;ctx.strokeStyle='rgba(30,40,60,.85)';
+    ctx.strokeText(tip,cur.x,cur.y-cur.r-50);
+    ctx.fillStyle=o.soft?'#a5f39a':'#ffb0b0';
+    ctx.fillText(tip,cur.x,cur.y-cur.r-50);
+  }
+  ctx.restore();
+}
+function drawAmbulance(){
+  if(!amb.on)return;
+  var y=BELT+26, x=amb.x;
+  ctx.save();
+  ctx.translate(x,y);
+  // 车身
+  ctx.fillStyle='#f5f7fa';
+  ctx.fillRect(-58,-52,116,44);
+  ctx.fillStyle='#eceff1';
+  ctx.fillRect(-58,-52,116,12);
+  // 车头
+  ctx.fillStyle='#f5f7fa';
+  ctx.beginPath();
+  ctx.moveTo(58,-52);ctx.lineTo(84,-52);ctx.lineTo(90,-30);ctx.lineTo(90,-8);ctx.lineTo(58,-8);ctx.closePath();ctx.fill();
+  ctx.fillStyle='#b3d4f0';
+  ctx.fillRect(62,-46,24,16);
+  // 红十字
+  ctx.fillStyle='#e53935';
+  ctx.fillRect(-26,-40,20,7);
+  ctx.fillRect(-19,-47,7,21);
+  ctx.fillRect(10,-40,20,7);
+  ctx.fillRect(17,-47,7,21);
+  // 闪灯
+  var on=Math.floor(tick*0.28)%2;
+  ctx.fillStyle=on?'#ff5252':'#8a2b2b';
+  ctx.beginPath();ctx.arc(-22,-56,8,0,7);ctx.fill();
+  ctx.fillStyle=on?'#8a2b2b':'#ff5252';
+  ctx.beginPath();ctx.arc(6,-56,8,0,7);ctx.fill();
+  // 轮子
+  ctx.fillStyle='#2e2e38';
+  ctx.beginPath();ctx.arc(-34,-4,13,0,7);ctx.fill();
+  ctx.beginPath();ctx.arc(40,-4,13,0,7);ctx.fill();
+  ctx.fillStyle='#9aa0aa';
+  ctx.beginPath();ctx.arc(-34,-4,5,0,7);ctx.fill();
+  ctx.beginPath();ctx.arc(40,-4,5,0,7);ctx.fill();
+  ctx.restore();
+}
+// 判定线：告诉小朋友"东西走到这里就按"
+function drawTarget(){
+  var hot=inWindow();
+  var pulse=0.5+0.5*Math.sin(tick*0.16);
+  ctx.save();
+  ctx.lineWidth=4;ctx.setLineDash([9,7]);
+  ctx.strokeStyle=hot?'rgba(255,210,63,'+(0.5+0.45*pulse)+')':'rgba(255,255,255,.45)';
+  ctx.beginPath();ctx.moveTo(JUDGE_X,BELT-98);ctx.lineTo(JUDGE_X,BELT+2);ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle=hot?'#ffd23f':'rgba(255,255,255,.6)';
+  ctx.beginPath();
+  ctx.moveTo(JUDGE_X,BELT-92);ctx.lineTo(JUDGE_X-13,BELT-114);ctx.lineTo(JUDGE_X+13,BELT-114);
+  ctx.closePath();ctx.fill();
+  ctx.restore();
+}
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  drawBack();
+  drawBelt();
+  drawTarget();
+  drawAmbulance();
+  if(!(amb.on&&amb.phase>=1))drawKid();
+  drawItem();
+  // 碎片
+  for(var i=0;i<parts.length;i++){
+    var p=parts[i];
+    ctx.save();
+    ctx.globalAlpha=clamp(p.life/p.max,0,1);
+    ctx.translate(p.x,p.y);ctx.rotate(p.rot);
+    ctx.fillStyle=p.c;
+    ctx.fillRect(-p.r/2,-p.r/2,p.r,p.r);
+    ctx.restore();
+  }
+  // 飘字
+  ctx.textAlign='center';
+  for(var i=0;i<pops.length;i++){
+    var q=pops[i];
+    ctx.save();
+    ctx.globalAlpha=clamp(q.life/q.max,0,1);
+    ctx.font='900 '+Math.round(Math.min(34,W*0.072))+'px "PingFang SC","Microsoft YaHei",sans-serif';
+    ctx.lineWidth=6;ctx.strokeStyle='rgba(30,40,60,.85)';
+    ctx.strokeText(q.txt,q.x,q.y);
+    ctx.fillStyle=q.c;
+    ctx.fillText(q.txt,q.x,q.y);
+    ctx.restore();
+  }
+  ctx.globalAlpha=1;
+}
+function loop(ts){
+  var dt=Math.min(0.05,(ts-lastT)/1000||0.016);
+  lastT=ts;
+  if(state==='playing')update(dt);
+  else if(state==='ambulance')updateAmbulance(dt);
+  draw();
+  requestAnimationFrame(loop);
+}
+
+/* ---------- 输入 ---------- */
+function tap(el,fn){
+  el.addEventListener('pointerdown',function(e){e.preventDefault();audio();fn();});
+}
+tap($('btnHit'),function(){sfxClick();actHit();});
+tap($('btnDodge'),function(){sfxClick();actDodge();});
+$('tipBtn').addEventListener('click',function(){showTip=!showTip;syncHud();sfxClick();});
+window.addEventListener('keydown',function(e){
+  if(e.key==='ArrowLeft'||e.key===' '){e.preventDefault();audio();actHit();}
+  if(e.key==='ArrowRight'){audio();actDodge();}
+});
+
+/* ---------- 测试钩子 ---------- */
+window.__tt={
+  get state(){return state;},
+  get score(){return score;},
+  get hp(){return hp;},
+  get level(){return level+1;},
+  get idx(){return idx;},
+  get cur(){return cur?{k:cur.k,soft:ITEM_BY[cur.k].soft,x:Math.round(cur.x)}:null;},
+  get judgeX(){return JUDGE_X;},
+  get amb(){return amb.on;},
+  get done(){return done;},
+  get need(){return need;},
+  get inWin(){return !!inWindow();},
+  get tipOn(){return showTip;},
+  hit:function(){actHit();},
+  dodge:function(){actDodge();},
+  start:function(){startGame();},
+  menu:function(){showMenu();},
+  setTip:function(v){showTip=v;syncHud();},
+  setHp:function(v){hp=v;syncHud();},
+  endQueue:function(){idx=queue.length;cur=null;nextT=0;}
+};
+
+resize();
+showMenu();
+requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
