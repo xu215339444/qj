@@ -564,7 +564,9 @@ function showCard(type,q){
   const big=$('qBig');
   big.innerHTML='';
   if(q.icon){ const im=document.createElement('img'); im.className='icon';
-    im.src='data:image/svg+xml;utf8,'+encodeURIComponent(q.icon); big.appendChild(im); }
+    /* SVG 作为独立图片加载必须有 xmlns 命名空间，否则破图 */
+    const svg = q.icon.includes('xmlns=') ? q.icon : q.icon.replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" ');
+    im.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg); big.appendChild(im); }
   else big.textContent=q.big;
   $('qSub').textContent=q.sub;
   const box=$('qOpts'); box.innerHTML='';
