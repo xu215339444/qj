@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>算术飞行大冒险 · 6~8岁数学射击</title>
+<title>算术飞行大冒险 · 6~8岁数学撞怪兽</title>
 <style>
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body {
@@ -50,7 +50,7 @@
   #quiz .qtxt { flex: 1; text-align: center; font-size: 26px; font-weight: 900; color: #3a4a8a; letter-spacing: 2px; min-height: 32px; }
   #quiz .qlabel { flex: none; font-size: 12px; font-weight: 900; color: #fff; background: #7aa2e8;
     border-radius: 9px; padding: 3px 9px; white-space: nowrap; max-width: 130px; overflow: hidden; text-overflow: ellipsis; }
-  #quiz .opts { display: flex; gap: 8px; margin-top: 8px; }
+  #quiz .opts { display: none; gap: 8px; margin-top: 8px; }
   #quiz .opt { flex: 1; border: none; cursor: pointer; font-family: inherit; border-radius: 12px;
     padding: 9px 0 8px; font-size: 24px; font-weight: 900; color: #fff; position: relative;
     box-shadow: 0 4px 0 rgba(0,0,0,.16); }
@@ -61,6 +61,7 @@
   .o1 { background: linear-gradient(#66c05c,#3e9a4e); }
   .o2 { background: linear-gradient(#5fb2f0,#3a6fd8); }
   .o3 { background: linear-gradient(#ffae5c,#ff8a3c); }
+  #quiz .qhint { margin-top: 3px; font-size: 13px; font-weight: 900; color: #e08a12; text-align: center; letter-spacing: .5px; }
   #quiz .timerbar { margin-top: 6px; height: 7px; background: #eee; border-radius: 5px; overflow: hidden; }
   #quiz .timerbar i { display: block; height: 100%; background: linear-gradient(90deg,#ff5f7a,#ff9a3d); width: 100%; border-radius: 5px; }
   #quiz.wrong .qtxt { animation: qshake .4s; color: #e05555; }
@@ -123,8 +124,9 @@
   <!-- 题目条 -->
   <div id="quiz">
     <div class="qtop"><span class="qlabel" id="qLabel">第1关</span><div class="qtxt" id="qText">3 + 5 = ?</div></div>
+    <div class="qhint" id="qHint">算出答案，去撞背上数字一样的怪兽！</div>
     <div class="timerbar" id="timerBar" style="display:none"><i></i></div>
-    <div class="opts" id="opts"></div>
+    <div class="opts" id="opts" style="display:none"></div>
   </div>
 
   <div id="cvwrap">
@@ -137,12 +139,12 @@
   <div class="overlay show" id="menuOv">
     <div class="panel">
       <h1>✈️ 算术飞行大冒险</h1>
-      <div class="sub">怪兽来啦！答对算术题发射激光打怪兽，<br>连续答对，得分越来越高！</div>
+      <div class="sub">怪兽都背着数字牌！算出题目的答案，<br>开飞机去撞那只数字对的怪兽～<br>撞错会惹恼它，当心炸弹怪！</div>
       <div style="font-size:12px;font-weight:800;color:#8a7ba8">家长模式 · 选题目难度</div>
       <div class="modebox" id="modeBox">
         <button class="mode" data-m="easy"><b>加法</b><span>只练 10 以内加法</span></button>
         <button class="mode cur" data-m="std"><b>加减混合</b><span>20 以内加减法</span></button>
-        <button class="mode" data-m="hard"><b>挑战</b><span>加减+乘法+比大小</span></button>
+        <button class="mode" data-m="hard"><b>挑战</b><span>加减+连加+乘法</span></button>
       </div>
       <button class="bigbtn" id="startBtn">🚀 开始游戏</button>
       <button class="bigbtn gray" id="backBtn2">返回大厅</button>
@@ -185,9 +187,9 @@
   <!-- 失败 -->
   <div class="overlay" id="overOv">
     <div class="panel">
-      <h1>💔 飞机被击落了</h1>
+      <h1>💔 飞机被撞坏了</h1>
       <div class="statline" id="overScore"></div>
-      <div class="sub">别灰心，算对题目怪兽就靠近不了你！<br>答错太多才会被撞到哦～</div>
+      <div class="sub">先算出答案再撞！撞到发怒的怪兽<br>或炸弹怪才会受伤，别急，盯准数字！</div>
       <button class="bigbtn orange" id="retryBtn">🔄 重新挑战</button>
       <button class="bigbtn gray" id="overBack">返回大厅</button>
     </div>
@@ -239,20 +241,21 @@ function vibrate(ms){ try{ if(navigator.vibrate) navigator.vibrate(ms); }catch(e
 
 /* ==================== 状态 ==================== */
 const MODE = {
-  easy: { name:'加法',     q:[[10,'add'],[20,'add'],[12,'add','cmp']] },
-  std:  { name:'加减混合', q:[[10,'add'],[20,'add','sub'],[20,'add','sub','cmp']] },
-  hard: { name:'挑战',     q:[[12,'add','sub'],[20,'add','sub','mul'],[20,'add','sub','mul','cmp']] }
+  easy: { name:'加法',     q:[[10,'add'],[20,'add'],[12,'add','add3']] },
+  std:  { name:'加减混合', q:[[10,'add','sub'],[20,'add','sub'],[20,'add','sub','add3']] },
+  hard: { name:'挑战',     q:[[12,'add','sub','mul'],[20,'add','sub','mul'],[20,'add','sub','mul','add3']] }
 };
 const LEVELS = [
-  { name:'数字草原', need:8,  hp:2, spd:[52,80],  spawn:[2.5,1.5], max:4, boss:'数字巨人', tip:'连续答对 3 题打败它！' },
-  { name:'算术森林', need:12, hp:3, spd:[70,105], spawn:[2.1,1.3], max:5, boss:'猫头鹰博士', tip:'答对 5 题打败它！答错会下泡泡雨' },
-  { name:'太空挑战', need:16, hp:4, spd:[95,135], spawn:[1.9,1.0], max:6, boss:'太空大魔王', tip:'答对 6 题打败它！答错会扣一条命' }
+  { name:'数字草原', need:8,  hp:2, spd:[52,80],  max:4, boss:'数字巨人', tip:'连续答对 3 题打败它！' },
+  { name:'算术森林', need:12, hp:3, spd:[70,105], max:5, boss:'猫头鹰博士', tip:'答对 5 题打败它！答错会下泡泡雨' },
+  { name:'太空挑战', need:16, hp:4, spd:[95,135], max:6, boss:'太空大魔王', tip:'答对 6 题打败它！答错会扣一条命' }
 ];
+const WAVE_N = [4,5,6];   // 每关每道题出几只数字怪兽
 const BOSS_NEED = [3,5,6];
 let state='menu', mode='std', level=0, running=false;
 let lives=3, maxLives=3, score=0, combo=0, starsGot=0, shieldOn=false, clockT=0;
 let wrongStreak=0, qLock=false, bossActive=false, bossConsec=0;
-let kills=0, curQ=null, qTimer=0, qTotal=0, newQDelay=0;
+let kills=0, curQ=null, qTimer=0, qTotal=0, newQDelay=0, waveId=0;
 
 /* ==================== 画布 ==================== */
 const W=480, H=700;
@@ -270,67 +273,66 @@ window.addEventListener('resize', resize);
 window.addEventListener('orientationchange', resize);
 
 /* ==================== 实体 ==================== */
-let plane={x:W/2, y:H-54, w:44, h:26};
-let bullets=[], enemies=[], ebullets=[], drops=[], parts=[], floaters=[];
-let fireCd=0, enemyCd=0, shakeT=0, flashT=0, flashCol='#fff', bossT=0, boss=null;
+let plane={x:W/2, y:H-60, w:44, h:26};
+let enemies=[], ebullets=[], drops=[], parts=[], floaters=[];
+let shakeT=0, flashT=0, flashCol='#fff', bossT=0, boss=null;
 
-/* ==================== 题目生成 ==================== */
+/* ==================== 题目生成（答案均为数字） ==================== */
 function qnum(max){ return 1+Math.floor(Math.random()*max); }
+/* 围绕正确答案生成互不相同的干扰数字（不超出 max，且尽量贴近答案） */
+function distractors(ans, max, n){
+  const out=[];
+  let guard=0;
+  while(out.length<n && guard++<100){
+    let v;
+    if(Math.random()<0.7){                       // 70% 贴近答案，考验辨别力
+      v = ans + (Math.random()<0.5?-1:1)*(1+Math.floor(Math.random()*3));
+    } else {                                     // 30% 稍远一点
+      v = ans + (Math.random()<0.5?-1:1)*(3+Math.floor(Math.random()*3));
+    }
+    if(v<0) v = ans + 1+Math.floor(Math.random()*2);
+    if(v>max) v = ans - (1+Math.floor(Math.random()*2));
+    if(v<0 || v===ans || out.includes(v)) continue;
+    out.push(v);
+  }
+  let g=0;
+  while(out.length<n && g++<80){                 // 兜底
+    const v=Math.floor(Math.random()*(max+1));
+    if(v!==ans && !out.includes(v)) out.push(v);
+  }
+  return out;
+}
+/* 生成一道题：答案一定是数字（可背在怪兽身上），并给出数值范围 scope */
 function makeQ(bossQ){
   const cfg = MODE[mode].q[level] || MODE[mode].q[2];
   const max=cfg[0];
   let types = cfg.slice(1);
   if(bossQ && level===0) types=['add3'];
-  if(bossQ && level===2) types=['add','sub','cmp'];
+  if(bossQ && level===2) types=['add','sub','mul'];
   let type = pick(types);
-  let time = (level===2 && rnd(4)===0)? 5 : 0;
+  let time = (level===2 && rnd(4)===0)? 6 : 0;
   if(bossQ && level===2) time = 4;
 
-  let text='', correct='', wrongPool=[];
+  let text='', ans=0;
   if(type==='add'){
     const a=qnum(Math.min(9,Math.max(1,max-1))), b=qnum(Math.max(1,max-a));
-    text = a+' + '+b+' = ?'; correct=''+(a+b);
-    const lo=Math.max(1,a+b-3), hi=Math.min(max,a+b+3);
-    for(let i=lo;i<=hi;i++){ if(i!==a+b) wrongPool.push(''+i); }
+    text = a+' + '+b+' = ?'; ans=a+b;
   } else if(type==='add3'){
-    const rem = Math.max(1,max-2);            // 至少给后两个数留空间
+    const rem = Math.max(1,max-2);
     const a = qnum(rem);
     const b = qnum(Math.max(1, Math.min(rem+1, max-a-1)));
     const c = qnum(Math.max(1, max-a-b));
-    const sum=a+b+c;
-    text = a+' + '+b+' + '+c+' = ?'; correct=''+sum;
-    const lo=Math.max(1,sum-3), hi=Math.min(max,sum+3);
-    for(let i=lo;i<=hi;i++){ if(i!==sum) wrongPool.push(''+i); }
+    ans=a+b+c;
+    text = a+' + '+b+' + '+c+' = ?';
   } else if(type==='sub'){
     const a=qnum(max), b=qnum(a);
-    text = a+' - '+b+' = ?'; correct=''+(a-b);
-    const lo=Math.max(0,a-b-3), hi=Math.min(max,a-b+3);
-    for(let i=lo;i<=hi;i++){ if(i!==a-b) wrongPool.push(''+i); }
+    text = a+' - '+b+' = ?'; ans=a-b;
   } else if(type==='mul'){
     const a=2+rnd(4), b=2+rnd(4);
-    text = a+' × '+b+' = ?'; correct=''+(a*b);
-    const lo=Math.max(4,a*b-5), hi=a*b+5;
-    for(let i=lo;i<=hi;i++){ if(i!==a*b) wrongPool.push(''+i); }
-  } else if(type==='cmp'){
-    const big = level===0?10:20;
-    const a=qnum(big), b=qnum(big);
-    text = a+' ○ '+b; correct = a>b?'>':(a<b?'<':'=');
-    wrongPool = ['>','<','='].filter(x=>x!==correct);
+    text = a+' × '+b+' = ?'; ans=a*b;
   }
-  // 挑 2 个不同的干扰项
-  const uniq=[];
-  for(let i=0;i<12 && uniq.length<2 && wrongPool.length;i++){
-    const o=wrongPool[Math.floor(Math.random()*wrongPool.length)];
-    if(o!==correct && !uniq.includes(o)) uniq.push(o);
-  }
-  while(uniq.length<2){
-    const o=''+(1+rnd(max*2)); // 兜底
-    if(o!==correct && !uniq.includes(o)) uniq.push(o);
-  }
-  let opts=[correct, uniq[0], uniq[1]];
-  const ans=rnd(3);
-  [opts[0],opts[ans]]=[opts[ans],opts[0]];
-  return {text, opts, ans, time};
+  const scope = (ans<=max)? max : ans+4;   // 答案超范围（乘法）时，干扰数围绕大答案
+  return {text, ans, time, max, scope};
 }
 let lastQText='';
 function freshQ(bossQ){
@@ -339,6 +341,7 @@ function freshQ(bossQ){
   if(q.text===lastQText){ q=makeQ(bossQ); }
   lastQText=q.text;
   curQ=q; qTimer=q.time; qTotal=q.time; qLock=false;
+  spawnWave();
   showQ();
 }
 function hideQ(){ $('quiz').style.display='none'; }
@@ -349,15 +352,6 @@ function showQ(){
   $('qText').textContent = curQ.text;
   $('timerBar').style.display = curQ.time>0?'block':'none';
   if(curQ.time>0){ $('timerBar').firstElementChild.style.width='100%'; }
-  const box=$('opts'); box.innerHTML='';
-  const marks=[1,2,3];
-  curQ.opts.forEach((o,i)=>{
-    const b=document.createElement('button');
-    b.className='opt o'+(i+1);
-    b.innerHTML='<i class="k">'+marks[i]+'</i>'+o;
-    b.onclick=()=>answer(i);
-    box.appendChild(b);
-  });
   el.style.display='block';
   el.classList.remove('wrong','right');
   qLock=false;
@@ -367,18 +361,18 @@ function showQ(){
 function startLevel(lv){
   level=lv; lives=maxLives=3; combo=0; starsGot=0; shieldOn=false;
   clockT=0; wrongStreak=0; bossActive=false; bossConsec=0; kills=0;
-  enemies=[]; bullets=[]; ebullets=[]; drops=[]; parts=[]; floaters=[];
-  plane.x=W/2; fireCd=.8; enemyCd=1.2; newQDelay=0; boss=null;
+  enemies=[]; ebullets=[]; drops=[]; parts=[]; floaters=[];
+  plane.x=W/2; plane.y=H-60; newQDelay=0; boss=null;
   $('lvlTxt').textContent='第 '+(lv+1)+' 关';
   renderHUD();
   const tips=[
-    '答对题目＝发射算术激光！连对越多得分越高',
-    '小心泡泡攻击！算对题怪兽就追不上你',
-    '带⏱的题目要快答，5 秒内选答案哦'
+    '怪兽都背着数字！算出答案，撞背上数字一样的怪兽',
+    '撞错会惹怪兽发怒冲向你！小心猫头鹰的泡泡',
+    '带 ⏱ 的题目要快答！当心黑色的炸弹怪'
   ];
   showBanner('第 '+(lv+1)+' 关 · '+LEVELS[lv].name, tips[lv]);
   state='play'; running=true;
-  setTimeout(()=>freshQ(false), 700);
+  setTimeout(()=>freshQ(false), 800);
 }
 function showBanner(t,s){
   const b=$('banner');
@@ -406,46 +400,63 @@ function addScore(n, x, y){
   renderHUD();
 }
 
-/* 答题 */
-function answer(i){
+/* 撞怪结果：撞对 / 撞错 / 炸弹 / 超时 */
+function onHitRight(e){
+  qLock=true;
+  S.ok(); combo++;
+  addScore(10*combo, e.x, e.y-16);
+  wrongStreak=0;
+  const wasBoss=bossActive;
+  explode(e, '#ffd34d');
+  removeEnemy(e);
+  explodeAll();          // 其他怪兽吓退
+  kills++;
+  dropRoll();
+  if(wasBoss){
+    bossConsec++;
+    if(bossConsec>=BOSS_NEED[level]){ bossDefeat(); return; }
+  } else {
+    if(kills>=LEVELS[level].need){ spawnBoss(); return; }
+  }
+  newQDelay = 1.0;
+}
+function onHitWrong(e){
+  qLock=false;  // 不换题：撞错后怪兽发怒，还能继续找对的
+  combo=0;
+  wrongStreak++;
+  S.bad(); vibrate(50);
+  e.angry=true; e.boost=1.6;        // 发怒加速冲下来
+  e.angryT=3.2;                     // 加速一会儿
+  floaters.push({x:e.x,y:e.y-26,txt:'✗ 错啦',life:.9,col:'#ff5f7a'});
+  if(bossActive && level===0) bossConsec=0;          // 巨人：连对被打断
+  if(bossActive && level===1) spawnBossBubbles(3);   // 猫头鹰：泡泡雨
+  if(bossActive && level===2) hurt(null);            // 大魔王：扣命
+  if(lives<=0) return;
+  if(!bossActive && wrongStreak>=3){
+    wrongStreak=0;
+    hurt(null);                       // 连续撞错扣命
+    if(lives<=0) return;
+    newQDelay=1.2; qLock=true;        // 换一题
+  } else {
+    newQDelay=0;
+  }
+}
+function onBombHit(e){
+  removeEnemy(e);
+  explode(e, '#ff6a3d');
+  S.boom(); shakeT=.4; flash('#ff5f7a',.35);
+  hurt(null);
+}
+function qTimeout(){
   if(qLock || state!=='play' || !curQ) return;
   qLock=true;
-  const q=$('quiz');
-  const timeUp = (i<0 || i>=3);
-  if(!timeUp && i===curQ.ans){
-    q.classList.remove('wrong'); q.classList.add('right');
-    S.ok();
-    combo++;
-    addScore(10*combo);
-    wrongStreak=0;
-    const wasBoss=bossActive;
-    laserFire();            // 可能触发 Boss 登场
-    dropRoll();
-    if(wasBoss){
-      bossConsec++;
-      if(bossConsec>=BOSS_NEED[level]){ bossDefeat(); return; }
-    } else {
-      enemies.forEach(e=>{ e.boost=1; });   // 答对后怪兽速度恢复
-    }
-    newQDelay = (!wasBoss && bossActive)? 0.45 : 1.05;
-  } else {
-    q.classList.remove('right'); q.classList.add('wrong');
-    S.bad(); vibrate(60);
-    combo=0;
-    wrongStreak++;
-    enemies.forEach(e=>{ e.boost=Math.min(2.5,(e.boost||1)*1.3); });
-    if(bossActive && level===0) bossConsec=0;          // 巨人：连对被打断
-    if(bossActive && level===1) spawnBossBubbles(3);   // 猫头鹰：泡泡雨
-    if(bossActive && level===2) hurt(null);            // 大魔王：扣命
-    if(!bossActive && wrongStreak>=3){
-      wrongStreak=0;
-      hurt(null);                       // 怪兽撞机
-      if(lives<=0) return;
-      newQDelay=1.2;
-    } else {
-      newQDelay=0.85;
-    }
-  }
+  combo=0; wrongStreak++;
+  S.bad();
+  if(bossActive && level===0) bossConsec=0;
+  if(bossActive && level===1) spawnBossBubbles(3);
+  if(bossActive && level===2) hurt(null);
+  if(lives<=0) return;
+  newQDelay=1.1;
 }
 function dropRoll(){
   if(Math.random()<0.4){
@@ -474,7 +485,7 @@ function gameOver(){
 }
 function bossDefeat(){
   bossActive=false; bossConsec=0; boss=null;
-  enemies=[]; ebullets=[]; enemyCd=99;
+  enemies=[]; ebullets=[];
   S.win(); flash('#ffe066',.5);
   addScore(300, W/2, 140);
   for(let i=0;i<46;i++) parts.push({x:W/2,y:150,vx:(Math.random()-.5)*300,vy:(Math.random()-.5)*300,r:3+rnd(5),col:pick(['#ffd34d','#ff9a3d','#fff','#ff5f7a']),life:1.3});
@@ -497,32 +508,146 @@ function allWin(){
 }
 
 /* ==================== 战斗 ==================== */
-function laserFire(){
-  let tgt=null;
-  enemies.forEach(e=>{ if(!tgt || e.y>tgt.y) tgt=e; });
-  S.laser(); flash('#cfe9ff',.12);
-  if(tgt){
-    parts.push({x:plane.x,y:plane.y-14,x2:tgt.x,y2:tgt.y,kind:'beam',life:.16});
-    killEnemy(tgt,true);
-    addScore(15, tgt.x, tgt.y-20);
-  } else {
-    parts.push({x:plane.x,y:plane.y-14,kind:'beamUp',life:.16});
-  }
+function explode(e, col){
+  const c = col || pick(['#ffd34d','#ff9a3d','#ff8fa3','#fff']);
+  for(let i=0;i<16;i++) parts.push({x:e.x,y:e.y,vx:(Math.random()-.5)*260,vy:(Math.random()-.5)*260,r:2+rnd(5),col:c,life:.7});
+  for(let i=0;i<6;i++) parts.push({x:e.x,y:e.y,vx:(Math.random()-.5)*160,vy:(Math.random()-.5)*160-40,r:1+rnd(3),col:'#fff',life:.5});
+}
+function removeEnemy(e){
+  const idx=enemies.indexOf(e);
+  if(idx>=0) enemies.splice(idx,1);
 }
 function superLaser(){
   S.win(); flash('#fff3a0',.45);
-  while(enemies.length) killEnemy(enemies[0]);
+  const ansE = enemies.find(x=>x.isAns);
+  const wasBoss = bossActive;
+  const alreadyDone = qLock;                 // 正在换题空窗期：只清屏，不重复计分
+  while(enemies.length){ explode(enemies[0], '#ffd34d'); removeEnemy(enemies[0]); }
   starsGot=0; renderHUD();
   floaters.push({x:W/2,y:240,txt:'超级激光！',life:1.2,col:'#ffd34d',big:true});
   parts.push({kind:'beamAll',life:.4});
+  if(!alreadyDone && (ansE || wasBoss)){
+    // 直接算答对一次
+    qLock=true; combo++;
+    addScore(10*combo, W/2, 200);
+    wrongStreak=0; kills++;
+    if(wasBoss){
+      bossConsec++;
+      if(bossConsec>=BOSS_NEED[level]){ bossDefeat(); return; }
+    } else {
+      if(kills>=LEVELS[level].need){ spawnBoss(); return; }
+    }
+    newQDelay = 0.8;
+  }
 }
-function killEnemy(e){
-  S.boom();
-  const idx=enemies.indexOf(e);
-  if(idx>=0) enemies.splice(idx,1);
-  for(let i=0;i<12;i++) parts.push({x:e.x,y:e.y,vx:(Math.random()-.5)*230,vy:(Math.random()-.5)*230,r:2+rnd(4),col:pick(['#ffd34d','#ff9a3d','#ff8fa3']),life:.7});
-  kills++;
-  if(!bossActive && kills>=LEVELS[level].need) spawnBoss();
+function explodeAll(){
+  while(enemies.length){ explode(enemies[0], '#9ad6a0'); removeEnemy(enemies[0]); }
+}
+function spawnWave(){
+  explodeAll();
+  if(state!=='play' || !curQ) return;
+  const n = WAVE_N[level]||4;
+  const lv=LEVELS[level];
+  const scope = curQ.scope || Math.max(curQ.ans+2, (MODE[mode].q[level]||[20])[0] + 4);
+  const ans = curQ.ans;
+  const nums = distractors(ans, scope, n-1);   // n-1 个干扰数字
+  nums.push(ans);
+  // 打乱位置
+  for(let i=nums.length-1;i>0;i--){ const j=rnd(i+1); const t=nums[i]; nums[i]=nums[j]; nums[j]=t; }
+  const spread = W/(n+1);
+  waveId++;
+  const thisWave = waveId;
+  nums.forEach((num,i)=>{
+    const isAns = (num===ans);
+    const spd = lv.spd[0]+Math.random()*(lv.spd[1]-lv.spd[0]);
+    const e={
+      x: spread*(i+1) + (Math.random()-.5)*30,
+      y: -30 - Math.random()*70,
+      r: isAns? 25 : 22,
+      num, isAns,
+      vy: isAns? spd*0.8 : spd,           // 答案怪略慢一点方便追，但不明显泄漏
+      baseX: spread*(i+1),
+      boost:1, kind:level, t:rnd(20),
+      angry:false, angryT:0,
+      bomb: false, hover:false, gone:false
+    };
+    e.wave=thisWave;
+    enemies.push(e);
+  });
+  // 炸弹怪：额外一只（不挤占数字位）；普通关低概率，Boss 战不出
+  const bombChance = (bossActive||level===0)? 0 : (level===1? 0.22 : 0.34);
+  if(bombChance>0 && Math.random()<bombChance){
+    enemies.push({
+      x: 30+Math.random()*(W-60), y: -40, r:24, num:null, isAns:false,
+      vy: lv.spd[1]*0.85, baseX: W/2, boost:1, kind:level, t:rnd(20),
+      angry:false, angryT:0, bomb:true, hover:false, gone:false, wave:thisWave
+    });
+  }
+}
+function updateEnemy(e,dt){
+  if(clockT>0) return;
+  e.t+=dt;
+  if(e.angry){
+    e.angryT-=dt;
+    e.y += e.vy*e.boost*dt;
+    e.x += Math.sin(e.t*9)*70*dt;
+    e.boost = Math.min(3, e.boost+dt*1.4);
+    if(e.angryT<=0 || e.y>H+60){ removeEnemy(e); return; }
+    // 发怒怪撞到飞机
+    if(Math.abs(e.x-plane.x)<e.r+18 && Math.abs(e.y-plane.y)<e.r+12){ removeEnemy(e); hurt(e); }
+    return;
+  }
+  // 所有怪兽（含答案怪）边下落边左右晃，不会停在原地暴露答案
+  if(e.y<90){ e.x = e.baseX + Math.sin(e.t*2.4)*24; }
+  else { e.x += Math.sin(e.t*2.2)*34*dt; }
+  e.y += e.vy*e.boost*dt;
+  if(e.y>H+46){
+    if(e.isAns){
+      // 答案怪触底=这题没答上：回到顶部再给一次机会
+      e.y = -30; e.x = e.baseX + (Math.random()-.5)*W*0.2;
+      wrongStreak++;
+      S.bad();
+      floaters.push({x:clamp(plane.x,44,W-44), y:plane.y-46, txt:'它溜走啦，快追！', life:.9, col:'#ff8a3c'});
+      if(bossActive && level===0) bossConsec=0;          // 巨人：连对被打断
+      if(bossActive && level===1) spawnBossBubbles(3);   // 猫头鹰：泡泡雨
+      if(bossActive && level===2){ hurt(null); }         // 大魔王：扣命
+      if(lives<=0) return;
+      if(!bossActive && wrongStreak>=3){
+        wrongStreak=0;
+        hurt(null);                       // 连漏3题扣命
+        if(lives<=0) return;
+        qLock=true; newQDelay=1.2;        // 换一题
+      }
+    } else {
+      // 干扰怪回到顶部继续巡逻，保持干扰（不消失，防止"等干扰怪走光再撞"）
+      e.y = -30 - Math.random()*50;
+      e.x = e.baseX + (Math.random()-.5)*W*0.24;
+      e.laps = (e.laps||0)+1;
+      if(e.bomb && e.laps>2){ removeEnemy(e); }  // 炸弹巡逻两圈后离开，不无限累积威胁
+    }
+  }
+}
+function collidePlane(e){
+  // 圆形近似碰撞
+  const dx = Math.abs(e.x-plane.x), dy = Math.abs(e.y-plane.y);
+  const rr = (e.r+18)*(e.r+18);
+  if(dx*dx+dy*dy < rr*1.6) return true;
+  // 额外用 AABB 宽容一点（儿童友好）
+  return dx < e.r+26 && dy < e.r+20;
+}
+function updateBullets(dt){
+  if(clockT<=0){ /* 无自动射击：一切靠撞数字怪兽 */ }
+  // 敌弹
+  for(let i=ebullets.length-1;i>=0;i--){
+    const eb=ebullets[i];
+    if(clockT>0) continue;
+    eb.y+=eb.vy*dt;
+    if(eb.kind==='fire'){ eb.vx += (plane.x-eb.x)*dt*.9; eb.x+=eb.vx*dt; }
+    if(Math.abs(eb.x-plane.x)<20 && Math.abs(eb.y-plane.y)<22){
+      ebullets.splice(i,1); hurt(eb); continue;
+    }
+    if(eb.y>H+30||eb.y<-30||eb.x<-30||eb.x>W+30){ ebullets.splice(i,1); }
+  }
 }
 
 /* ==================== BOSS ==================== */
@@ -532,7 +657,7 @@ function spawnBoss(){
   boss={x:W/2, y:120, kind:level, t:0};
   S.bossIn(); shakeT=.3;
   showBanner('⚠️ '+LEVELS[level].boss+' 来了！', LEVELS[level].tip);
-  setTimeout(()=>{ if(state==='play' && !qLock) freshQ(true); }, 400);
+  qLock=true; newQDelay=1.3;          // 主循环统一在延时后出 Boss 战题目
 }
 function spawnBossBubbles(n){
   for(let i=0;i<n;i++){
@@ -601,64 +726,7 @@ function drawBoss(){
   ctx.restore();
 }
 
-/* ==================== 敌人/子弹/道具 ==================== */
-function spawnEnemy(){
-  const lv=LEVELS[level];
-  enemies.push({
-    x:40+rnd(W-80), y:-26, r:22, hp:lv.hp,
-    vy:lv.spd[0]+Math.random()*(lv.spd[1]-lv.spd[0]),
-    boost:1, kind:level, t:rnd(20), fireT:1.5+rnd(3)
-  });
-}
-function updateEnemy(e,dt){
-  if(clockT>0) return;
-  e.t+=dt;
-  if(e.kind===0) e.x+=Math.sin(e.t*2)*18*dt;
-  if(e.kind===2) e.x+=Math.sin(e.t*2.6)*55*dt;
-  e.y += e.vy*e.boost*dt;
-  if(e.y>H+50){ const i=enemies.indexOf(e); if(i>=0) enemies.splice(i,1); return; }
-  // 撞到飞机（直接穿过飞机行则判定撞击）
-  if(e.y>plane.y-18 && e.y<plane.y+22 && Math.abs(e.x-plane.x)<e.r+18){
-    const i=enemies.indexOf(e); if(i>=0) enemies.splice(i,1);
-    hurt(e);
-  }
-}
-function updateBullets(dt){
-  if(clockT<=0){
-    fireCd-=dt;
-    if(fireCd<=0){
-      fireCd=.85;
-      bullets.push({x:plane.x,y:plane.y-18,vy:-560});
-      S.shoot();
-    }
-  }
-  for(let i=bullets.length-1;i>=0;i--){
-    const b=bullets[i]; b.y+=b.vy*dt;
-    if(b.y<-30){ bullets.splice(i,1); continue; }
-    let used=false;
-    for(let j=enemies.length-1;j>=0;j--){
-      const e=enemies[j];
-      if(Math.abs(b.x-e.x)<e.r+6 && Math.abs(b.y-e.y)<e.r){
-        e.hp--;
-        bullets.splice(i,1); used=true;
-        if(e.hp<=0) killEnemy(e);
-        break;
-      }
-    }
-    if(used) continue;
-  }
-  // 敌弹
-  for(let i=ebullets.length-1;i>=0;i--){
-    const eb=ebullets[i];
-    if(clockT>0) continue;
-    eb.y+=eb.vy*dt;
-    if(eb.kind==='fire'){ eb.vx += (plane.x-eb.x)*dt*.9; eb.x+=eb.vx*dt; }
-    if(Math.abs(eb.x-plane.x)<20 && Math.abs(eb.y-plane.y)<22){
-      ebullets.splice(i,1); hurt(eb); continue;
-    }
-    if(eb.y>H+30||eb.y<-30||eb.x<-30||eb.x>W+30){ ebullets.splice(i,1); }
-  }
-}
+/* ==================== 道具 ==================== */
 function updateDrops(dt){
   if(clockT>0) return;
   for(let i=drops.length-1;i>=0;i--){
@@ -718,40 +786,65 @@ function drawBg(){
 }
 function drawEnemy(e){
   ctx.save(); ctx.translate(e.x,e.y);
-  if(e.kind===0){
-    const num=(Math.abs(Math.sin(e.t*2))*9|0)+1;
-    ctx.fillStyle='#ffd3a0'; ctx.beginPath(); ctx.arc(0,0,e.r,0,7); ctx.fill();
-    ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(-6,-6,5,0,7); ctx.fill(); ctx.beginPath(); ctx.arc(6,-6,5,0,7); ctx.fill();
-    ctx.fillStyle='#333'; ctx.beginPath(); ctx.arc(-6,-6,2.4,0,7); ctx.fill(); ctx.beginPath(); ctx.arc(6,-6,2.4,0,7); ctx.fill();
-    ctx.fillStyle='#e8605a'; ctx.beginPath(); ctx.arc(0,5,4,0,7); ctx.fill();
-    ctx.fillStyle='#5b8fd9'; ctx.font='bold 15px sans-serif'; ctx.textAlign='center';
-    ctx.fillText(num,0,e.r-4);
-    ctx.beginPath(); ctx.ellipse(-14,-2,9,4,-.6,0,7); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(14,-2,9,4,.6,0,7); ctx.fill();
-  } else if(e.kind===1){
-    ctx.fillStyle='rgba(150,225,255,.75)'; ctx.beginPath(); ctx.arc(0,0,e.r,0,7); ctx.fill();
-    ctx.strokeStyle='rgba(90,190,235,.9)'; ctx.lineWidth=2; ctx.stroke();
-    ctx.fillStyle='rgba(255,255,255,.8)'; ctx.beginPath(); ctx.arc(-8,-9,6,0,7); ctx.fill();
-    ctx.fillStyle='#333'; ctx.beginPath(); ctx.arc(-7,-3,2.8,0,7); ctx.fill(); ctx.beginPath(); ctx.arc(7,-3,2.8,0,7); ctx.fill();
-    ctx.strokeStyle='#333'; ctx.lineWidth=1.6; ctx.beginPath(); ctx.arc(0,7,5,0,3.2); ctx.stroke();
-    ctx.fillStyle='#fff'; ctx.font='bold 13px sans-serif'; ctx.textAlign='center';
-    ctx.fillText('泡',0,-e.r-2);
-  } else {
-    ctx.fillStyle='#8fd6ff'; ctx.beginPath(); ctx.ellipse(0,6,22,9,0,0,7); ctx.fill();
-    ctx.fillStyle='#8a5fc9'; ctx.beginPath(); ctx.arc(0,-7,15,3.14,6.29); ctx.fill();
-    ctx.fillStyle='#ffd34d'; ctx.fillRect(-19,3,6,3); ctx.fillRect(6,3,6,3);
-    ctx.fillStyle='#333'; ctx.beginPath(); ctx.arc(-5,-9,3,0,7); ctx.fill(); ctx.beginPath(); ctx.arc(5,-9,3,0,7); ctx.fill();
+  if(e.bomb){
+    // 炸弹怪：黑球 + 引线火花 + 惊叹号
+    const blink = Math.floor(e.t*6)%2===0;
+    ctx.fillStyle='#3a3648'; ctx.beginPath(); ctx.arc(0,0,23,0,7); ctx.fill();
+    ctx.fillStyle='#57516b'; ctx.beginPath(); ctx.arc(-7,-8,8,0,7); ctx.fill();
+    ctx.beginPath(); ctx.arc(7,-8,8,0,7); ctx.fill();
+    ctx.strokeStyle='#8a7f9e'; ctx.lineWidth=2.5;
+    ctx.stroke();
+    ctx.strokeStyle='#ffd34d'; ctx.lineWidth=3.5; ctx.beginPath(); ctx.moveTo(6,-14); ctx.quadraticCurveTo(15,-22,22,-26); ctx.stroke();
+    if(blink){
+      ctx.fillStyle='#ffd34d'; ctx.beginPath(); ctx.arc(23,-28,6,0,7); ctx.fill();
+      ctx.fillStyle='#ff8a3c'; ctx.beginPath(); ctx.arc(23,-28,3,0,7); ctx.fill();
+    }
+    ctx.fillStyle='#fff'; ctx.font='bold 30px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('!',0,2);
+    ctx.restore(); return;
   }
-  // 血条
-  if(e.hp<e.maxhp){
-    ctx.fillStyle='rgba(0,0,0,.28)'; ctx.fillRect(-e.r,e.r+8,e.r*2,4);
-    ctx.fillStyle='#5fbf6a'; ctx.fillRect(-e.r,e.r+8,e.r*2*(e.hp/e.maxhp),4);
+  // 发怒状态：红眼 + 燃烧的眉毛
+  const angry=e.angry;
+  // 头身（按关卡换色，但都是圆鼓鼓怪兽 + 胸前数字牌）
+  const bodyCol = e.kind===0 ? (angry?'#f25d5d':'#6fbf6a')
+               : e.kind===1 ? (angry?'#f25d5d':'#4db6e0')
+               : (angry?'#f25d5d':'#9a6fd0');
+  ctx.fillStyle=bodyCol; ctx.beginPath(); ctx.arc(0,0,e.r+2,0,7); ctx.fill();
+  // 角/鳍装饰
+  ctx.fillStyle=e.kind===0?'#4d9c55':(e.kind===1?'#2f8fc4':'#7a54b8');
+  if(e.kind===0){ ctx.beginPath(); ctx.moveTo(-16,-12); ctx.lineTo(-20,-26); ctx.lineTo(-8,-18); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(16,-12); ctx.lineTo(20,-26); ctx.lineTo(8,-18); ctx.closePath(); ctx.fill(); }
+  else if(e.kind===1){ ctx.beginPath(); ctx.ellipse(-14,-6,7,10,0,0,7); ctx.fill(); ctx.beginPath(); ctx.ellipse(14,-6,7,10,0,0,7); ctx.fill(); }
+  else { ctx.beginPath(); ctx.moveTo(0,-e.r-4); ctx.lineTo(-12,-e.r-14); ctx.lineTo(12,-e.r-14); ctx.closePath(); ctx.fill(); }
+  // 眼睛：发怒是 X 眼/红眼，平时亮晶晶
+  ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(-8,-3,7,0,7); ctx.fill(); ctx.beginPath(); ctx.arc(8,-3,7,0,7); ctx.fill();
+  if(angry){
+    ctx.strokeStyle='#a02020'; ctx.lineWidth=2.6;
+    ctx.beginPath(); ctx.moveTo(-13,-8); ctx.lineTo(-3,2); ctx.moveTo(-3,-8); ctx.lineTo(-13,2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(3,-8); ctx.lineTo(13,2); ctx.moveTo(13,-8); ctx.lineTo(3,2); ctx.stroke();
+    ctx.strokeStyle='#ff8a3c'; ctx.lineWidth=2.6;
+    ctx.beginPath(); ctx.moveTo(-18,-8); ctx.lineTo(-4,-12); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(18,-8); ctx.lineTo(4,-12); ctx.stroke();
+  } else {
+    ctx.fillStyle='#333'; ctx.beginPath(); ctx.arc(-8,-3,3.2,0,7); ctx.fill(); ctx.beginPath(); ctx.arc(8,-3,3.2,0,7); ctx.fill();
+    ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(-6.4,-4.6,1.3,0,7); ctx.fill(); ctx.beginPath(); ctx.arc(9.6,-4.6,1.3,0,7); ctx.fill();
+  }
+  // 数字牌：胸前最醒目的白色圆牌 + 大数字
+  ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(0,13,17,0,7); ctx.fill();
+  ctx.lineWidth=3; ctx.strokeStyle= angry?'#ff5f5f':'#5b8fd9'; ctx.stroke();
+  ctx.fillStyle= angry?'#d03030':'#2f4a8a';
+  const fs = e.num>=100? 16 : (e.num>=10? 21 : 25);
+  ctx.font='900 '+fs+'px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText(e.num,0,15);
+  // 发怒火星
+  if(angry && Math.floor(e.t*10)%2===0){
+    ctx.fillStyle='rgba(255,138,60,.9)';
+    ctx.beginPath(); ctx.arc(-e.r-4,-e.r+6,4,0,7); ctx.fill();
+    ctx.beginPath(); ctx.arc(e.r+2,-e.r+2,3,0,7); ctx.fill();
   }
   ctx.restore();
 }
 function drawProj(){
-  ctx.fillStyle='#ffe066';
-  bullets.forEach(b=>{ ctx.fillRect(b.x-2,b.y-9,4,12); });
   ebullets.forEach(eb=>{
     if(eb.kind==='bubble'){ ctx.fillStyle='rgba(150,225,255,.8)'; ctx.beginPath(); ctx.arc(eb.x,eb.y,10,0,7); ctx.fill(); ctx.strokeStyle='#5fb8e8'; ctx.lineWidth=1.5; ctx.stroke(); }
     else { ctx.fillStyle='#ff8a3c'; ctx.beginPath(); ctx.arc(eb.x,eb.y,8,0,7); ctx.fill(); ctx.fillStyle='#ffe066'; ctx.beginPath(); ctx.arc(eb.x,eb.y,4,0,7); ctx.fill(); }
@@ -809,21 +902,31 @@ function frame(ts){
   requestAnimationFrame(frame);
   if(!lastT) lastT=ts;
   const dt=Math.min(.05,(ts-lastT)/1000); lastT=ts;
-  // 键盘移动（始终监听方向）
-  if(keys.left) plane.x=clamp(plane.x-270*dt,26,W-26);
-  if(keys.right) plane.x=clamp(plane.x+270*dt,26,W-26);
+  // 键盘移动（全向，始终监听方向）
+  if(keys.left) plane.x=clamp(plane.x-280*dt,26,W-26);
+  if(keys.right) plane.x=clamp(plane.x+280*dt,26,W-26);
+  if(keys.up) plane.y=clamp(plane.y-220*dt,58,H-46);
+  if(keys.down) plane.y=clamp(plane.y+220*dt,58,H-46);
   if(state!=='play' || !running){ drawFrame(); return; }
   updateFx(dt);
-  enemyCd-=dt;
-  const lvCfg=LEVELS[level];
-  if(!bossActive && enemyCd<=0){
-    enemyCd = lvCfg.spawn[1]+Math.random()*(lvCfg.spawn[0]-lvCfg.spawn[1]);
-    if(enemies.length<lvCfg.max) spawnEnemy();
-  }
   if(bossActive) updateBoss(dt);
   for(let i=enemies.length-1;i>=0;i--) updateEnemy(enemies[i],dt);
   updateBullets(dt);
   updateDrops(dt);
+  // 撞怪判定（一切击杀都靠它，无自动射击）
+  if(!qLock && curQ && lives>0){
+    for(let i=enemies.length-1;i>=0;i--){
+      const e=enemies[i];
+      if(!e || e.gone) continue;
+      if(e.angry) continue;              // 发怒怪由 updateEnemy 判定撞击
+      if(collidePlane(e)){
+        if(e.bomb){ onBombHit(e); }
+        else if(e.isAns){ onHitRight(e); }
+        else { onHitWrong(e); }
+        break;
+      }
+    }
+  }
   // 题目节奏
   if(qLock && newQDelay>0){
     newQDelay-=dt;
@@ -833,7 +936,7 @@ function frame(ts){
   if(curQ && !qLock && curQ.time>0 && state==='play'){
     qTimer-=dt;
     $('timerBar').firstElementChild.style.width=Math.max(0,qTimer/qTotal*100)+'%';
-    if(qTimer<=0) answer(-2);
+    if(qTimer<=0) qTimeout();
   }
   drawFrame();
 }
@@ -855,27 +958,32 @@ function drawFrame(){
 /* ==================== 输入 ==================== */
 let keys={};
 document.addEventListener('keydown', e=>{
-  if(e.key==='1'){ answer(0); e.preventDefault(); }
-  else if(e.key==='2'){ answer(1); e.preventDefault(); }
-  else if(e.key==='3'){ answer(2); e.preventDefault(); }
-  else if(e.key==='ArrowLeft'||e.key==='a'||e.key==='A') keys.left=true;
+  if(e.key==='ArrowLeft'||e.key==='a'||e.key==='A') keys.left=true;
   else if(e.key==='ArrowRight'||e.key==='d'||e.key==='D') keys.right=true;
+  else if(e.key==='ArrowUp'||e.key==='w'||e.key==='W') keys.up=true;
+  else if(e.key==='ArrowDown'||e.key==='s'||e.key==='S') keys.down=true;
   else if(e.key===' '||e.key==='p'||e.key==='P'||e.key==='Escape'){ togglePause(); e.preventDefault(); }
 });
 document.addEventListener('keyup', e=>{
   if(e.key==='ArrowLeft'||e.key==='a'||e.key==='A') keys.left=false;
   if(e.key==='ArrowRight'||e.key==='d'||e.key==='D') keys.right=false;
+  if(e.key==='ArrowUp'||e.key==='w'||e.key==='W') keys.up=false;
+  if(e.key==='ArrowDown'||e.key==='s'||e.key==='S') keys.down=false;
 });
-let dragX=null;
-cv.addEventListener('pointerdown', e=>{ dragX=e.clientX; try{cv.setPointerCapture(e.pointerId);}catch(_){} });
+let drag=null;
+cv.addEventListener('pointerdown', e=>{
+  drag={ px:plane.x, py:plane.y, sx:e.clientX, sy:e.clientY };
+  try{cv.setPointerCapture(e.pointerId);}catch(_){}
+});
 cv.addEventListener('pointermove', e=>{
-  if(dragX!==null){
-    const dx=(e.clientX-dragX)/cssScale;
-    plane.x=clamp(plane.x+dx,26,W-26);
-    dragX=e.clientX;
+  if(drag){
+    // 飞机跟随手指移动（位置式拖动，体验更顺）
+    plane.x=clamp(drag.px+(e.clientX-drag.sx)/cssScale, 26, W-26);
+    plane.y=clamp(drag.py+(e.clientY-drag.sy)/cssScale, 58, H-46);
   }
 });
-window.addEventListener('pointerup', ()=>{ dragX=null; });
+window.addEventListener('pointerup', ()=>{ drag=null; });
+window.addEventListener('pointercancel', ()=>{ drag=null; });
 
 /* ==================== 按钮 ==================== */
 function init(){
