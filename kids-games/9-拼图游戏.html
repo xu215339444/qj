@@ -46,6 +46,18 @@ body{
 
 /* 选图案 */
 #cardGrid{display:flex;flex-wrap:wrap;justify-content:center;gap:14px;max-width:560px;}
+.modebar{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}
+.modebtn{
+  font-family:inherit;font-size:19px;font-weight:bold;color:#8a5a2b;background:#fff;
+  border:3px solid #ffcf8f;border-radius:999px;padding:9px 22px;cursor:pointer;
+  box-shadow:0 3px 0 #e0b48a;touch-action:manipulation;
+}
+.modebtn.on{
+  background:linear-gradient(180deg,#ffb84d,#ff9d3c);color:#fff;
+  border-color:#ff9d3c;box-shadow:0 3px 0 #d97a1e;
+}
+.modebtn:active{transform:translateY(2px);box-shadow:none;}
+.mode-note{font-size:15px;color:#a06a4a;min-height:22px;margin-top:-8px;}
 .pcard{
   position:relative;width:min(150px,42vw);border:none;background:#fff;border-radius:20px;
   padding:10px;cursor:pointer;box-shadow:0 4px 0 #e0b48a,0 6px 12px rgba(0,0,0,0.12);
@@ -124,6 +136,10 @@ body{
 
 <section class="screen hidden" id="screenSelect">
   <h2 class="heading">选一张图案吧！</h2>
+  <div class="modebar" id="modeBar" role="tablist" aria-label="难度选择">
+    <button class="modebtn on" id="modeEasy" type="button">🌤️ 简单 · 9 块</button>
+    <button class="modebtn" id="modeHard" type="button">🔥 挑战 · 18 块</button>
+  </div>
   <div id="cardGrid"></div>
   <a class="homelink" href="游戏大厅.html" target="_top">← 游戏大厅</a>
 </section>
@@ -651,6 +667,22 @@ body{
   /* ---------- 状态 ---------- */
   var cells=[], offscreen=null, steps=0, curPatternIndex=0, selected=-1, winning=false;
   var completed=[false,false,false,false,false,false];
+  /* 难度：easy = 3x3 共9块；hard = 6列x3行 共18块（6张图通用） */
+  var MODE='easy';
+  var DIFFS={
+    easy:{label:'简单',n:9,c:3,r:3},
+    hard:{label:'挑战',n:18,c:6,r:3}
+  };
+  function N(){return DIFFS[MODE].n;}
+  function COLS(){return DIFFS[MODE].c;}
+  function ROWS(){return DIFFS[MODE].r;}
+  function setMode(m){
+    if(!DIFFS[m]) m='easy';
+    MODE=m;
+    var eb=$('modeEasy'), hb=$('modeHard');
+    if(eb) eb.classList.toggle('on',m==='easy');
+    if(hb) hb.classList.toggle('on',m==='hard');
+  }
 
   var gridEl=$('grid'), cardGridEl=$('cardGrid'), winOverlayEl=$('winOverlay'),
       answerOverlayEl=$('answerOverlay'), stepsEl=$('stepsText'), winMsgEl=$('winMsg'),
@@ -707,7 +739,10 @@ body{
   function buildGrid(){
     gridEl.innerHTML='';
     cellEls=[]; cellCvs=[];
-    for(var i=0;i<9;i++){
+    var c=COLS(), r=ROWS();
+    gridEl.style.gridTemplateColumns='repeat('+c+',1fr)';
+    gridEl.style.gridTemplateRows='repeat('+r+',1fr)';
+    for(var i=0;i<N();i++){
       (function(idx){
         var div=document.createElement('div');
         div.className='cell';
@@ -723,39 +758,42 @@ body{
   function ensureCellSize(){
     var gw=gridEl.clientWidth;
     if(!gw) return;
-    var cs=(gw-16-12)/3;
-    for(var i=0;i<9;i++){
+    var c=COLS(), r=ROWS();
+    var gapTotalC=(c-1)*6, gapTotalR=(r-1)*6;
+    var cw=(gw-16-gapTotalC)/c, ch=(gw-16-gapTotalR)/r;
+    for(var i=0;i<N();i++){
       var cv=cellCvs[i];
-      var target=Math.max(1,Math.round(cs*dpr));
-      if(cv.width!==target){
-        cv.width=target; cv.height=target;
+      var tw=Math.max(1,Math.round(cw*dpr)), th=Math.max(1,Math.round(ch*dpr));
+      if(cv.width!==tw||cv.height!==th){
+        cv.width=tw; cv.height=th;
         cv.getContext('2d').setTransform(dpr,0,0,dpr,0,0);
       }
     }
   }
   function renderGrid(){
     ensureCellSize();
-    var ps=OFF_SIZE/3;
-    for(var i=0;i<9;i++){
+    var psx=OFF_SIZE/COLS(), psy=OFF_SIZE/ROWS();
+    for(var i=0;i<N();i++){
       var cv=cellCvs[i];
       var ctx=cv.getContext('2d');
-      var css=cv.width/dpr;
+      var cw=cv.width/dpr, chh=cv.height/dpr;
       var orig=cells[i];
-      var sx=(orig%3)*ps, sy=Math.floor(orig/3)*ps;
-      ctx.clearRect(0,0,css,css);
-      ctx.drawImage(offscreen,sx,sy,ps,ps,0,0,css,css);
+      var sx=(orig%COLS())*psx, sy=Math.floor(orig/COLS())*psy;
+      ctx.clearRect(0,0,cw,chh);
+      ctx.drawImage(offscreen,sx,sy,psx,psy,0,0,cw,chh);
     }
   }
   function updateHighlight(){
     cellEls.forEach(function(div,i){ div.classList.toggle('selected',i===selected); });
   }
   function shuffle(){
-    for(var i=0;i<100;i++){
-      var a=(Math.random()*9)|0, b=(Math.random()*9)|0;
+    var n=N();
+    for(var i=0;i<n*11;i++){
+      var a=(Math.random()*n)|0, b=(Math.random()*n)|0;
       var t=cells[a]; cells[a]=cells[b]; cells[b]=t;
     }
     var solved=true;
-    for(var j=0;j<9;j++){ if(cells[j]!==j){ solved=false; break; } }
+    for(var j=0;j<n;j++){ if(cells[j]!==j){ solved=false; break; } }
     if(solved){ var t2=cells[0]; cells[0]=cells[1]; cells[1]=t2; }
   }
   function onCell(i){
@@ -778,14 +816,15 @@ body{
     }
   }
   function checkWin(){
-    var ok=true;
-    for(var i=0;i<9;i++){ if(cells[i]!==i){ ok=false; break; } }
+    var ok=true, n=N();
+    for(var i=0;i<n;i++){ if(cells[i]!==i){ ok=false; break; } }
     if(ok) win();
   }
   function encourage(n){
-    if(n<=8) return '太厉害了！';
-    if(n<=16) return '很棒！';
-    if(n<=26) return '好厉害！';
+    var k=N()/9; /* 18格时阈值按2倍放宽 */
+    if(n<=8*k) return '太厉害了！';
+    if(n<=16*k) return '很棒！';
+    if(n<=26*k) return '好厉害！';
     return '慢慢来，你最棒！';
   }
   function updateSteps(){
@@ -840,10 +879,13 @@ body{
   function startPuzzle(pi){
     curPatternIndex=pi;
     offscreen=buildOffscreen(PATTERNS[pi]);
-    cells=[0,1,2,3,4,5,6,7,8];
+    buildGrid(); /* 按当前难度(MODE)重建：9格 或 18格 */
+    var cellsInit=[], n=N();
+    for(var ii=0;ii<n;ii++) cellsInit.push(ii);
+    cells=cellsInit;
     shuffle();
     steps=0; selected=-1; winning=false;
-    puzzleNameEl.textContent=PATTERNS[pi].name;
+    puzzleNameEl.textContent=PATTERNS[pi].name+(MODE==='hard'?'（挑战）':'');
     renderPatternCanvas(thumbCanvasEl,PATTERNS[pi],72);
     hideWinOverlay();
     answerOverlayEl.classList.add('hidden');
@@ -933,7 +975,9 @@ body{
   /* ---------- 调试接口（供自动化测试） ---------- */
   function solveNow(){
     if(winning) return;
-    cells=[0,1,2,3,4,5,6,7,8];
+    var n=N();
+    cells=[];
+    for(var i=0;i<n;i++) cells.push(i);
     selected=-1;
     renderGrid();
     updateHighlight();
@@ -960,6 +1004,8 @@ body{
   $('btnNext').addEventListener('click',nextPattern);
   $('btnWinBack').addEventListener('click',function(){ sfxClick(); hideWinOverlay(); showSelect(); });
   $('btnAgain').addEventListener('click',function(){ sfxClick(); resetAll(); });
+  $('modeEasy').addEventListener('click',function(){ sfxClick(); setMode('easy'); });
+  $('modeHard').addEventListener('click',function(){ sfxClick(); setMode('hard'); });
   window.addEventListener('resize',function(){ ensureCellSize(); renderGrid(); });
 })();
 </script>
