@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>23-小小科学家实验室</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{background:#1c2a4a;font-family:"Microsoft YaHei","PingFang SC",sans-serif;display:flex;justify-content:center;min-height:100vh;padding:8px}
+#app{width:960px;max-width:100%}
+#topbar{display:flex;align-items:center;gap:10px;padding:8px 12px;background:linear-gradient(#2b4f8f,#1d3a6e);border-radius:14px 14px 0 0;color:#fff}
+#ttl{font-size:20px;font-weight:bold;flex:1;text-align:center;text-shadow:0 2px 3px rgba(0,0,0,.4)}
+#topbar button{background:#ffd34d;border:none;border-radius:10px;padding:6px 14px;font-size:15px;font-weight:bold;cursor:pointer;font-family:inherit}
+#topbar button:active{transform:scale(.94)}
+#stage{background:linear-gradient(#dff0ff,#f6fbff);border-radius:0 0 14px 14px;min-height:560px;position:relative;padding:18px;overflow:hidden}
+/* 实验室全景 */
+#lab{display:none}
+#lab.show{display:block}
+#badgeWall{display:flex;gap:10px;justify-content:center;margin-bottom:14px}
+.badge{width:64px;height:64px;border-radius:50%;background:#e8e8ee;border:4px solid #c8c8d4;display:flex;align-items:center;justify-content:center;font-size:26px;position:relative}
+.badge.got{background:radial-gradient(circle at 35% 30%,#fff8d0,#ffd34d);border-color:#e0a800;box-shadow:0 0 14px rgba(255,200,60,.7)}
+.badge .bl{position:absolute;bottom:-20px;left:0;right:0;text-align:center;font-size:12px;color:#556}
+#stations{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:26px}
+.station{background:linear-gradient(#fff,#eaf4ff);border:3px solid #b8d8f0;border-radius:16px;padding:14px 10px;text-align:center;cursor:pointer;position:relative;transition:transform .12s}
+.station:hover{transform:translateY(-4px)}
+.station.done{border-color:#8ac86a;background:linear-gradient(#f4ffe8,#e0f8d0)}
+.station .ic{font-size:40px}
+.station .nm{font-weight:bold;font-size:17px;color:#2a4a7a;margin-top:4px}
+.station .ds{font-size:13px;color:#7a8aa0;margin-top:2px}
+.station .st{position:absolute;top:-10px;right:-6px;font-size:16px;letter-spacing:-2px}
+#robot{display:flex;gap:10px;align-items:flex-start;margin-top:22px}
+#robotFace{width:58px;height:58px;flex:none}
+#robotSay{background:#fff;border:3px solid #9ab8d8;border-radius:14px;padding:10px 14px;font-size:16px;color:#2a4a7a;min-height:52px;flex:1;line-height:1.6}
+#robotSay b{color:#e2543e}
+/* 实验界面 */
+#exp{display:none}
+#exp.show{display:block}
+#expTitle{display:flex;align-items:center;gap:12px;margin-bottom:6px}
+#expTitle .nm{font-size:24px;font-weight:900;color:#2a4a7a}
+#expGoal{font-size:15px;color:#5a7aa0;margin-bottom:12px}
+#expArea{min-height:340px}
+#expDoneBar{display:none;text-align:center;margin-top:14px}
+#expDoneBar.show{display:block}
+#expDoneBar button{font-family:inherit;font-size:18px;font-weight:bold;padding:10px 28px;border:none;border-radius:14px;background:linear-gradient(#ffd34d,#ff9d3c);color:#7a3c00;box-shadow:0 4px 0 #c96f12;cursor:pointer;margin:0 8px}
+/* 通用卡片 */
+.cards{display:flex;flex-wrap:wrap;gap:12px;justify-content:center}
+.card{width:110px;background:#fff;border:3px solid #c8d8e8;border-radius:14px;padding:8px 6px;text-align:center;cursor:pointer;user-select:none}
+.card svg{width:84px;height:64px;display:block;margin:0 auto}
+.card .lb{font-size:15px;font-weight:bold;color:#334;margin-top:2px}
+.card.sel{border-color:#ffb63c;background:#fff8dc;box-shadow:0 0 0 3px rgba(255,182,60,.4)}
+.card.right{border-color:#6ac86a;background:#eaffea}
+.card.wrong{border-color:#e2543e;background:#ffeaea;animation:shake .3s}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+.card.dead{opacity:.3;pointer-events:none}
+/* 分类篮 */
+#baskets{display:flex;gap:18px;justify-content:center;margin-top:18px}
+.basket{width:200px;min-height:130px;border-radius:16px;border:4px dashed #9ab8d8;background:#f0f7ff;padding:8px;text-align:center}
+.basket h4{color:#2a4a7a;font-size:17px;margin-bottom:6px}
+.basket .items{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;min-height:60px}
+.basket.dropHot{border-color:#ffb63c;background:#fff8dc}
+.bkTag{display:inline-block;background:#fff;border:2px solid #9ab8d8;border-radius:8px;padding:2px 8px;font-size:13px;font-weight:bold;color:#334}
+/* 排序槽 */
+#orderSlots{display:flex;gap:12px;justify-content:center;margin:14px 0}
+.oslot{width:130px;height:150px;border:3px dashed #9ab8d8;border-radius:14px;background:#f0f7ff;display:flex;align-items:center;justify-content:center;position:relative}
+.oslot .num{position:absolute;top:-12px;left:-8px;background:#ff8a3c;color:#fff;width:26px;height:26px;border-radius:50%;font-weight:bold;display:flex;align-items:center;justify-content:center;font-size:14px}
+.oslot.filled{border-style:solid;border-color:#6ac86a;background:#eaffea}
+/* 水箱 */
+#tank{width:420px;max-width:100%;height:220px;margin:10px auto;border:4px solid #7ab8d8;border-radius:0 0 20px 20px;background:linear-gradient(#bfe8ff,#8fd0f0);position:relative;overflow:hidden}
+#tank .wline{position:absolute;top:12px;left:0;right:0;text-align:center;color:#fff;font-weight:bold;font-size:14px}
+.toy{position:absolute;font-size:26px;transition:top 1s,left .3s}
+#sinkQ{font-size:20px;font-weight:bold;color:#2a4a7a;text-align:center;margin-bottom:8px}
+.choiceBtns{display:flex;gap:14px;justify-content:center;margin-top:14px}
+.choiceBtns button{font-family:inherit;font-size:20px;font-weight:bold;padding:12px 34px;border:3px solid #b8d8f0;border-radius:14px;background:#fff;color:#2a4a7a;cursor:pointer}
+.choiceBtns button:hover{background:#eaf4ff}
+.choiceBtns button.right{border-color:#6ac86a;background:#eaffea}
+.choiceBtns button.wrong{border-color:#e2543e;background:#ffeaea;animation:shake .3s}
+#prog{font-size:14px;color:#7a8aa0;text-align:center;margin-top:10px}
+/* 结算 */
+#starsBig{font-size:44px;letter-spacing:4px;text-align:center;margin:6px 0}
+#finalAward{display:none;text-align:center;background:linear-gradient(#fff8dc,#ffe9b0);border:4px solid #ffd34d;border-radius:18px;padding:20px;margin-top:14px}
+#finalAward.show{display:block}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="topbar">
+    <button id="homeBtn">🏠 大厅</button>
+    <div id="ttl">🔬 小小科学家实验室</div>
+    <button id="muteBtn">🔊</button>
+  </div>
+  <div id="stage">
+    <div id="lab">
+      <div id="badgeWall"></div>
+      <div id="stations"></div>
+      <div id="robot">
+        <svg id="robotFace" viewBox="0 0 60 60"><rect x="10" y="12" width="40" height="36" rx="10" fill="#9ab8d8"/><rect x="16" y="20" width="28" height="16" rx="7" fill="#fff"/><circle cx="24" cy="28" r="3.4" fill="#2a4a7a"/><circle cx="36" cy="28" r="3.4" fill="#2a4a7a"/><rect x="22" y="40" width="16" height="4" rx="2" fill="#fff"/><line x1="30" y1="12" x2="30" y2="4" stroke="#9ab8d8" stroke-width="3"/><circle cx="30" cy="4" r="3.4" fill="#ffb63c"/></svg>
+        <div id="robotSay">你好，小科学家！我是机器人豆豆 🤖 点击一个实验台开始做实验吧！每完成一个实验就能得到一枚<b>科学徽章</b>哦！</div>
+      </div>
+      <div id="finalAward"></div>
+    </div>
+    <div id="exp">
+      <div id="expTitle"><button id="backLab">◀ 返回</button><span class="nm" id="expName"></span></div>
+      <div id="expGoal"></div>
+      <div id="expArea"></div>
+      <div id="prog"></div>
+      <div id="expDoneBar"></div>
+    </div>
+  </div>
+</div>
+<script>
+(function(){
+'use strict';
+var muted=false;
+document.getElementById('muteBtn').onclick=function(){muted=!muted;this.textContent=muted?'🔇':'🔊';};
+document.getElementById('homeBtn').onclick=function(){try{if(window.parent&&window.parent.goHome){window.parent.goHome();return;}}catch(e){}location.href='游戏大厅.html';};
+function beep(f,d,t,v){try{if(muted)return;var AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;if(!beep.ac)beep.ac=new AC();var ac=beep.ac;if(ac.state==='suspended'&&ac.resume)ac.resume();var o=ac.createOscillator(),g=ac.createGain();o.type=t||'square';o.frequency.value=f;g.gain.value=v||0.07;o.connect(g);g.connect(ac.destination);o.start();g.gain.exponentialRampToValueAtTime(0.001,ac.currentTime+(d||0.14));o.stop(ac.currentTime+(d||0.14));}catch(e){}}
+function sGood(){beep(660,.1);setTimeout(function(){beep(880,.12)},90);setTimeout(function(){beep(1175,.18)},190);}
+function sBad(){beep(240,.2,'sawtooth',.05);}
+function sPop(){beep(540,.08,'triangle',.07);}
+function sWin(){[523,659,784,1047].forEach(function(f,i){setTimeout(function(){beep(f,.16,'triangle',.08);},i*130);});}
+var $=function(id){return document.getElementById(id);};
+var labEl=$('lab'),expEl=$('exp'),area=$('expArea'),prog=$('prog'),doneBar=$('expDoneBar'),robotSay=$('robotSay');
+function robot(txt){robotSay.innerHTML=txt;}
+/* ---------------- SVG 素材库 ---------------- */
+function face(c,ears){return '<svg viewBox="0 0 84 64" xmlns="http://www.w3.org/2000/svg">'+(ears||'')+'<circle cx="42" cy="34" r="18" fill="'+c+'"/><circle cx="36" cy="32" r="2.6" fill="#222"/><circle cx="48" cy="32" r="2.6" fill="#222"/><ellipse cx="42" cy="39" rx="4" ry="3" fill="rgba(0,0,0,.35)"/><path d="M38 44 Q42 47 46 44" stroke="rgba(0,0,0,.4)" stroke-width="2" fill="none" stroke-linecap="round"/></svg>';}
+var SV={};
+SV.dog=face('#c98d4f','<ellipse cx="30" cy="20" rx="7" ry="12" fill="#a86e33" transform="rotate(-24 30 20)"/><ellipse cx="54" cy="20" rx="7" ry="12" fill="#a86e33" transform="rotate(24 54 20)"/>');
+SV.cat=face('#f2b04c','<path d="M30 24 L27 8 L40 18 Z" fill="#f2b04c"/><path d="M54 24 L57 8 L44 18 Z" fill="#f2b04c"/>');
+SV.rabbit='<svg viewBox="0 0 84 64" xmlns="http://www.w3.org/2000/svg"><ellipse cx="34" cy="12" rx="5" ry="12" fill="#f0ebe4" transform="rotate(-8 34 12)"/><ellipse cx="50" cy="12" rx="5" ry="12" fill="#f0ebe4" transform="rotate(8 50 12)"/><circle cx="42" cy="38" r="16" fill="#f5f0ea"/><circle cx="36" cy="36" r="2.4" fill="#222"/><circle cx="48" cy="36" r="2.4" fill="#222"/><path d="M42 42 L40 45 L44 45 Z" fill="#f0a0a0"/><circle cx="60" cy="46" r="5" fill="#fff"/></svg>';
+SV.pig=face('#f7a8b8','<path d="M30 22 L25 10 L37 18 Z" fill="#f7a8b8"/><path d="M54 22 L59 10 L47 18 Z" fill="#f7a8b8"/>');
+SV.bird='<svg viewBox="0 0 84 64" xmlns="http://www.w3.org/2000/svg"><ellipse cx="40" cy="36" rx="20" ry="15" fill="#54a8e8"/><circle cx="54" cy="26" r="11" fill="#6cbcf2"/><path d="M63 25 L74 28 L63 32 Z" fill="#ffb63c"/><circle cx="57" cy="24" r="2.4" fill="#222"/><path d="M28 34 Q14 26 18 40 Q22 47 34 41 Z" fill="#3a8fd0"/><path d="M36 50 L33 60 M46 50 L49 60" stroke="#ffb63c" stroke-width="3.4" stroke-linecap="round"/></svg>';
+SV.duck='<svg viewBox="0 0 84 64" xmlns="http://www.w3.org/2000/svg"><ellipse cx="38" cy="40" rx="20" ry="13" fill="#ffd23c"/><circle cx="54" cy="24" r="10" fill="#ffdd5c"/><path d="M62 22 L75 25 L62 30 Q59 26 62 22 Z" fill="#ff9d3c"/><circle cx="57" cy="21" r="2.2" fill="#222"/><path d="M30 36 Q20 30 22 40 Q25 46 36 42 Z" fill="#f0b800"/></svg>';
+SV.butterfly='<svg viewBox="0 0 84 64" xmlns="http://www.w3.org/2000/svg"><line x1="42" y1="18" x2="42" y2="52" stroke="#4a3a5a" stroke-width="4" stroke-linecap="round"/><ellipse cx="26" cy="30" rx="15" ry="13" fill="#8e54c9"/><ellipse cx="58" cy="30" rx="15" ry="13" fill="#8e54c9"/><ellipse cx="28" cy="47" rx="11" ry="9" fill="#c9a8ff"/><ellipse cx="56" cy="47" rx="11" ry="9" fill="#c9a8ff"/><circle cx="42" cy="15" r="5" fill="#4a3a5a"/><path d="M40 11 L36 5 M44 11 L48 5" stroke="#4a3a5a" stroke-width="2" stroke-linecap="round"/><circle cx="24" cy="28" r="3" fill="#fff" opacity=".5"/><circle cx="56" cy="28" r="3" fill="#fff" opacity=".5"/></svg>';
+SV.bee='<svg viewBox="0 0 84 64" xmlns="http://www.w3.org/2000/svg"><ellipse cx="42" cy="38" rx="17" ry="12" fill="#ffd23c"/><rect x="32" y="27" width="6" height="22" fill="#3a302a"/><rect x="44" y="27" width="6" height="22" fill="#3a302a"/><ellipse cx="38" cy="20" rx="12" ry="6" fill="#bfe3ff" opacity=".85"/><circle cx="56" cy="34" r="2.4" fill="#222"/><path d="M59 38 L66 36" stroke="#222" stroke-width="2" stroke-linecap="round"/><path d="M34 12 Q38 6 42 12 M42 12 Q46 6 50 12" stroke="#3a302a" stroke-width="2" fill="none"/></svg>';
+SV.seed='<svg viewBox="0 0 84 64" xmlns="http://www.w3.org/2000/svg"><path d="M42 50 C30 50 26 38 32 28 C36 22 48 22 52 28 C58 38 54 50 42 50 Z" fill="#a8743c"/><path d="M42 48 C38 40 40 32 42 28" stroke="#7a5028" stroke-width="2.4" fill="none"/><rect x="20" y="50" width="44" height="8" rx="3" fill="#8a6a3a"/></svg>';
+SV.sprout='<svg viewBox="0 0 84 64" xmlns="http://www.w3.org/2000/svg"><path d="M42 52 Q40 36 42 24" stroke="#4a8a3a" stroke-width="4" fill="none" stroke-linecap="round"/><path d="M42 30 Q30 28 26 16 Q40 14 42 26 Z" fill="#66c26a"/><path d="M42 24 Q54 22 58 10 Q44 8 42 20 Z" fill="#4caf50"/><rect x="20" y="52" width="44" height="7" rx="3" fill="#8a6a3a"/></svg>';
+SV.leaf='<svg viewBox="0 0 84 64" xmlns="http://www.w3.org/2000/svg"><path d="M42 54 Q38 36 42 20" stroke="#3a7a2a" stroke-width="4" fill="none" stroke-linecap="round"/><path d="M42 36 Q26 34 22 20 Q38 18 42 32 Z" fill="#66c26a"/><path d="M42 28 Q58 26 62 12 Q46 10 42 24 Z" fill="#4caf50"/><path d="M42 44 Q32 46 28 40 Q38 36 42 42 Z" fill="#8ad06a"/><rect x="20" y="54" width="44" height="6" rx="3" fill="#8a6a3a"/></svg>';
+SV.flower='<svg viewBox="0 0 84 64" xmlns="http://www.w3.org/2000/svg"><path d="M42 54 Q40 40 42 28" stroke="#3a7a2a" stroke-width="4" fill="none" stroke-linecap="round"/><path d="M42 40 Q30 40 28 32 Q40 30 42 38 Z" fill="#66c26a"/><circle cx="42" cy="18" r="7" fill="#ffd23c"/><circle cx="31" cy="20" r="7" fill="#ff8a9a"/><circle cx="53" cy="20" r="7" fill="#ff8a9a"/><circle cx="35" cy="10" r="7" fill="#ff8a9a"/><circle cx="49" cy="10" r="7" fill="#ff8a9a"/><circle cx="42" cy="18" r="4.4" fill="#e88a2a"/><rect x="20" y="54" width="44" height="6" rx="3" fill="#8a6a3a"/></svg>';
+function wIcon(type,c1,c2,extra){return '<svg viewBox="0 0 84 64" xmlns="http://www.w3.org/2000/svg"><rect x="4" y="4" width="76" height="56" rx="10" fill="'+c1+'"/>'+c2+extra+'</svg>';}
+SV.sunny=wIcon('s','#ffe9a0','<circle cx="42" cy="30" r="14" fill="#ffb63c"/><g stroke="#ffb63c" stroke-width="3" stroke-linecap="round"><line x1="42" y1="8" x2="42" y2="13"/><line x1="42" y1="47" x2="42" y2="52"/><line x1="20" y1="30" x2="25" y2="30"/><line x1="59" y1="30" x2="64" y2="30"/><line x1="27" y1="15" x2="31" y2="19"/><line x1="53" y1="41" x2="57" y2="45"/><line x1="57" y1="15" x2="53" y2="19"/><line x1="31" y1="41" x2="27" y2="45"/></g>','');
+SV.rainy=wIcon('r','#c8dcf0','<ellipse cx="34" cy="22" rx="15" ry="10" fill="#fff"/><ellipse cx="50" cy="20" rx="13" ry="9" fill="#fff"/><ellipse cx="42" cy="28" rx="18" ry="10" fill="#e8eef4"/><g stroke="#54a8e8" stroke-width="3" stroke-linecap="round"><line x1="32" y1="42" x2="28" y2="52"/><line x1="44" y1="42" x2="40" y2="52"/><line x1="56" y1="42" x2="52" y2="52"/></g>','');
+SV.snowy=wIcon('s','#dce8f8','<ellipse cx="34" cy="20" rx="14" ry="9" fill="#fff"/><ellipse cx="50" cy="18" rx="12" ry="8" fill="#fff"/><ellipse cx="42" cy="26" rx="17" ry="9" fill="#eef4fa"/><g fill="#8ab8e8"><circle cx="30" cy="44" r="3"/><circle cx="44" cy="48" r="3"/><circle cx="56" cy="42" r="3"/></g>','');
+SV.windy=wIcon('w','#d0f0e0','<g stroke="#4a9a6a" stroke-width="4" fill="none" stroke-linecap="round"><path d="M12 24 Q30 14 44 24 Q56 32 68 24"/><path d="M12 38 Q32 28 48 38 Q60 46 72 38"/><path d="M12 50 Q30 42 44 50"/></g>','');
+function thing(color,shape,label){return {svg:shape==='round'?'<svg viewBox="0 0 84 64" xmlns="http://www.w3.org/2000/svg"><ellipse cx="42" cy="34" rx="20" ry="16" fill="'+color+'" stroke="rgba(0,0,0,.2)" stroke-width="2"/></svg>':shape==='rect'?'<svg viewBox="0 0 84 64" xmlns="http://www.w3.org/2000/svg"><rect x="22" y="20" width="40" height="26" rx="4" fill="'+color+'" stroke="rgba(0,0,0,.2)" stroke-width="2"/></svg>':'<svg viewBox="0 0 84 64" xmlns="http://www.w3.org/2000/svg"><rect x="20" y="24" width="44" height="18" rx="2" fill="'+color+'" stroke="rgba(0,0,0,.2)" stroke-width="2"/></svg>',label:label};}
+SV.rock=thing('#8a8a92','round','石头').svg;SV.wood='<svg viewBox="0 0 84 64" xmlns="http://www.w3.org/2000/svg"><rect x="14" y="26" width="56" height="16" rx="7" fill="#b08a5a" stroke="rgba(0,0,0,.2)" stroke-width="2"/><circle cx="22" cy="34" r="5" fill="#8a6a3a"/></svg>';
+SV.key='<svg viewBox="0 0 84 64" xmlns="http://www.w3.org/2000/svg"><circle cx="28" cy="32" r="10" fill="none" stroke="#c8a028" stroke-width="5"/><line x1="38" y1="32" x2="64" y2="32" stroke="#c8a028" stroke-width="5"/><line x1="56" y1="32" x2="56" y2="40" stroke="#c8a028" stroke-width="5"/><line x1="63" y1="32" x2="63" y2="42" stroke="#c8a028" stroke-width="5"/></svg>';
+SV.ball='<svg viewBox="0 0 84 64" xmlns="http://www.w3.org/2000/svg"><circle cx="42" cy="32" r="17" fill="#ff6a5a"/><path d="M25 32 Q42 44 59 32" stroke="#fff" stroke-width="3" fill="none"/><circle cx="36" cy="26" r="4" fill="#fff" opacity=".5"/></svg>';
+SV.leafW='<svg viewBox="0 0 84 64" xmlns="http://www.w3.org/2000/svg"><path d="M42 50 Q24 40 28 20 Q46 16 52 30 Q56 42 42 50 Z" fill="#66c26a" stroke="rgba(0,0,0,.15)" stroke-width="2"/><line x1="34" y1="44" x2="46" y2="24" stroke="#3a7a2a" stroke-width="2"/></svg>';
+SV.coin='<svg viewBox="0 0 84 64" xmlns="http://www.w3.org/2000/svg"><circle cx="42" cy="32" r="15" fill="#e8c23c" stroke="#c8a028" stroke-width="3"/><circle cx="42" cy="32" r="9" fill="none" stroke="#c8a028" stroke-width="2"/></svg>';
+SV.duckT='<svg viewBox="0 0 84 64" xmlns="http://www.w3.org/2000/svg"><ellipse cx="40" cy="36" rx="18" ry="12" fill="#ffd23c"/><circle cx="52" cy="24" r="9" fill="#ffdd5c"/><path d="M60 22 L72 25 L60 30 Q57 26 60 22 Z" fill="#ff9d3c"/><circle cx="55" cy="21" r="2" fill="#222"/></svg>';
+SV.appleT='<svg viewBox="0 0 84 64" xmlns="http://www.w3.org/2000/svg"><path d="M42 22 C30 14 16 26 20 42 C23 54 34 58 42 54 C50 58 61 54 64 42 C68 26 54 14 42 22 Z" fill="#e2543e"/><path d="M42 22 Q41 14 36 12" stroke="#7a4a2a" stroke-width="3" fill="none"/></svg>';
+SV.clip='<svg viewBox="0 0 84 64" xmlns="http://www.w3.org/2000/svg"><rect x="30" y="14" width="18" height="38" rx="9" fill="none" stroke="#8a9ab8" stroke-width="5"/><rect x="36" y="20" width="18" height="30" rx="9" fill="none" stroke="#a8b8d0" stroke-width="5"/></svg>';
+SV.nail='<svg viewBox="0 0 84 64" xmlns="http://www.w3.org/2000/svg"><line x1="42" y1="16" x2="42" y2="52" stroke="#8a9ab8" stroke-width="5"/><path d="M35 16 L49 16 L42 8 Z" fill="#8a9ab8"/></svg>';
+SV.ruler='<svg viewBox="0 0 84 64" xmlns="http://www.w3.org/2000/svg"><rect x="12" y="24" width="60" height="16" rx="3" fill="#8ad0e8" stroke="rgba(0,0,0,.15)" stroke-width="2"/><g stroke="#4a9ab8" stroke-width="2"><line x1="22" y1="24" x2="22" y2="32"/><line x1="32" y1="24" x2="32" y2="30"/><line x1="42" y1="24" x2="42" y2="32"/><line x1="52" y1="24" x2="52" y2="30"/><line x1="62" y1="24" x2="62" y2="32"/></g></svg>';
+SV.eraser='<svg viewBox="0 0 84 64" xmlns="http://www.w3.org/2000/svg"><rect x="20" y="24" width="44" height="20" rx="5" fill="#ff9dc8" stroke="rgba(0,0,0,.15)" stroke-width="2"/><rect x="20" y="24" width="18" height="20" rx="5" fill="#68b0e8"/></svg>';
+SV.spoon='<svg viewBox="0 0 84 64" xmlns="http://www.w3.org/2000/svg"><ellipse cx="30" cy="24" rx="11" ry="14" fill="#c8c8d4" stroke="rgba(0,0,0,.15)" stroke-width="2"/><path d="M36 34 L56 52" stroke="#c8c8d4" stroke-width="7" stroke-linecap="round"/></svg>';
+SV.glass='<svg viewBox="0 0 84 64" xmlns="http://www.w3.org/2000/svg"><path d="M28 14 L32 50 Q42 54 52 50 L56 14 Z" fill="#dceefa" stroke="#9ac0d8" stroke-width="2.4"/><rect x="32" y="30" width="20" height="14" fill="#a8d8f0" opacity=".7"/></svg>';
+SV.paper='<svg viewBox="0 0 84 64" xmlns="http://www.w3.org/2000/svg"><rect x="24" y="16" width="36" height="34" rx="3" fill="#fff" stroke="#b8c8d8" stroke-width="2.4"/><g stroke="#c8d4e0" stroke-width="2"><line x1="30" y1="26" x2="54" y2="26"/><line x1="30" y1="33" x2="54" y2="33"/><line x1="30" y1="40" x2="46" y2="40"/></g></svg>';
+SV.air='<svg viewBox="0 0 84 64" xmlns="http://www.w3.org/2000/svg"><g stroke="#9ad0e8" stroke-width="4" fill="none" stroke-linecap="round"><path d="M14 22 Q30 12 44 22 Q56 30 70 22"/><path d="M14 36 Q32 26 48 36 Q60 44 70 36"/><path d="M14 50 Q30 42 44 50"/></g><circle cx="62" cy="14" r="5" fill="#c8ecff"/><circle cx="70" cy="20" r="3.4" fill="#c8ecff"/></svg>';
+SV.water='<svg viewBox="0 0 84 64" xmlns="http://www.w3.org/2000/svg"><rect x="12" y="20" width="60" height="34" rx="8" fill="#8fd0f0"/><path d="M12 30 Q24 24 36 30 Q48 36 60 30 Q66 27 72 30" stroke="#e8f8ff" stroke-width="3" fill="none"/><circle cx="30" cy="42" r="3" fill="#e8f8ff"/><circle cx="48" cy="45" r="2.4" fill="#e8f8ff"/></svg>';
+SV.woodS='<svg viewBox="0 0 84 64" xmlns="http://www.w3.org/2000/svg"><rect x="16" y="24" width="52" height="18" rx="8" fill="#b08a5a" stroke="rgba(0,0,0,.2)" stroke-width="2"/><circle cx="26" cy="33" r="4" fill="#8a6a3a"/><circle cx="58" cy="33" r="4" fill="#8a6a3a"/></svg>';
+SV.table='<svg viewBox="0 0 84 64" xmlns="http://www.w3.org/2000/svg"><rect x="12" y="22" width="60" height="10" rx="3" fill="#c89a5a"/><line x1="20" y1="32" x2="20" y2="54" stroke="#a8783a" stroke-width="6" stroke-linecap="round"/><line x1="64" y1="32" x2="64" y2="54" stroke="#a8783a" stroke-width="6" stroke-linecap="round"/></svg>';
+SV.vacuum='<svg viewBox="0 0 84 64" xmlns="http://www.w3.org/2000/svg"><circle cx="42" cy="32" r="22" fill="#2a3a5a"/><g stroke="#5a7aa8" stroke-width="2.4" fill="none"><circle cx="42" cy="32" r="15"/><circle cx="42" cy="32" r="9"/></g><g fill="#9ad0e8"><circle cx="30" cy="24" r="2.4"/><circle cx="52" cy="40" r="2.4"/><circle cx="46" cy="20" r="2"/></g><text x="42" y="37" text-anchor="middle" font-size="10" fill="#fff" font-weight="bold">真空</text></svg>';
+SV.rail='<svg viewBox="0 0 84 64" xmlns="http://www.w3.org/2000/svg"><rect x="12" y="36" width="60" height="8" rx="2" fill="#8a9ab8"/><g stroke="#8a9ab8" stroke-width="4"><line x1="24" y1="28" x2="24" y2="44"/><line x1="42" y1="28" x2="42" y2="44"/><line x1="60" y1="28" x2="60" y2="44"/></g><g fill="#c8d4e0"><circle cx="34" cy="22" r="2.4"/><circle cx="50" cy="22" r="2.4"/><circle cx="42" cy="14" r="2.4"/></g>';
+SV.stoneBig='<svg viewBox="0 0 84 64" xmlns="http://www.w3.org/2000/svg"><path d="M22 46 Q16 32 30 24 Q42 16 54 24 Q66 30 62 42 Q58 50 46 50 L28 50 Z" fill="#9a9aa4" stroke="rgba(0,0,0,.2)" stroke-width="2"/><circle cx="34" cy="34" r="4" fill="rgba(255,255,255,.35)"/></svg>';
+var EXP_DEFS=[
+ {id:0,name:'🦊 动物分类',ic:'🦁',ds:'帮小动物找到自己的家',badge:'🦁',badgeName:'动物学家',bg:'linear-gradient(#e8f8e0,#f8ffe8)'},
+ {id:1,name:'🌱 植物生长',ic:'🌱',ds:'把种子长大的过程排排队',badge:'🌱',badgeName:'小园丁',bg:'linear-gradient(#e8f8e0,#f0fff0)'},
+ {id:2,name:'🌤️ 天气现象',ic:'🌤️',ds:'什么天气做什么事',badge:'🌤️',badgeName:'气象员',bg:'linear-gradient(#e0f0ff,#f0f8ff)'},
+ {id:3,name:'💧 沉与浮',ic:'🛁',ds:'猜猜谁会沉下去？',badge:'💧',badgeName:'潜水员',bg:'linear-gradient(#dcefff,#f0faff)'},
+ {id:4,name:'🧲 磁铁游戏',ic:'🧲',ds:'哪些东西能被磁铁吸住？',badge:'🧲',badgeName:'磁力专家',bg:'linear-gradient(#fff0e0,#fff8f0)'},
+ {id:5,name:'🔊 声音传播',ic:'🔔',ds:'声音能穿过什么？',badge:'🔔',badgeName:'声音侦探',bg:'linear-gradient(#f0e8ff,#f8f4ff)'}];
+/* ---------------- 状态 ---------------- */
+var stars={},badges={},cur=null;
+var state={firstTry:0,total:0,step:0,phase:'',data:null};
+function shuffle(a){a=a.slice();for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=a[i];a[i]=a[j];a[j]=t;}return a;}
+function pick(a){return a[Math.floor(Math.random()*a.length)];}
+/* ---------------- 大厅 ---------------- */
+function renderLab(){
+  var wall=$('badgeWall');wall.innerHTML='';
+  EXP_DEFS.forEach(function(d){
+    var b=document.createElement('div');b.className='badge'+(badges[d.id]?' got':'');
+    b.innerHTML=badges[d.id]?d.badge:'🔒';b.title=d.badgeName;
+    var l=document.createElement('div');l.className='bl';l.textContent=d.badgeName;b.appendChild(l);
+    wall.appendChild(b);
+  });
+  var fb=document.createElement('div');fb.className='badge'+(badges.final?' got':'');fb.innerHTML=badges.final?'🏆':'🏆';fb.title='终极科学家';wall.appendChild(fb);
+  var st=$('stations');st.innerHTML='';
+  EXP_DEFS.forEach(function(d){
+    var e=document.createElement('div');e.className='station'+(badges[d.id]?' done':'');
+    var s=stars[d.id]||0;
+    e.innerHTML='<div class="ic">'+d.ic+'</div><div class="nm">'+d.name.replace(/^\S+\s/,'')+'</div><div class="ds">'+d.ds+'</div>'+(s?'<div class="st">'+'⭐'.repeat(s)+'</div>':'')+(badges[d.id]?'':'<div class="st" style="color:#c8a028">✨</div>');
+    e.onclick=function(){openExp(d.id);};
+    st.appendChild(e);
+  });
+  var fa=$('finalAward');fa.className=badges.final?'show':'';
+  var nDone=EXP_DEFS.filter(function(d){return badges[d.id];}).length;
+  if(nDone>=6&&!badges.final){
+    fa.innerHTML='<div style="font-size:22px;font-weight:900;color:#7a4a00">🎉 集齐 6 枚徽章！终极实验解锁！</div><div style="margin:8px 0;color:#6a4a10">终极实验：5 道混合科学题，全部答对成为<b>小小科学家</b>！</div>';
+    var btn=document.createElement('button');btn.textContent='开始终极实验 ▶';btn.style.cssText='font-family:inherit;font-size:18px;font-weight:bold;padding:10px 28px;border:none;border-radius:14px;background:linear-gradient(#ffd34d,#ff9d3c);color:#7a3c00;cursor:pointer;box-shadow:0 4px 0 #c96f12';
+    btn.onclick=function(){openExp(99);};fa.appendChild(btn);
+  }else if(badges.final){
+    fa.innerHTML='<div style="font-size:22px;font-weight:900;color:#7a4a00">🏆 你已是小小科学家！</div><div style="margin-top:6px;color:#6a4a10">全部徽章收集完成，可重复挑战实验刷新星级哦</div>';
+  }else{
+    fa.innerHTML='<div style="color:#8a7a4a;font-size:14px">还差 '+(6-nDone)+' 枚徽章解锁终极实验</div>';
+  }
+  labEl.classList.add('show');expEl.classList.remove('show');
+}
+/* ---------------- 通用答题引擎（逐题点击） ---------------- */
+function askOne(item,onOk){
+  var okFirst=true;
+  item.el.classList.add('sel');sPop();
+  var bar=area.querySelector('.choiceBtns');
+  function done(ok){
+    if(ok){item.el.classList.remove('sel');item.el.classList.add('right');item.el.classList.add('dead');
+      if(okFirst){state.firstTry++;}
+      state.total++;sGood();updateProg();onOk&&onOk(true);
+    }else{okFirst=false;item.el.classList.add('wrong');sBad();setTimeout(function(){item.el.classList.remove('sel');item.el.classList.remove('wrong');},600);onOk&&onOk(false);}
+  }
+  return done;
+}
+function updateProg(){
+  var txt='进度：'+state.total+' 题完成，首轮答对 '+state.firstTry;
+  prog.textContent=txt;
+}
+function finishExp(d){
+  var rate=state.total?state.firstTry/state.total:0;
+  var s=rate>=0.9?3:rate>=0.55?2:1;
+  if(!stars[d.id]||s>(stars[d.id]||0))stars[d.id]=s;
+  badges[d.id]=true;
+  sWin();
+  area.innerHTML='<div style="text-align:center"><div style="font-size:52px">'+d.badge+'</div><div style="font-size:24px;font-weight:900;color:#2a4a7a">获得徽章：'+d.badgeName+'</div><div id="starsBig">'+'⭐'.repeat(s)+'<span style="opacity:.25">'+'⭐'.repeat(3-s)+'</span></div><div style="color:#5a7aa0">首轮答对 '+state.firstTry+'/'+state.total+'，'+(s===3?'完美实验！':s===2?'很棒！再试一次可以拿 3 星哦':'完成啦！再来一遍巩固一下吧')+'</div></div>';
+  doneBar.innerHTML='<button id="againBtn">🔁 再做一次</button><button id="backBtn2">🏠 回实验室</button>';
+  doneBar.classList.add('show');
+  $('againBtn').onclick=function(){openExp(d.id);};
+  $('backBtn2').onclick=function(){robot('做完了 '+d.name.replace(/^\S+\s/,'')+'，徽章到手！去试试下一个实验台吧！');renderLab();};
+  robot('🎉 太厉害了！<b>'+d.badgeName+'</b>徽章属于你啦！'+(s<3?'再挑战一次能拿更多星星哦。':''));
+  if(window.__T)window.__T.done=true;
+}
+/* ---------------- 实验 1：动物分类 ---------------- */
+function expAnimal(){
+  var groups={mam:{name:'哺乳动物',items:[]},bird:{name:'鸟类',items:[]},bug:{name:'昆虫',items:[]}};
+  var placed=0;
+  var pool=shuffle([
+    {sv:SV.dog,lb:'小狗',g:'mam'},{sv:SV.cat,lb:'小猫',g:'mam'},{sv:SV.rabbit,lb:'兔子',g:'mam'},{sv:SV.pig,lb:'小猪',g:'mam'},
+    {sv:SV.bird,lb:'小鸟',g:'bird'},{sv:SV.duck,lb:'鸭子',g:'bird'},
+    {sv:SV.butterfly,lb:'蝴蝶',g:'bug'},{sv:SV.bee,lb:'蜜蜂',g:'bug'}]);
+  area.innerHTML='<div style="font-size:17px;color:#2a4a7a;text-align:center;margin-bottom:10px">👆 <b>先点小动物</b>，再点它该去的篮子（提示：吃奶长大的是哺乳动物，有羽毛的是鸟类，六条腿的是昆虫）</div><div class="cards" id="anCards"></div><div id="baskets"></div>';
+  var cardsEl=$('anCards'),bkEl=$('baskets');
+  var sel=null;
+  pool.forEach(function(p){
+    var c=document.createElement('div');c.className='card';c.innerHTML=p.sv+'<div class="lb">'+p.lb+'</div>';
+    c._g=p.g;c._lb=p.lb;
+    c.onclick=function(){
+      if(c.classList.contains('dead'))return;
+      document.querySelectorAll('#anCards .card').forEach(function(x){x.classList.remove('sel');});
+      c.classList.add('sel');sel=c;sPop();
+      robot('你要把 <b>'+p.lb+'</b> 送到哪个篮子呢？');
+    };
+    cardsEl.appendChild(c);
+  });
+  Object.keys(groups).forEach(function(k){
+    var b=document.createElement('div');b.className='basket';b.innerHTML='<h4>'+groups[k].name+'</h4><div class="items"></div>';
+    b.onclick=function(){
+      if(!sel)return;
+      if(sel._g===k){
+        sel.classList.remove('sel');sel.classList.add('right','dead');
+        var t=document.createElement('span');t.className='bkTag';t.textContent=sel._lb;b.querySelector('.items').appendChild(t);
+        state.total++;state.firstTry++;placed++;sGood();updateProg();
+        sel=null;
+        if(placed>=8){robot('所有小动物都回家啦！');setTimeout(function(){finishExp(EXP_DEFS[0]);},700);}
+      }else{
+        sel.classList.add('wrong');sBad();
+        var hint=k==='mam'?'哺乳动物宝宝是喝奶长大的哦':k==='bird'?'鸟类有羽毛、会下蛋':'昆虫有六条腿';
+        robot('不对哦～ <b>'+hint+'</b>。再想一想！');
+        setTimeout(function(){sel&&sel.classList.remove('wrong');},600);
+        state.total++;updateProg();
+      }
+    };
+    bkEl.appendChild(b);
+  });
+  updateProg();
+}
+/* ---------------- 实验 2：植物排序 ---------------- */
+function expPlant(){
+  var order=[{sv:SV.seed,lb:'1. 种子'},{sv:SV.sprout,lb:'2. 发芽'},{sv:SV.leaf,lb:'3. 长叶'},{sv:SV.flower,lb:'4. 开花'}];
+  var shuffled=shuffle(order.map(function(o,i){return {sv:o.sv,lb:o.lb.split('. ')[1],idx:i};}));
+  area.innerHTML='<div style="font-size:17px;color:#2a4a7a;text-align:center;margin-bottom:10px">👆 按 <b>种子→发芽→长叶→开花</b> 的顺序，依次点击下面的卡片放进槽里</div><div id="orderSlots"></div><div class="cards" id="plCards"></div>';
+  var slots=$('orderSlots'),cards=$('plCards');var nextIdx=0;
+  for(var i=0;i<4;i++){var s=document.createElement('div');s.className='oslot';s.innerHTML='<span class="num">'+(i+1)+'</span>';slots.appendChild(s);}
+  shuffled.forEach(function(p){
+    var c=document.createElement('div');c.className='card';c.innerHTML=p.sv+'<div class="lb">'+p.lb+'</div>';
+    c.onclick=function(){
+      if(c.classList.contains('dead'))return;
+      if(p.idx===nextIdx){
+        c.classList.add('dead','right');sGood();
+        var slot=slots.children[nextIdx];slot.classList.add('filled');slot.innerHTML='<span class="num">'+(nextIdx+1)+'</span>'+c.innerHTML;
+        nextIdx++;state.total++;state.firstTry++;updateProg();
+        if(nextIdx>=4){robot('🌱 排对啦！种子喝水晒太阳，慢慢长成小花！');setTimeout(function(){finishExp(EXP_DEFS[1]);},700);}
+      }else{
+        c.classList.add('wrong');sBad();state.total++;updateProg();
+        robot('还不到它呢～想一想：先有种子，才会发芽哦！');
+        setTimeout(function(){c.classList.remove('wrong');},600);
+      }
+    };
+    cards.appendChild(c);
+  });
+  updateProg();
+}
+/* ---------------- 实验 3：天气匹配 ---------------- */
+function expWeather(){
+  var qs=shuffle([
+    {ic:SV.sunny,q:'☀️ 大晴天，最适合做什么？',opts:['去公园野餐','在家打雨伞','穿棉袄堆雪人'],a:0,ex:'晴天太阳暖暖的，最适合出去玩啦！'},
+    {ic:SV.rainy,q:'🌧️ 下雨天出门要带什么？',opts:['太阳镜','雨伞','风筝'],a:1,ex:'下雨要打伞，不然会淋湿感冒哦！'},
+    {ic:SV.snowy,q:'❄️ 下雪天适合玩什么？',opts:['游泳','堆雪人','吃冰淇淋'],a:1,ex:'下雪可以堆雪人、打雪仗，但要穿暖和！'},
+    {ic:SV.windy,q:'🌬️ 大风天最适合玩什么？',opts:['放风筝','晒太阳','吹泡泡'],a:0,ex:'风大风筝才飞得高！'}]);
+  var i=0;
+  area.innerHTML='';
+  function next(){
+    if(i>=qs.length){setTimeout(function(){finishExp(EXP_DEFS[2]);},600);return;}
+    var q=qs[i];area.innerHTML='';
+    var box=document.createElement('div');box.style.textAlign='center';
+    box.innerHTML='<div style="width:150px;margin:0 auto 8px">'+q.ic+'</div><div style="font-size:21px;font-weight:bold;color:#2a4a7a;margin-bottom:14px">'+q.q+'</div>';
+    var cb=document.createElement('div');cb.className='choiceBtns';
+    q.opts.forEach(function(o,k){
+      var b=document.createElement('button');b.textContent=o;
+      b.onclick=function(){
+        if(k===q.a){b.classList.add('right');state.total++;state.firstTry++;sGood();updateProg();robot('✅ 对！'+q.ex);i++;setTimeout(next,900);}
+        else{b.classList.add('wrong');state.total++;sBad();robot('🤔 再想想～'+(q.a===1?'那个和天气不搭哦':'不对哦'));setTimeout(function(){b.classList.remove('wrong');},600);}
+      };
+      cb.appendChild(b);
+    });
+    box.appendChild(cb);area.appendChild(box);updateProg();
+  }
+  next();
+}
+/* ---------------- 实验 4：沉与浮 ---------------- */
+function expSink(){
+  var items=shuffle([
+    {sv:SV.rock,lb:'石头',sink:true},{sv:SV.wood,lb:'木头',sink:false},{sv:SV.key,lb:'铁钥匙',sink:true},
+    {sv:SV.ball,lb:'皮球',sink:false},{sv:SV.leafW,lb:'树叶',sink:false},{sv:SV.coin,lb:'硬币',sink:true},
+    {sv:SV.duckT,lb:'小黄鸭',sink:false},{sv:SV.appleT,lb:'苹果',sink:false}]);
+  area.innerHTML='<div id="sinkQ">👇 猜一猜：把它放进水里，会<b>沉下去</b>还是<b>浮起来</b>？</div><div class="cards" id="skCards" style="min-height:118px"></div><div id="tank"><div class="wline">～ 水 池 ～</div></div><div class="choiceBtns"><button id="bSink">⬇ 沉下去</button><button id="bFloat">⬆ 浮起来</button></div>';
+  var cards=$('skCards'),tank=$('tank');
+  var cur2=null,queue=items.slice(),bs=$('bSink'),bf=$('bFloat');
+  function drawCard(){
+    cur2=queue.shift();
+    if(!cur2){setTimeout(function(){finishExp(EXP_DEFS[3]);},600);return;}
+    cards.innerHTML='';var c=document.createElement('div');c.className='card sel';c.innerHTML=cur2.sv+'<div class="lb">'+cur2.lb+'</div>';cards.appendChild(c);cur2.el=c;
+    var toy=document.createElement('div');toy.className='toy';toy.innerHTML=cur2.lb==='石头'?'🪨':cur2.lb==='木头'?'🪵':cur2.lb==='铁钥匙'?'🔑':cur2.lb==='皮球'?'⚽':cur2.lb==='树叶'?'🍃':cur2.lb==='硬币'?'🪙':cur2.lb==='小黄鸭'?'🐤':'🍎';
+    toy.id='toy';toy.style.left='195px';toy.style.top='-40px';tank.appendChild(toy);
+    robot('观察 <b>'+cur2.lb+'</b>：它比较重还是比较轻？会不会吸水？');
+  }
+  function answer(sinkGuess){
+    if(!cur2||cur2._a)return;
+    cur2._a=true;
+    var ok=(sinkGuess===cur2.sink);state.total++;if(ok)state.firstTry++;
+    bs.classList.remove('right','wrong');bf.classList.remove('right','wrong');
+    (sinkGuess?bs:bf).classList.add(ok?'right':'wrong');
+    var toy=$('toy');if(toy){toy.style.top=cur2.sink?'150px':'18px';}
+    if(ok){sGood();robot(cur2.sink?'✅ 对！'+cur2.lb+'比较重，沉下去啦！':'✅ 对！'+cur2.lb+'很轻，会浮在水面上！');}
+    else{sBad();robot('❌ '+cur2.lb+(cur2.sink?'很重，会沉下去哦':'很轻，会浮起来哦'));setTimeout(function(){},0);}
+    var it=cur2;setTimeout(function(){
+      var t2=$('toy');if(t2)t2.remove();
+      it.el.classList.add('dead');
+      bs.classList.remove('right','wrong');bf.classList.remove('right','wrong');
+      drawCard();
+    },1100);
+    updateProg();
+  }
+  bs.onclick=function(){answer(true);};bf.onclick=function(){answer(false);};
+  drawCard();
+}
+/* ---------------- 实验 5：磁铁游戏 ---------------- */
+function expMagnet(){
+  var items=shuffle([
+    {sv:SV.clip,lb:'回形针',yes:true},{sv:SV.nail,lb:'铁钉子',yes:true},{sv:SV.spoon,lb:'铁勺子',yes:true},
+    {sv:SV.ruler,lb:'塑料尺',yes:false},{sv:SV.eraser,lb:'橡皮',yes:false},{sv:SV.glass,lb:'玻璃杯',yes:false},{sv:SV.paper,lb:'纸片',yes:false}]);
+  var i=0,score0=0;
+  area.innerHTML='';
+  function next(){
+    if(i>=items.length){setTimeout(function(){finishExp(EXP_DEFS[4]);},600);return;}
+    var it=items[i];area.innerHTML='';
+    var box=document.createElement('div');box.style.textAlign='center';
+    box.innerHTML='<div style="font-size:40px">🧲</div><div class="card" style="display:inline-block;margin:6px auto">'+it.sv+'<div class="lb">'+it.lb+'</div></div><div style="font-size:20px;font-weight:bold;color:#2a4a7a;margin-top:8px">磁铁能吸住 <b style="color:#e2543e">'+it.lb+'</b> 吗？</div>';
+    var cb=document.createElement('div');cb.className='choiceBtns';
+    [['能吸住',true],['吸不住',false]].forEach(function(pair){
+      var b=document.createElement('button');b.textContent=pair[0];
+      b.onclick=function(){
+        var ok=(pair[1]===it.yes);state.total++;if(ok){state.firstTry++;score0++;}
+        b.classList.add(ok?'right':'wrong');
+        if(ok){sGood();robot(it.yes?'✅ 对！'+it.lb+'是铁做的，磁铁最喜欢吸铁啦！':'✅ 对！磁铁只吸铁制品，'+it.lb+'不是铁做的。');}
+        else{sBad();robot('🤔 '+it.lb+(it.yes?'可是铁做的，能被吸住哦':'不是铁做的，磁铁吸不住它'));state.total--;}
+        i++;setTimeout(next,ok?1000:1400);
+      };
+      cb.appendChild(b);
+    });
+    box.appendChild(cb);area.appendChild(box);updateProg();
+  }
+  next();
+}
+/* ---------------- 实验 6：声音传播 ---------------- */
+function expSound(){
+  var items=shuffle([
+    {sv:SV.air,lb:'空气',yes:true,ex:'我们平时听到的声音就是穿过空气传来的'},{sv:SV.water,lb:'水',yes:true,ex:'在水里拍手，潜水的人也能听到哦'},
+    {sv:SV.woodS,lb:'木头',yes:true,ex:'把耳朵贴在木头上敲，声音很清楚'},{sv:SV.table,lb:'课桌',yes:true,ex:'敲桌子，耳朵贴上去听听看！'},
+    {sv:SV.rail,lb:'铁轨',yes:true,ex:'古代人把耳朵贴在铁轨上听火车'},{sv:SV.vacuum,lb:'真空',yes:false,ex:'真空里什么都没有，声音没法传播（所以太空里听不到声音）'}]);
+  var i=0;
+  area.innerHTML='';
+  function next(){
+    if(i>=items.length){setTimeout(function(){finishExp(EXP_DEFS[5]);},600);return;}
+    var it=items[i];area.innerHTML='';
+    var box=document.createElement('div');box.style.textAlign='center';
+    box.innerHTML='<div style="font-size:40px">🔔🤏</div><div style="font-size:16px;color:#5a7aa0;margin-bottom:6px">铃铛响了！声音能穿过下面的东西传到你耳朵里吗？</div><div class="card" style="display:inline-block;margin:6px auto">'+it.sv+'<div class="lb">'+it.lb+'</div></div>';
+    var cb=document.createElement('div');cb.className='choiceBtns';
+    [['能传声 👂',true],['不能传声 🙉',false]].forEach(function(pair){
+      var b=document.createElement('button');b.textContent=pair[0];
+      b.onclick=function(){
+        var ok=(pair[1]===it.yes);state.total++;
+        if(ok){state.firstTry++;sGood();robot('✅ 对！'+it.ex);}
+        else{sBad();robot('🤔 错啦！'+it.ex);}
+        b.classList.add(ok?'right':'wrong');updateProg();
+        i++;setTimeout(next,ok?1100:1700);
+      };
+      cb.appendChild(b);
+    });
+    box.appendChild(cb);area.appendChild(box);updateProg();
+  }
+  next();
+}
+/* ---------------- 终极实验 ---------------- */
+function expFinal(){
+  var qs=shuffle([
+    {q:'🐠 小金鱼是下面哪一类动物？',opts:['鸟类','鱼类','昆虫'],a:1,ex:'金鱼生活在水里、用鳃呼吸，是鱼类！'},
+    {q:'🌱 植物长大最需要什么？',opts:['阳光和水','糖果','玩具'],a:0,ex:'植物靠阳光、水和空气长大！'},
+    {q:'🌧️ 天空下雨是因为什么？',opts:['云朵哭了','水蒸气变成小水滴落下来','有人泼水'],a:1,ex:'水蒸气升上天空变成云，云里的水滴越来越大就下雨啦！'},
+    {q:'⚽ 皮球放进水里会怎样？',opts:['沉下去','浮起来','消失'],a:1,ex:'皮球里面有空气很轻，会浮起来！'},
+    {q:'🧲 磁铁能吸住什么？',opts:['铁钉','塑料尺','纸片'],a:0,ex:'磁铁喜欢吸铁制品！'}]);
+  var i=0;
+  area.innerHTML='';
+  function next(){
+    if(i>=qs.length){
+      badges.final=true;sWin();
+      area.innerHTML='<div style="text-align:center"><div style="font-size:56px">🏆</div><div style="font-size:26px;font-weight:900;color:#7a4a00">恭喜！你就是小小科学家！</div><div style="margin-top:8px;color:#5a7aa0">6 枚徽章 + 终极徽章全部收集完成！</div></div>';
+      doneBar.innerHTML='<button id="backBtn3">🏠 回实验室看奖杯</button>';doneBar.classList.add('show');
+      $('backBtn3').onclick=function(){renderLab();};
+      robot('🏆 终极实验全部答对！从今天起，你就是名符其实的<b>小小科学家</b>啦！');
+      if(window.__T)window.__T.done=true;
+      return;
+    }
+    var q=qs[i];area.innerHTML='';
+    var box=document.createElement('div');box.style.textAlign='center';
+    box.innerHTML='<div style="font-size:15px;color:#8a7a4a">🏆 终极实验 第 '+(i+1)+'/'+qs.length+' 题</div><div style="font-size:22px;font-weight:bold;color:#2a4a7a;margin:10px 0 14px">'+q.q+'</div>';
+    var cb=document.createElement('div');cb.className='choiceBtns';
+    q.opts.forEach(function(o,k){
+      var b=document.createElement('button');b.textContent=o;
+      b.onclick=function(){
+        state.total++;
+        if(k===q.a){state.firstTry++;b.classList.add('right');sGood();robot('✅ '+q.ex);i++;setTimeout(next,900);}
+        else{b.classList.add('wrong');sBad();robot('🤖 别急，终极实验答错也没关系～再选一次试试！');setTimeout(function(){b.classList.remove('wrong');},600);}
+        updateProg();
+      };
+      cb.appendChild(b);
+    });
+    box.appendChild(cb);area.appendChild(box);updateProg();
+  }
+  next();
+}
+/* ---------------- 打开实验 ---------------- */
+var EXPS={0:expAnimal,1:expPlant,2:expWeather,3:expSink,4:expMagnet,5:expSound,99:expFinal};
+function openExp(id){
+  var d=id===99?{id:99,name:'🏆 终极实验',ic:'🏆',ds:'混合科学挑战',badge:'🏆',badgeName:'终极科学家'}:EXP_DEFS[id];
+  cur=id;
+  state={firstTry:0,total:0,step:0,phase:'run',data:null};
+  labEl.classList.remove('show');expEl.classList.add('show');
+  expEl.style.background=d.bg;
+  $('expName').textContent=d.name;
+  $('expGoal').textContent=d.ds+'（答错不要怕，机器人豆豆会告诉你为什么～）';
+  area.innerHTML='';doneBar.classList.remove('show');doneBar.innerHTML='';prog.textContent='';
+  EXPS[id]();
+  robot(id===99?'终极挑战开始！5 道混合科学题，证明你是真正的科学家吧！':'开始 <b>'+d.name.replace(/^\S+\s/,'')+'</b>！加油，小科学家！');
+}
+$('backLab').onclick=function(){renderLab();};
+/* ---------------- 启动 ---------------- */
+renderLab();
+if(window.__TEST__){
+  window.__T={
+    open:function(id){openExp(id);},
+    getState:function(){return {cur:cur,firstTry:state.firstTry,total:state.total,badges:JSON.parse(JSON.stringify(badges)),stars:JSON.parse(JSON.stringify(stars)),finalDone:!!badges.final,robot:robotSay.textContent,areaHTML:area.innerHTML.length};},
+    clickCard:function(n){var cs=area.querySelectorAll('.card');if(cs[n])cs[n].click();return cs.length;},
+    clickChoice:function(n){var bs=area.querySelector('.choiceBtns');if(bs&&bs.children[n])bs.children[n].click();},
+    clickBasket:function(n){var bs=document.querySelectorAll('#baskets .basket');if(bs[n])bs[n].click();},
+    clickSlot:function(n){var cs=area.querySelectorAll('#plCards .card');if(cs[n])cs[n].click();},
+    back:function(){renderLab();},
+    labCount:function(){return document.querySelectorAll('#stations .station').length;}
+  };
+}
+})();
+</script>
+</body>
+</html>
