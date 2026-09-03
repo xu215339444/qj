@@ -19,11 +19,23 @@
   }
 
   /* ===== 顶部栏 ===== */
-  .topbar { flex: none; display: flex; align-items: center; gap: 8px; }
+  .topbar { flex: none; display: flex; align-items: center; gap: 8px;
+    background: linear-gradient(135deg, rgba(255,255,255,.85), rgba(255,255,255,.62));
+    border-radius: 14px; padding: 5px 8px 5px 10px;
+    box-shadow: 0 3px 10px rgba(60,80,150,.14); }
   .topbar .ttl {
-    font-size: 17px; font-weight: 900; color: #fff;
-    text-shadow: 0 2px 0 rgba(60,90,160,.5); flex: 1; white-space: nowrap; overflow: hidden;
+    font-size: 16px; font-weight: 900; color: #3a4a8a;
+    flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px;
+    text-shadow: 0 1px 0 rgba(255,255,255,.6);
   }
+  .ttlLogo {
+    flex: none; display: inline-flex; align-items: center; justify-content: center;
+    width: 30px; height: 30px;
+    background: linear-gradient(135deg,#ffd34d,#ff8a3c);
+    border-radius: 9px; font-size: 16px; line-height: 1;
+    box-shadow: 0 3px 0 rgba(180,90,30,.25);
+  }
+  .ttlText { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .iconbtn {
     flex: none; border: none; cursor: pointer; background: #fff; color: #5b4b8a;
     font-size: 14px; font-weight: 800; border-radius: 12px; padding: 6px 10px;
@@ -108,7 +120,7 @@
 <body>
 <div id="app">
   <div class="topbar">
-    <div class="ttl">✈️ 算术飞行大冒险</div>
+    <div class="ttl"><span class="ttlLogo">✈️</span><span class="ttlText">算术飞行大冒险</span></div>
     <button class="iconbtn" id="sndBtn">🔊</button>
     <button class="iconbtn" id="backBtn">返回大厅</button>
   </div>
@@ -603,21 +615,19 @@ function updateEnemy(e,dt){
   e.y += e.vy*e.boost*dt;
   if(e.y>H+46){
     if(e.isAns){
-      // 答案怪触底=这题没答上：回到顶部再给一次机会
-      e.y = -30; e.x = e.baseX + (Math.random()-.5)*W*0.2;
+      // 答案怪溜走=漏题：直接扣心 +切下一题，不再把答案怪放回顶部（避免"重新出答案"）
+      removeEnemy(e);
       wrongStreak++;
-      S.bad();
-      floaters.push({x:clamp(plane.x,44,W-44), y:plane.y-46, txt:'它溜走啦，快追！', life:.9, col:'#ff8a3c'});
+      S.bad(); vibrate(80);
+      floaters.push({x:clamp(plane.x,44,W-44), y:plane.y-46, txt:'⚠ 漏掉啦 -1 ❤', life:1, col:'#ff5f7a'});
       if(bossActive && level===0) bossConsec=0;          // 巨人：连对被打断
-      if(bossActive && level===1) spawnBossBubbles(3);   // 猫头鹰：泡泡雨
-      if(bossActive && level===2){ hurt(null); }         // 大魔王：扣命
+      if(bossActive && level===1) spawnBossBubbles(2);   // 猫头鹰：少量泡泡惩罚
+      // 不论是否 Boss 战：漏答案怪 = 扣 1 心 + 立刻换下一题
       if(lives<=0) return;
-      if(!bossActive && wrongStreak>=3){
-        wrongStreak=0;
-        hurt(null);                       // 连漏3题扣命
-        if(lives<=0) return;
-        qLock=true; newQDelay=1.2;        // 换一题
-      }
+      hurt(null);
+      if(lives<=0) return;
+      qLock=true; newQDelay=1.0;
+      return;
     } else {
       // 干扰怪回到顶部继续巡逻，保持干扰（不消失，防止"等干扰怪走光再撞"）
       e.y = -30 - Math.random()*50;
