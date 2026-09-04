@@ -475,7 +475,7 @@ function doAttack(){
     const inY=Math.abs((b.y+b.h/2)-cy)<60;
     if(inX&&inY){boom(b.x,b.y,'#90caf9',5,2.5);return false}return true});
   clones.forEach(c=>{
-    enemies.forEach(e=>{if(!e.dead&&Math.abs(e.x-c.x)<36&&Math.abs(e.y-c.y)<44)damageEnemy(e,1)})});
+    enemies.forEach(e=>{if(!e.dead&&e.x<c.x+P.w&&e.x+e.w>c.x&&e.y<c.y+P.h&&e.y+e.h>c.y)damageEnemy(e,1)})});
   if(dashT>0){enemies.forEach(e=>{if(!e.dead&&Math.abs(e.x-P.x)<50&&Math.abs(e.y-P.y)<50)damageEnemy(e,2)})}
 }
 function damageEnemy(e,dmg){
@@ -798,11 +798,19 @@ function draw(){
         cx.textAlign='left';}}
     cx.restore();
   });
-  // 分身（矢量小猴）
-  cx.globalAlpha=.6;
-  clones.forEach(c=>{const tmp={x:c.x,y:c.y+8,w:30,h:34,face:0};
-    cx.save();drawCreature(tmp,'monkey');cx.restore()});
-  cx.globalAlpha=1;
+  // 分身（悟空模型，半透明，朝飞行方向）
+  if(WK.ok){
+    clones.forEach(c=>{
+      const f=c.vx<0?-1:1, ox=c.x+P.w/2-cam;
+      const dispH=P.h+18, dispW=dispH*WK.r;
+      cx.save();
+      cx.globalAlpha=.6;
+      if(f<0){cx.translate(ox,0);cx.scale(-1,1);cx.translate(-ox,0);}
+      cx.drawImage(WK.img, ox-dispW/2, c.y+P.h-dispH, dispW, dispH);
+      cx.restore();
+    });
+    cx.globalAlpha=1;
+  }
   // 玩家（图片版：写实悟空 + 金箍棒挥舞）
   if(P&&WK.ok&&!(invul>0&&frame%8<4)){
     const ox=P.x+P.w/2-cam,top=P.y,f=P.face,atk=P.atkT>0;
