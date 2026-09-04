@@ -7,35 +7,87 @@
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { width: 100%; height: 100%; overflow: hidden; background: #1a1f33; touch-action: none; }
+  @supports (height: 100dvh) { html, body { height: 100dvh; } }   /* 手机浏览器地址栏不挤压画面 */
   #app { position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
-  #stage { position: relative; width: 100%; max-width: 960px; max-height: 100%; aspect-ratio: 16/9; }
+  @supports (height: 100dvh) { #app { height: 100dvh; } }
+  /* 返回大厅（手机上没有浏览器返回键也能退出） */
+  #home {
+    position: fixed; z-index: 21; right: 8px; top: calc(8px + env(safe-area-inset-top, 0px));
+    padding: 7px 13px; border-radius: 999px; background: rgba(10,14,30,.55);
+    border: 2px solid rgba(255,255,255,.28); color: #dce7ff; font: bold 13px/1 sans-serif;
+    text-decoration: none; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+  }
+  #home:active { filter: brightness(1.5); }
+  #stage { position: relative; width: 100%; max-width: 960px; max-height: 100%; aspect-ratio: 16/9; flex: 0 0 auto; }
   canvas#cv { width: 100%; height: 100%; display: block; border-radius: 10px; background: #000; }
-  /* ===== 触屏控件 ===== */
-  #pads { position: absolute; left: 0; right: 0; bottom: 0; padding: 0 3% 3%; display: none; justify-content: space-between; align-items: flex-end; pointer-events: none; }
+  /* ===== 触屏控件：固定贴屏幕底部左右两侧，中间画面完全留空 ===== */
+  :root { --u: 52px; }                                  /* 按钮基准尺寸 */
+  @media (orientation: landscape) { :root { --u: min(9vh, 54px); } }
+  @media (orientation: portrait)  { :root { --u: min(6.2vh, 47px); } }  /* 竖屏宽度有限，确保整行按钮+十字键都留在屏内 */
+  @media (orientation: portrait) and (max-width: 350px) { :root { --u: 40px; } }  /* 超窄屏兜底 */
+  #pads {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
+    padding: 0 2.5vw calc(1.8vh + env(safe-area-inset-bottom, 0px));
+    display: none; justify-content: space-between; align-items: flex-end; pointer-events: none;
+  }
   body.touch #pads { display: flex; }
-  .padgrp { display: flex; gap: 10px; pointer-events: auto; }
-  #dpad { position: relative; width: 150px; height: 150px; pointer-events: auto; }
-  .dbtn { position: absolute; width: 50px; height: 50px; background: rgba(255,255,255,.28); border: 2px solid rgba(255,255,255,.5); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 22px; color: #fff; user-select: none; }
-  #dU { left: 50px; top: 0; } #dD { left: 50px; top: 100px; } #dL { left: 0; top: 50px; } #dR { left: 100px; top: 50px; }
-  .abtn { width: 64px; height: 64px; border-radius: 50%; background: rgba(255,120,60,.55); border: 3px solid rgba(255,200,120,.8); color: #fff; font-size: 15px; font-weight: 900; display: flex; align-items: center; justify-content: center; user-select: none; text-shadow: 0 1px 2px rgba(0,0,0,.4); }
-  #bFab { background: rgba(120,90,220,.55); border-color: rgba(180,160,255,.8); }
+  #dpad { position: relative; width: calc(var(--u) * 2.95); height: calc(var(--u) * 2.95); pointer-events: auto; }
+  .dbtn {
+    position: absolute; width: var(--u); height: var(--u); border-radius: 28%;
+    background: rgba(14,20,44,.4); border: 2px solid rgba(255,255,255,.34);
+    backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+    display: flex; align-items: center; justify-content: center;
+    font-size: calc(var(--u) * .4); color: rgba(255,255,255,.88); user-select: none;
+  }
+  #dU { left: 50%; top: 0; transform: translateX(-50%); }
+  #dD { left: 50%; bottom: 0; transform: translateX(-50%); }
+  #dL { left: 0; top: 50%; transform: translateY(-50%); }
+  #dR { right: 0; top: 50%; transform: translateY(-50%); }
+  .padgrp { display: flex; align-items: flex-end; gap: calc(var(--u) * .2); pointer-events: auto; }
+  .abtn {
+    position: relative; width: var(--u); height: var(--u); border-radius: 50%;
+    background: rgba(255,120,60,.4); border: 2px solid rgba(255,200,120,.7);
+    backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+    color: #fff; font-size: calc(var(--u) * .25); font-weight: 900;
+    display: flex; align-items: center; justify-content: center; user-select: none;
+    text-shadow: 0 1px 2px rgba(0,0,0,.45);
+  }
+  #bJmp { width: calc(var(--u) * 1.16); height: calc(var(--u) * 1.16); background: rgba(255,170,60,.42); }
+  #bAtk { width: calc(var(--u) * 1.34); height: calc(var(--u) * 1.34); font-size: calc(var(--u) * .3); background: rgba(255,90,70,.48); border-color: rgba(255,175,145,.85); }
+  #bFab { background: rgba(120,90,220,.42); border-color: rgba(180,160,255,.75); }
+  /* 手指热区外扩（视觉不变，判定更大） */
+  .dbtn::after, .abtn::after { content: ''; position: absolute; left: -7px; right: -7px; top: -7px; bottom: -7px; }
+  .dbtn:active, .abtn:active { filter: brightness(1.55); transform: scale(.93); }
+  /* 竖屏：画面靠上，下方整片留给拇指操作区 */
+  @media (orientation: portrait) { #app { align-items: flex-start; padding-top: 5vh; } }
+  #tip {
+    display: none; position: fixed; left: 50%; transform: translateX(-50%); z-index: 25;
+    bottom: calc(var(--u) * 3.5 + env(safe-area-inset-bottom, 0px));
+    background: rgba(10,14,30,.74); color: #ffe08a; font: bold 13px/1.4 sans-serif;
+    padding: 7px 15px; border-radius: 999px; pointer-events: none; white-space: nowrap;
+    animation: tipfade 7s forwards;
+  }
+  @media (orientation: portrait) { body.touch #tip { display: block; } }
+  @keyframes tipfade { 0%, 72% { opacity: 1; } 100% { opacity: 0; } }
 </style>
 </head>
 <body>
 <div id="app"><div id="stage">
   <canvas id="cv" width="960" height="540"></canvas>
-  <div id="pads">
-    <div id="dpad">
-      <div class="dbtn" id="dU">▲</div><div class="dbtn" id="dL">◀</div>
-      <div class="dbtn" id="dR">▶</div><div class="dbtn" id="dD">▼</div>
-    </div>
-    <div class="padgrp">
-      <div class="abtn" id="bFab">法宝</div>
-      <div class="abtn" id="bJmp">跳</div>
-      <div class="abtn" id="bAtk">攻</div>
-    </div>
-  </div>
 </div></div>
+<div id="tip">把手机横过来，画面会大很多哦 📱</div>
+<a id="home" href="游戏大厅.html">← 大厅</a>
+<div id="pads">
+  <div id="dpad">
+    <div class="dbtn" id="dU">▲</div><div class="dbtn" id="dL">◀</div>
+    <div class="dbtn" id="dR">▶</div><div class="dbtn" id="dD">▼</div>
+  </div>
+  <div class="padgrp">
+    <div class="abtn" id="bFab">法宝</div>
+    <div class="abtn" id="bJmp">跳</div>
+    <div class="abtn" id="bAtk">攻</div>
+  </div>
+</div>
 <script>
 'use strict';
 /* ==================================================================
@@ -82,6 +134,7 @@ const S = {
   lose: () => { [392, 330, 262, 196].forEach((f, i) => tone(f, f, .2, 'triangle', .09, i * .16)); }
 };
 /* ============================ 输入 ============================ */
+const TOUCH = (window.matchMedia && matchMedia('(pointer: coarse)').matches) || navigator.maxTouchPoints > 0 || 'ontouchstart' in window;
 const keys = {};
 let tdx = 0, tdy = 0; const tz = { atk: false, jmp: false, fab: false };
 addEventListener('keydown', e => {
@@ -101,10 +154,15 @@ function pollInput() {
 }
 /* 触屏绑定 */
 (function bindTouch() {
-  if ('ontouchstart' in window) document.body.classList.add('touch');
+  if (TOUCH) document.body.classList.add('touch');
   const hold = (id, dn, up) => {
     const el = document.getElementById(id);
-    el.addEventListener('pointerdown', e => { e.preventDefault(); dn(); ac(); });
+    el.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      /* 指针捕获：手指按住后滑出按钮也不丢输入，避免走位中途"断触" */
+      try { el.setPointerCapture(e.pointerId); } catch (err) { }
+      dn(); ac();
+    });
     el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up); el.addEventListener('pointerleave', up);
   };
   hold('dU', () => tdy = -1, () => tdy = 0); hold('dD', () => tdy = 1, () => tdy = 0);
@@ -796,8 +854,11 @@ function drawHUD() {
   ctx.fillText('🪭 ×' + fabao, 330, 28);
   ctx.textAlign = 'center'; ctx.fillStyle = '#e8ecff'; ctx.font = 'bold 16px sans-serif';
   ctx.fillText(STAGES[stageIdx].name, W / 2, 28);
-  ctx.textAlign = 'right'; ctx.fillStyle = '#9fb0d8'; ctx.font = 'bold 13px sans-serif';
-  ctx.fillText('J攻(连按3下) K跳 长按J大招 L法宝', W - 14, 27);
+  /* 右上角留给"返回大厅"按钮；触屏时键位说明没必要（按钮上已写着） */
+  if (!TOUCH) {
+    ctx.textAlign = 'right'; ctx.fillStyle = '#9fb0d8'; ctx.font = 'bold 13px sans-serif';
+    ctx.fillText('J攻(连按3下) K跳 长按J大招 L法宝', W - 96, 27);
+  }
   /* 关卡进度条 */
   const st = STAGES[stageIdx];
   ctx.fillStyle = 'rgba(0,0,0,.35)'; rr(ctx, 16, 46, 200, 6, 3); ctx.fill();
@@ -840,18 +901,23 @@ function drawPanel() {
     ctx.font = 'bold 22px sans-serif'; ctx.fillStyle = '#e8ecff';
     ctx.fillText('儿 童 街 机 版', W / 2, 208);
     ctx.font = 'bold 17px sans-serif'; ctx.fillStyle = '#c9d4f5';
-    ctx.fillText('方向键/WASD 走位 · J 攻击（连按 3 下出连招）· K 跳 · 长按 J 蓄气放大招「元神出窍」', W / 2, 262);
-    ctx.fillText('L 放法宝「芭蕉扇」· 打怪捡法宝和蟠桃 · 打败 3 大 Boss 打上凌霄宝殿！', W / 2, 292);
+    if (TOUCH) {
+      ctx.fillText('左下十字键走位 · 右下「攻」连点 3 下出连招 · 「跳」越过障碍', W / 2, 262);
+      ctx.fillText('长按「攻」蓄气放大招「元神出窍」· 「法宝」放芭蕉扇 · 打败 3 大 Boss 打上凌霄宝殿！', W / 2, 292);
+    } else {
+      ctx.fillText('方向键/WASD 走位 · J 攻击（连按 3 下出连招）· K 跳 · 长按 J 蓄气放大招「元神出窍」', W / 2, 262);
+      ctx.fillText('L 放法宝「芭蕉扇」· 打怪捡法宝和蟠桃 · 打败 3 大 Boss 打上凌霄宝殿！', W / 2, 292);
+    }
     ctx.fillStyle = 'rgba(30,36,66,.9)'; rr(ctx, W / 2 - 190, 330, 380, 58, 14); ctx.fill();
     ctx.strokeStyle = '#ffd54a'; ctx.lineWidth = 3; rr(ctx, W / 2 - 190, 330, 380, 58, 14); ctx.stroke();
     const blink = Math.sin(gtime * .12) > -.3;
-    if (blink) { ctx.fillStyle = '#ffd54a'; ctx.font = 'bold 22px sans-serif'; ctx.fillText('按 回车 / 点击屏幕 开始', W / 2, 367); }
+    if (blink) { ctx.fillStyle = '#ffd54a'; ctx.font = 'bold 22px sans-serif'; ctx.fillText(TOUCH ? '点击屏幕 开始' : '按 回车 / 点击屏幕 开始', W / 2, 367); }
   } else if (state === 'clear') {
     panel('过关！', '分数 ' + score, stageIdx < 2 ? '下一关：' + STAGES[stageIdx + 1].name : '', '#7CFC00');
   } else if (state === 'over') {
-    panel('倒下了…', '别灰心，街机勇士都是打不倒的！', '按回车原地续关，分数保留', '#ff8a80');
+    panel('倒下了…', '别灰心，街机勇士都是打不倒的！', TOUCH ? '点击屏幕原地续关，分数保留' : '按回车原地续关，分数保留', '#ff8a80');
   } else if (state === 'win') {
-    panel('通关！🏆', '总分 ' + score + ' · 你打上了凌霄宝殿！', '按回车回到标题', '#ffd54a');
+    panel('通关！🏆', '总分 ' + score + ' · 你打上了凌霄宝殿！', TOUCH ? '点击屏幕回到标题' : '按回车回到标题', '#ffd54a');
   }
 }
 /* ============================ 绘制主函数 ============================ */
@@ -899,7 +965,14 @@ function menuKey() {
   else if (state === 'over') continueGame();
   else if (state === 'win') { state = 'title'; }
 }
-cv.addEventListener('pointerdown', () => { ac(); menuKey(); });
+/* 点画面/空白任意处即可开始或继续（控件在 #pads 内，不会误触发） */
+document.getElementById('app').addEventListener('pointerdown', () => { ac(); menuKey(); });
+/* 返回大厅（兼容被 iframe 嵌入的情况） */
+document.getElementById('home').addEventListener('click', e => {
+  e.preventDefault(); ac();
+  try { if (window.parent && window.parent.goHome) { window.parent.goHome(); return; } } catch (err) { }
+  location.href = '游戏大厅.html';
+});
 /* ============================ 主循环 ============================ */
 function tick() { pollInput(); update(); draw(); }
 let rafId = 0;
