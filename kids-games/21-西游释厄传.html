@@ -774,7 +774,10 @@ function drawFoe(f) {
     /* 图片版小怪 */
     const fr = ART21[f.t].width / ART21[f.t].height;
     const ih = 86, iw = ih * fr;
+    const flipBase = f.t === 'm3';      // 狼妖原图朝左，先翻成与 m1/m2 同向
+    if (flipBase) { ctx.save(); ctx.scale(-1, 1); }
     ctx.drawImage(ART21[f.t], -iw / 2, -ih + bob * .4, iw, ih);
+    if (flipBase) ctx.restore();
   } else {
   /* 腿 */
   ctx.fillStyle = f.col2;
@@ -826,7 +829,9 @@ function drawBoss(b) {
     /* 图片版 BOSS */
     const br = bimg.width / bimg.height;
     const ih = 128, iw = ih * br;
+    ctx.save(); ctx.scale(-1, 1);       // boss1-3 原图朝左，先翻成朝右基准
     ctx.drawImage(bimg, -iw / 2, -ih + bob * .4, iw, ih);
+    ctx.restore();
   } else {
   /* 腿 */
   ctx.fillStyle = b.col2;
