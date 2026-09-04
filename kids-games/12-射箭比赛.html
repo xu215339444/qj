@@ -105,9 +105,9 @@ var sfxTurn =function(){tone(520,0.1,'sine',0.2);tone(700,0.12,'sine',0.16,0.06)
 var LEVELS=[
   {foe:'小兔子', look:'rabbit',   skill:0.50, guide:1.00, wind:0,  gust:0,  rs:1.00, move:0,  nb:2},
   {foe:'小松鼠', look:'squirrel', skill:0.60, guide:1.00, wind:16, gust:0,  rs:0.93, move:0,  nb:2},
-  {foe:'小狐狸', look:'fox',      skill:0.70, guide:0.55, wind:28, gust:0,  rs:0.86, move:10, nb:3},
-  {foe:'小黑熊', look:'bear',     skill:0.78, guide:0.30, wind:36, gust:20, rs:0.79, move:16, nb:3},
-  {foe:'神箭手', look:'eagle',    skill:0.85, guide:0.00, wind:46, gust:28, rs:0.72, move:22, nb:4}
+  {foe:'小狐狸', look:'fox',      skill:0.70, guide:0.85, wind:28, gust:0,  rs:0.86, move:10, nb:3},
+  {foe:'小黑熊', look:'bear',     skill:0.78, guide:0.55, wind:36, gust:20, rs:0.79, move:16, nb:3},
+  {foe:'神箭手', look:'eagle',    skill:0.85, guide:0.35, wind:46, gust:28, rs:0.72, move:22, nb:4}
 ];
 var OM=0.7;                 // 靶子晃动角速度
 var DRIFT_K=0.8;            // 风把落点吹偏多少（像素 = 风力 × 系数）
@@ -161,7 +161,7 @@ var lastT=0, tick=0;
 
 function guideFrac(){
   if(state!=='aim'||turn!=='me')return 0;
-  return clamp(LEVELS[level].guide+0.28*lossCount,0,1);
+  return clamp(LEVELS[level].guide+0.40*lossCount,0,1);
 }
 function ringAt(dx,dy){
   var d=Math.hypot(dx,dy);
@@ -524,7 +524,7 @@ function drawPreview(){
     ctx.beginPath();ctx.arc(pts[i*2],pts[i*2+1],clamp(3.6-t*1.6,1.8,3.6),0,7);ctx.fill();
   }
   ctx.globalAlpha=1;
-  if(frac>=0.98){
+  if(frac>=0.45){
     var ex=pts[(upto-1)*2],ey=pts[(upto-1)*2+1];
     ctx.strokeStyle='#ffd23f';ctx.lineWidth=3;
     ctx.beginPath();ctx.arc(ex,ey,10,0,7);ctx.stroke();
