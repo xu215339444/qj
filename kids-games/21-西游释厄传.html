@@ -195,9 +195,9 @@ const FOE_DEF = {
   m3: { hp: 5, spd: 2.3, col: '#8a7fbf', col2: '#5f5494', size: .95, name: '狼妖' }
 };
 const BOSS_DEF = {
-  hunshun: { hp: 42, spd: 1.25, col: '#4a5a8a', col2: '#2f3a5f', size: 1.5, name: '混世魔王' },
-  juling: { hp: 58, spd: 1.05, col: '#c8952d', col2: '#8f6415', size: 1.7, name: '巨灵神' },
-  erlang: { hp: 76, spd: 1.5, col: '#3f7d5a', col2: '#27543b', size: 1.6, name: '二郎神' }
+  hunshun: { hp: 42, spd: 1.25, col: '#4a5a8a', col2: '#2f3a5f', size: 1.9, name: '混世魔王' },
+  juling: { hp: 58, spd: 1.05, col: '#c8952d', col2: '#8f6415', size: 2.15, name: '巨灵神' },
+  erlang: { hp: 76, spd: 1.5, col: '#3f7d5a', col2: '#27543b', size: 2.0, name: '二郎神' }
 };
 /* ============================ 全局状态 ============================ */
 let state = 'title', score = 0, lives = 5, fabao = 1, stageIdx = 0;
@@ -213,7 +213,7 @@ function mkFoe(t, wx, y) {
 }
 function mkBoss(t, wx) {
   const d = BOSS_DEF[t];
-  return { t, ...d, hp: d.hp, maxhp: d.hp, wx, y: 450, jy: 0, vy: 0, face: -1, st: 'approach', tmr: 50, cd: 60, ph: 1, inv: 0, hurtT: 0, kvx: 0, dvx: 0, dead: false, bob: 0 };
+  return { t, ...d, hp: d.hp, maxhp: d.hp, wx, y: 450, jy: 0, vy: 0, face: -1, st: 'approach', tmr: 50, cd: 60, ph: 1, inv: 0, hurtT: 0, kvx: 0, dvx: 0, dead: false, bob: 0, intro: 120 };
 }
 /* ============================ 特效 ============================ */
 function poof(x, y, col, n) { for (let i = 0; i < (n || 8); i++) fx.push({ k: 'p', x, y, vx: rnd(-3, 3), vy: rnd(-4, .5), r: rnd(3, 8), life: rnd(18, 34), col: col || '#fff' }); }
@@ -260,7 +260,7 @@ function damageFoe(f, dmg, kv, down) {
 }
 function damageBoss(dmg, kv) {
   if (boss.inv > 0) return;
-  boss.hp -= dmg; boss.hurtT = Math.max(boss.hurtT, 12); boss.kvx = kv;
+  boss.hp -= dmg; boss.hurtT = Math.max(boss.hurtT, 12); boss.kvx = kv * .45;
   spark(boss.wx, boss.y - 60 * boss.size); score += 30;
   if (boss.hp <= 0) killBoss();
 }
@@ -388,6 +388,19 @@ function upFoe(f) {
 function upBoss() {
   const b = boss;
   if (b.dead) return;
+  /* BOSS 登场：从右侧外走进战场，期间无敌 */
+  if (b.intro > 0) {
+    b.bob += .2;
+    b.wx -= 2.8;
+    b.y = 450;
+    b.face = -1;
+    b.intro--;
+    if (b.intro <= 40) b.inv = 1;
+    if (b.intro <= 0) {
+      banner = BOSS_DEF[b.t].name + '登场！'; bannerT = 90; S.big(); shakeT = 14; flashA = .7;
+    }
+    return;
+  }
   b.bob += .15;
   if (b.hurtT > 0) { b.hurtT--; b.wx += b.kvx; b.kvx *= .86; }
   if (b.inv > 0) b.inv--;
@@ -488,11 +501,13 @@ function upWorld() {
       S.pick();
     }
   }
-  /* Boss 触发 */
+  /* Boss 触发：从屏幕右侧外霸气登场 */
   if (!boss && !st.bossDone && P.wx > st.bossX - 560) {
     st.bossDone = true; camLock = true;
-    boss = mkBoss(st.boss, st.bossX);
-    banner = BOSS_DEF[st.boss].name; bannerT = 110; S.big();
+    boss = mkBoss(st.boss, st.bossX + 360);
+    shakeT = 22; flashA = 1.0;
+    banner = 'BOSS 来袭 · ' + BOSS_DEF[st.boss].name; bannerT = 150;
+    S.big();
   }
   /* 波次清空解锁 */
   if (camLock && foes.length === 0 && (!boss || boss.dead)) camLock = false;
@@ -800,6 +815,9 @@ function drawBoss(b) {
   const s = (.82 + .22 * (b.y - FT) / (FB - FT)) * b.size;
   const bx = b.wx - camX, by = b.y - b.jy;
   shadow(bx, b.y, s);
+  /* BOSS 脚下威胁光圈 */
+  ctx.fillStyle = 'rgba(255,80,80,.22)'; ctx.beginPath(); ctx.ellipse(bx, b.y + 4, 68 * s, 14 * s, 0, 0, 7); ctx.fill();
+  ctx.strokeStyle = 'rgba(255,180,80,.45)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(bx, b.y + 4, 68 * s, 14 * s, 0, 0, 7); ctx.stroke();
   if (b.inv > 0 && Math.floor(b.inv / 4) % 2 === 0) return;
   ctx.save(); ctx.translate(bx, by); ctx.scale(s * b.face, s);
   const bob = Math.sin(b.bob) * 2.4;
@@ -807,7 +825,7 @@ function drawBoss(b) {
   if (bimg) {
     /* 图片版 BOSS */
     const br = bimg.width / bimg.height;
-    const ih = 116, iw = ih * br;
+    const ih = 128, iw = ih * br;
     ctx.drawImage(bimg, -iw / 2, -ih + bob * .4, iw, ih);
   } else {
   /* 腿 */
@@ -850,14 +868,17 @@ function drawBoss(b) {
   }
   }
   ctx.restore();
-  /* 血条（大） */
-  const bw = 110;
-  const bTop = bimg ? 124 : 96;
-  ctx.fillStyle = 'rgba(0,0,0,.5)'; rr(ctx, bx - bw / 2, by - bTop * s, bw, 9, 4); ctx.fill();
+  /* 血条（大）——金色边框 + BOSS 标志 */
+  const bw = 145;
+  const bTop = bimg ? 138 : 96;
+  ctx.fillStyle = 'rgba(0,0,0,.55)'; rr(ctx, bx - bw / 2, by - bTop * s, bw, 11, 5); ctx.fill();
+  ctx.strokeStyle = '#ffd54a'; ctx.lineWidth = 2; rr(ctx, bx - bw / 2, by - bTop * s, bw, 11, 5); ctx.stroke();
   const cgr = ctx.createLinearGradient(bx - bw / 2, 0, bx + bw / 2, 0);
   cgr.addColorStop(0, '#ffca28'); cgr.addColorStop(1, '#ff5252');
-  ctx.fillStyle = cgr; rr(ctx, bx - bw / 2 + 1, by - (bTop - 1) * s, (bw - 2) * Math.max(0, b.hp / b.maxhp), 7, 3); ctx.fill();
-  ctx.fillStyle = '#fff'; ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center';
+  ctx.fillStyle = cgr; rr(ctx, bx - bw / 2 + 2, by - (bTop - 1) * s, (bw - 4) * Math.max(0, b.hp / b.maxhp), 9, 4); ctx.fill();
+  ctx.fillStyle = '#ffd54a'; ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText('BOSS', bx, by - (bTop + 8) * s);
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 13px sans-serif'; ctx.textAlign = 'center';
   ctx.fillText(b.name, bx, by - (bTop + 4) * s);
 }
 /* 掉落物 */
