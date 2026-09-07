@@ -1,14 +1,7 @@
 {
   "files": [
+    "27-翻翻象棋.html",
     "kids-games/1-数字动物大冒险.html",
-    "kids-games/2-移车出库.html",
-    "kids-games/3-歼20打怪兽.html",
-    "kids-games/4-变得一样多.html",
-    "kids-games/5-坡度飞车.html",
-    "kids-games/6-奥特曼打怪兽.html",
-    "kids-games/7-乒乓球对战.html",
-    "kids-games/8-警察抓小偷.html",
-    "kids-games/9-拼图游戏.html",
     "kids-games/10-游泳游戏.html",
     "kids-games/11-铁头功.html",
     "kids-games/12-射箭比赛.html",
@@ -19,12 +12,20 @@
     "kids-games/17-动物森林大冒险.html",
     "kids-games/18-孙悟空大闹天宫.html",
     "kids-games/19-算术飞行大冒险.html",
+    "kids-games/2-移车出库.html",
     "kids-games/20-汉字勇士大闯关.html",
     "kids-games/21-西游释厄传.html",
     "kids-games/22-英语字母岛大冒险.html",
     "kids-games/23-小小科学家实验室.html",
     "kids-games/24-小小厨神大作战.html",
     "kids-games/25-打地鼠挑战.html",
-    "kids-games/26-炸弹传递大作战.html"
+    "kids-games/26-炸弹传递大作战.html",
+    "kids-games/3-歼20打怪兽.html",
+    "kids-games/4-变得一样多.html",
+    "kids-games/5-坡度飞车.html",
+    "kids-games/6-奥特曼打怪兽.html",
+    "kids-games/7-乒乓球对战.html",
+    "kids-games/8-警察抓小偷.html",
+    "kids-games/9-拼图游戏.html"
   ]
 }
