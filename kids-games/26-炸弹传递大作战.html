@@ -448,6 +448,7 @@ function restBomb(b,atP){
   b.restT=0;
 }
 function explodeBomb(b){
+  b.gone=1;   /* ★ 爆炸即标记移除（修复无限复活爆炸：updateBombs 帧末 filter 依赖 gone；此前只 removeBomb 不设 gone，各分支 out.push 会把已爆炸弹加回 → 非致命爆炸(金弹/护盾/冰/云台)每帧重爆，卡死+狂响） */
   const owner=b.holder?b.holder:P[b.side];
   const kind=b.k,dd=b.d;
   SND.boom();shakeT=18;flashT=.34;
@@ -931,6 +932,7 @@ function updateBombs(){
       const h=b.holder;
       if(!h||h.dead){b.gone=1;return}
       fuseTick(b);
+      if(b.gone)return;
       out.push(b);return;
     }
     if(b.state==='fly'||b.state==='mini'||b.state==='cloud'){
@@ -984,7 +986,8 @@ function updateBombs(){
         out.push(b);return;
       }else{ /* cloud 上停留后弹回 */
         b.cloudT--;fuseTick(b);
-        if(b.cloudT<=0&&!b.gone){sendBack(b,P[b.threw])}
+        if(b.gone)return;
+        if(b.cloudT<=0){sendBack(b,P[b.threw])}
         out.push(b);return;
       }
     }
