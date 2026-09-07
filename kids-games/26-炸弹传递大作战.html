@@ -421,7 +421,7 @@ function newBomb(kind,holder,side){
     holder:holder||null,side:side!==undefined?side:(holder?holder.side:0),
     state:holder?'held':'rest', t:0,dur:.8, sx:0,sy:0,tx:0,ty:0,arc:120,
     x:0,y:0,restT:0,backTo:null,spawnP:rnd(.35,.65),threw:0};
-  if(o.state==='held'){const h=o.holder;o.x=h.x+h.face*(LAY.bombD*.5+LAY.charH*.18+4);o.y=h.cy-LAY.bombD*.12}
+  if(o.state==='held'){const h=o.holder;o.x=h.x;o.y=h.cy-LAY.charH*.5-LAY.bombD*.5-6}
   else{o.x=LAY.midX;o.y=LAY.groundY-LAY.bombD}
   return o;
 }
@@ -630,9 +630,17 @@ function drawCloud(){
 }
 /* ================= 绘制：炸弹 ================= */
 function drawBombVis(b){
-  const x=b.x,y=b.y,d=b.d?b.d:LAY.bombD, k=b.k;
-  /* NaN/Infinity 防御：AI 决策偶发让坐标变 NaN，跳过这一帧不抛错中断渲染 */
-  if(!isFinite(x)||!isFinite(y)||!isFinite(d)||d<=0){return}
+  let x=b.x,y=b.y,d=b.d?b.d:LAY.bombD, k=b.k;
+  /* NaN/Infinity 防御：AI 决策偶发让坐标变 NaN —— 优先回退到持有者位置，场上一定看得见 */
+  if(!isFinite(x)||!isFinite(y)){
+    const h=b.holder;
+    if(h&&isFinite(h.x)&&isFinite(h.cy)){
+      x=h.x;
+      y=h.cy-LAY.charH*.5-LAY.bombD*.5-6;
+      b.x=x;b.y=y; /* 顺手回写，避免后续帧继续坏 */
+    }else{return}
+  }
+  if(!isFinite(d)||d<=0)return;
   const R=d*.5,fuseFrac=(b.d&&b.fuse!==undefined)?clamp(b.fuse/(b.d.fuse[1]||4),0,1):0;
   cx.save();cx.translate(x,y);
   const panic=b.fuse<=1&&b.fuse>0;
@@ -911,10 +919,10 @@ function updatePose(p){
   if(p.hop>0)p.hop--;
   if(p.hopCd>0)p.hopCd--;
   if(p.hop>0)p.cy=clampY2(p,p.cy-13);
-  /* 手上炸弹跟随 */
+  /* 手上炸弹跟随：放在玩家头顶正上方，避开身体遮挡（之前 y=cy-bombD*.12 仍在角色内，被完全覆盖 → 看上去"没炸弹"） */
   if(p.hold&&!p.hold.gone){
-    p.hold.x=p.x+p.face*(LAY.bombD*.5+LAY.charH*.18+4);
-    p.hold.y=p.cy-LAY.bombD*.12;
+    p.hold.x=p.x;
+    p.hold.y=p.cy-LAY.charH*.5-LAY.bombD*.5-6;
   }
 }
 function sendBack(b,to){
@@ -928,6 +936,13 @@ function updateBombs(){
   const out=[];
   bombs.forEach(b=>{
     if(b.gone)return;
+    /* ★ 自愈：坐标或关键路径点坏掉的炸弹直接标记消失，避免污染后续帧让画面"看不见炸弹" */
+    if(!isFinite(b.x)||!isFinite(b.y)){
+      b.gone=1;return;
+    }
+    if((b.state==='fly'||b.state==='mini'||b.state==='cloud')&&(!isFinite(b.sx)||!isFinite(b.sy)||!isFinite(b.tx)||!isFinite(b.ty))){
+      b.gone=1;return;
+    }
     if(b.state==='held'){
       const h=b.holder;
       if(!h||h.dead){b.gone=1;return}
@@ -1004,6 +1019,8 @@ function updateBombs(){
     out.push(b);
   });
   bombs=out.filter(b=>!b.gone);
+  /* ★ 悬空引用自愈：explodeBomb/removeBomb 未清 p.hold，玩家手里仍指向已被 splice 的炸弹对象 → 画面"有 hold 但画不出"。每帧核对 bombs 数组，把悬空引用清掉 */
+  for(const pp of P){if(pp.hold&&bombs.indexOf(pp.hold)<0)pp.hold=null}
 }
 function doCatch(b,p,fromGround){
   if(p.items&&p.magnet>0&&!fromGround&&b.threw!==p.side){p.magnet=0;SND.item();floatTxt(p.x,p.y-60,'磁铁吸住！','#9cf')}
@@ -1287,6 +1304,12 @@ function updateFX(){
 let paused=false,stepMode=0;
 function update(){
   if(st==='play'&&!paused&&P[0]){
+    /* ★ NaN/未定义自愈：上一轮 AI/道具偶发把玩家坐标写坏后，画面整局空、炸弹也看不见 —— 顶端复位 */
+    for(const pp of P){
+      if(!isFinite(pp.x))pp.x=(pp.side===0?LAY.c1:LAY.c2);
+      if(!isFinite(pp.cy)){pp.cy=LAY.botY-30;pp.cyTarget=pp.cy;pp.hold=null;pp.state='idle';pp.stateT=0}
+      if(!isFinite(pp.cyTarget))pp.cyTarget=pp.cy;
+    }
     /* 先消费键盘瞬发键 */
     if(edge.t0&&!P[0].ai)tryThrow(0);
     if(edge.t1&&!P[1].ai)tryThrow(1);
