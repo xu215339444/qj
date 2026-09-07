@@ -166,7 +166,7 @@ const SND={
   fly:()=>{noiseBurst(.3,.05,900)},
   catch:()=>{tone(520,240,.08,'square',.2);tone(880,660,.06,'square',.12,.02)},
   fuse:()=>{noiseBurst(.18,.05,2600)},
-  alarm:()=>{tone(1200,1200,.07,'square',.12);tone(1200,1200,.07,'square',.12,.18)},
+  alarm:()=>{tone(1200,1200,.06,'square',.06);tone(1200,1200,.06,'square',.06,.18)},
   boom:()=>{noiseBurst(.4,.16,420);tone(150,45,.34,'sawtooth',.13);tone(62,32,.36,'sine',.12,.02)},
   dodge:()=>{tone(880,1320,.14,'sine',.22)},
   pickup:()=>{tone(660,660,.05,'square',.18);tone(990,990,.08,'square',.16,.06)},
@@ -185,9 +185,9 @@ function bgmStart(){
   bgmTimer=setInterval(()=>{
     if(!bgmOn){return}
     bgmNote++;
-    if(bgmNote%2===0){const f=BGM[bgmStep%BGM.length];tone(f,f,.11,'square',.045);bgmStep++;}
-    if(bgmNote%8===0)tone(131,131,.4,'triangle',.03);
-  },150);
+    if(bgmNote%3===0){const f=BGM[bgmStep%BGM.length];tone(f,f,.11,'square',.028);bgmStep++;}
+    if(bgmNote%12===0)tone(131,131,.4,'triangle',.022);
+  },180);
 }
 function bgmStop(){if(bgmTimer){clearInterval(bgmTimer);bgmTimer=null}}
 
@@ -421,7 +421,7 @@ function newBomb(kind,holder,side){
     holder:holder||null,side:side!==undefined?side:(holder?holder.side:0),
     state:holder?'held':'rest', t:0,dur:.8, sx:0,sy:0,tx:0,ty:0,arc:120,
     x:0,y:0,restT:0,backTo:null,spawnP:rnd(.35,.65),threw:0};
-  if(o.state==='held'){const h=o.holder;o.x=h.x+h.face*(LAY.bombD*.45);o.y=h.cy-LAY.bombD*.05}
+  if(o.state==='held'){const h=o.holder;o.x=h.x+h.face*(LAY.bombD*.5+LAY.charH*.18+4);o.y=h.cy-LAY.bombD*.12}
   else{o.x=LAY.midX;o.y=LAY.groundY-LAY.bombD}
   return o;
 }
@@ -537,7 +537,7 @@ function fuseTick(b){
   if(b.state==='held')b.fuse-=dt;
   else if(b.state==='fly')b.fuse-=dt*.8;
   else b.fuse-=dt*.5;
-  if(b.fuse<=1&&b.fuse>0&&frame>lastAlarm+25&&b.state!=='rest'){SND.alarm();lastAlarm=frame}
+  if(b.fuse<=1.2&&b.fuse>0&&frame>lastAlarm+50&&b.state!=='rest'){SND.alarm();lastAlarm=frame}
   if(b.fuse<=0){if(b.k==='gift'){ /* 假炸弹到点：+1 分 */
     if(b.holder){b.holder.score++;floatTxt(b.x,b.y-34,'+1 分 🎁','#ffb74d')}SND.dodge();
     removeBomb(b);return}
@@ -630,6 +630,8 @@ function drawCloud(){
 /* ================= 绘制：炸弹 ================= */
 function drawBombVis(b){
   const x=b.x,y=b.y,d=b.d?b.d:LAY.bombD, k=b.k;
+  /* NaN/Infinity 防御：AI 决策偶发让坐标变 NaN，跳过这一帧不抛错中断渲染 */
+  if(!isFinite(x)||!isFinite(y)||!isFinite(d)||d<=0){return}
   const R=d*.5,fuseFrac=(b.d&&b.fuse!==undefined)?clamp(b.fuse/(b.d.fuse[1]||4),0,1):0;
   cx.save();cx.translate(x,y);
   const panic=b.fuse<=1&&b.fuse>0;
@@ -910,7 +912,7 @@ function updatePose(p){
   if(p.hop>0)p.cy=clampY2(p,p.cy-13);
   /* 手上炸弹跟随 */
   if(p.hold&&!p.hold.gone){
-    p.hold.x=p.x+p.face*(LAY.bombD*.5);
+    p.hold.x=p.x+p.face*(LAY.bombD*.5+LAY.charH*.18+4);
     p.hold.y=p.cy-LAY.bombD*.12;
   }
 }
@@ -1163,6 +1165,7 @@ function startMatch(){
   if(bgmOn)bgmStart();
 }
 function overEnd(win){
+  if(st!=='play')return;  /* 防止双 AI 同时掉 0 心时 overEnd 触发两次把 panel 状态搞乱 */
   st='over';bgmStop();
   const a=chars[0].n+(P[0].ai?'(电脑)':''),b=chars[1].n+(P[1].ai?'(电脑)':'');
   let txt,sub,emo='🏆';
@@ -1196,6 +1199,7 @@ function timedEnd(){
 /* ================= 角色出场绘制 ================= */
 function drawPlayer(p){
   if(!p||!p.alive||!p.ch)return;
+  if(!isFinite(p.x)||!isFinite(p.cy))return;  /* NaN 防御：AI 决策出错时不画 */
   p.face=faceOf(p);
   const s=LAY.charH/124;
   const feet=p.cy+LAY.charH*.5;
@@ -1311,7 +1315,9 @@ function tryThrow(side){
   else floatTxt(p.x,p.y-60,'手上没有炸弹','#cfd8dc');
 }
 /* ================= 主循环 ================= */
-function loop(){update();drawScene();requestAnimationFrame(loop)}
+function loop(){try{update()}catch(e){console.warn('[26] update err:',e.message);if(!window.__errCnt)window.__errCnt=0;if(++window.__errCnt>120){st='over';overEnd(-1);window.__errCnt=0}}
+  try{drawScene()}catch(e){console.warn('[26] draw err:',e.message)}
+  requestAnimationFrame(loop)}
 
 /* ================= 输入 ================= */
 const keys={u0:0,d0:0,u1:0,d1:0};
