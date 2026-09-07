@@ -285,20 +285,20 @@ function chipFace(pc){
   g.fillText(PIECE_NM[pc.t],0,big?R*.06:R*.08);
   g.shadowBlur=0;
 }
-function chipBack(side){
-  var R=S*.40,isRed=side===RED;
+function chipBack(){
+  var R=S*.40;
+  /* 统一背面：所有棋子背面一模一样，翻之前看不出红黑归属 */
   var grd=g.createRadialGradient(-R*.3,-R*.35,R*.1,0,0,R*1.05);
-  if(isRed){grd.addColorStop(0,'#e8a193');grd.addColorStop(.5,'#cf5f4a');grd.addColorStop(1,'#9c2f1c')}
-  else{grd.addColorStop(0,'#6b7180');grd.addColorStop(.5,'#464b57');grd.addColorStop(1,'#1c1f26')}
+  grd.addColorStop(0,'#f5e6c4');grd.addColorStop(.5,'#e0c184');grd.addColorStop(1,'#b58645');
   g.fillStyle=grd;
   g.beginPath();g.arc(0,0,R,0,TAU);g.fill();
-  g.lineWidth=2;g.strokeStyle=isRed?'#7c1206':'#000';g.stroke();
+  g.lineWidth=2;g.strokeStyle='#7a5a2e';g.stroke();
   /* 纹理：外细环 + 内八瓣星 */
   g.lineWidth=Math.max(1.2,R*.08);
-  g.strokeStyle=isRed?'rgba(255,240,200,.9)':'rgba(255,255,255,.75)';
+  g.strokeStyle='rgba(122,90,46,.6)';
   g.beginPath();g.arc(0,0,R*.66,0,TAU);g.stroke();
   g.beginPath();g.arc(0,0,R*.3,0,TAU);g.stroke();
-  g.fillStyle=isRed?'rgba(255,240,200,.95)':'rgba(255,255,255,.85)';
+  g.fillStyle='rgba(122,90,46,.55)';
   g.save();
   for(var k=0;k<8;k++){
     g.rotate(TAU/8);
@@ -308,8 +308,8 @@ function chipBack(side){
   }
   g.restore();
   g.font='700 '+R*.42+'px "KaiTi",serif';g.textAlign='center';g.textBaseline='middle';
-  g.fillStyle=isRed?'rgba(120,10,0,.65)':'rgba(255,255,255,.9)';
-  g.fillText(isRed?'红':'黑',0,R*.02);
+  g.fillStyle='rgba(122,90,46,.85)';
+  g.fillText('棋',0,R*.02);
 }
 function drawPiece(i){
   var pc=cells[i];
@@ -320,13 +320,18 @@ function drawPiece(i){
   var k=0;
   if(flip){k=clamp(flip.t,0,1);flip.t+=1/26;if(flip.t>=1)flips.splice(f,1)}
   if(k===0){
-    if(!pc.face){chipBack(pc.side);return}
+    if(!pc.face){
+      g.save();g.translate(cx,cy);
+      chipBack();
+      g.restore();
+      return;
+    }
   }else{
     /* 翻转动画：前半背面收起，后半正面展开 */
     var k2=k<.5?1-k*2:(k-.5)*2;
     var sc=Math.max(.06,k2);
     g.save();g.translate(cx,cy);g.scale(sc,1);
-    if(k<.5)chipBack(pc.side);else chipFace(pc);
+    if(k<.5)chipBack();else chipFace(pc);
     g.restore();return;
   }
   /* 翻开显示（含呼吸） */
