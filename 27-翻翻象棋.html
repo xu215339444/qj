@@ -88,6 +88,29 @@
   #winCup{font-size:44px;line-height:1.2}
   #winTxt{font-size:21px;font-weight:900;color:#7a3f12;margin:2px 0 4px}
   #winSub{font-size:13px;color:#9a6a34;font-weight:700;margin-bottom:6px}
+  /* ===== 棋盘上方 大小对照条 ===== */
+  #lvrow{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:2px;padding:1px 8px 3px;width:100%}
+  #lvs{display:flex;align-items:center;justify-content:center;gap:2px;flex-wrap:wrap;max-width:100%}
+  .lvi{display:flex;align-items:center;gap:1px;background:rgba(255,255,255,.6);border:1.5px solid rgba(122,63,18,.4);border-radius:9px;padding:2px 3px;position:relative;flex:0 0 auto}
+  .lvi .duo{display:flex;align-items:center}
+  .lvi .mc{width:12px;height:12px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    font:900 8px/1 "KaiTi","STKaiti","楷体",serif;color:#fff;
+    box-shadow:inset -1px -2px 3px rgba(0,0,0,.35),inset 1px 1px 2px rgba(255,255,255,.3)}
+  .lvi .mc.r{background:radial-gradient(circle at 35% 30%,#ff7a5c,#c62828 75%)}
+  .lvi .mc.b{background:radial-gradient(circle at 35% 30%,#5a5f6b,#16181d 75%)}
+  .lvi .duo .mc+.mc{margin-left:-4px}
+  .lvi b{font-size:10.5px;font-weight:900;color:#c62828;min-width:8px;text-align:center;text-shadow:0 1px 0 rgba(255,255,255,.75)}
+  #lvn{font-size:9.5px;font-weight:700;color:#7a3f12;opacity:.9;text-align:center;padding:0 4px;width:100%}
+  #lvn b{color:#c62828}
+  @media (min-width:760px){
+    #lvrow{gap:3px;padding:4px 6px 6px}
+    #lvs{gap:9px}
+    .lvi{padding:4px 8px;border-radius:11px}
+    .lvi .mc{width:19px;height:19px;font-size:12px}
+    .lvi .duo .mc+.mc{margin-left:-6px}
+    .lvi b{font-size:16px;min-width:14px}
+    #lvn{font-size:13px}
+  }
 </style>
 </head>
 <body>
@@ -100,6 +123,18 @@
   <div class="hside" id="side1" style="flex-direction:row-reverse;text-align:right"><div class="chip blk">将</div><div><div class="nm">黑方</div><div class="ct"><span id="ct1">16</span><b> 颗</b></div></div></div>
 </div>
 
+<div id="lvrow">
+  <div id="lvs">
+    <div class="lvi"><div class="duo"><span class="mc r">帅</span><span class="mc b">将</span></div><b>7</b></div>
+    <div class="lvi"><div class="duo"><span class="mc r">车</span><span class="mc b">车</span></div><b>6</b></div>
+    <div class="lvi"><div class="duo"><span class="mc r">马</span><span class="mc b">马</span></div><b>5</b></div>
+    <div class="lvi"><div class="duo"><span class="mc r">炮</span><span class="mc b">炮</span></div><b>4</b></div>
+    <div class="lvi"><div class="duo"><span class="mc r">相</span><span class="mc b">象</span></div><b>3</b></div>
+    <div class="lvi"><div class="duo"><span class="mc r">仕</span><span class="mc b">士</span></div><b>2</b></div>
+    <div class="lvi"><div class="duo"><span class="mc r">兵</span><span class="mc b">卒</span></div><b>1</b></div>
+  </div>
+  <div id="lvn">数字大的吃小的 · <b>兵/卒</b>能吃掉<b>帅/将</b> · 同级相遇一起没</div>
+</div>
 <div id="wrap"><canvas id="cv"></canvas></div>
 
 <div id="tip">
@@ -523,6 +558,8 @@ function doFlip(i){
 function EMPTY(){return {t:null,side:-1,face:false,alive:false,king:false}}
 function doMove(from,to){
   var pc=cells[from];if(!pc||!pc.alive||!pc.face)return false;
+  var adj=false;neighbors(from).forEach(function(n){if(n===to)adj=true});
+  if(!adj)return false;   /* 硬性规则：只允许走上下左右相邻 1 格 */
   var op=cells[to];
   if(!op||!op.alive){ /* 空格移动 */
     cells[from]=EMPTY();
@@ -729,7 +766,8 @@ function aiPick(side,diffLv){
       if(moveDanger(side,m2.from,m2.to)<=lim)safe.push(m2);
     }
     var pool=safe.length?safe:moves;
-    return {kind:'move',from:pool[(Math.random()*pool.length)|0].from,to:pool[(Math.random()*pool.length)|0].to};
+    var pk=pool[(Math.random()*pool.length)|0];   /* 同一 move 取 from+to，避免"乱飞" */
+    return {kind:'move',from:pk.from,to:pk.to};
   }
   return null;
 }
