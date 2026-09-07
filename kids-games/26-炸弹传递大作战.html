@@ -294,6 +294,45 @@ function chDraw(c,opt){
   cx.translate(opt.px,opt.py);
   cx.scale(opt.s,opt.s);
   if(opt.face<0)cx.scale(-1,1);   // 面向左
+  /* ★ 线稿简约风：白底+黑线轮廓+最简面部 —— 整个角色一眼看清楚 */
+  cx.strokeStyle='#222';cx.fillStyle='#ffffff';cx.lineWidth=3.2;cx.lineCap='round';cx.lineJoin='round';
+  /* 身体（圆角矩形，白底黑边） */
+  rr(-18,-64,36,54,16);cx.fill();cx.stroke();
+  /* 头（圆形，白底黑边） */
+  cx.beginPath();cx.arc(2,-94,26,0,TAU);cx.fill();cx.stroke();
+  /* 眼睛（两个小黑圆） */
+  cx.fillStyle='#222';
+  cx.beginPath();cx.arc(-6,-96,3.2,0,TAU);cx.arc(10,-96,3.2,0,TAU);cx.fill();
+  /* 嘴（小弧线表示微笑 / 紧张时为压扁的横线） */
+  cx.strokeStyle='#222';cx.lineWidth=2.4;
+  if(opt.mood==='x'){
+    cx.beginPath();cx.moveTo(-6,-86);cx.lineTo(10,-86);cx.stroke();
+  }else if(opt.mood==='nerve'){
+    cx.beginPath();cx.moveTo(-6,-85);cx.quadraticCurveTo(2,-82,10,-85);cx.stroke();
+  }else{
+    cx.beginPath();cx.moveTo(-6,-87);cx.quadraticCurveTo(2,-83,10,-87);cx.stroke();
+  }
+  /* 简笔手臂（throw 时单臂前伸） */
+  if(opt.pose==='throw'){
+    cx.beginPath();cx.moveTo(18,-44);cx.lineTo(30+22*opt.throwP,-58);cx.stroke();
+  }else if(opt.pose==='catch'){
+    cx.beginPath();cx.moveTo(18,-46);cx.lineTo(32,-58);cx.stroke();
+  }
+  /* 紧张时头上画 3 道汗线 */
+  if(opt.mood==='nerve'){
+    cx.strokeStyle='#222';cx.lineWidth=2;
+    cx.beginPath();cx.moveTo(22,-108);cx.lineTo(28,-114);cx.moveTo(26,-104);cx.lineTo(32,-110);cx.stroke();
+  }
+  /* 黑白状态 */
+  if(opt.black){
+    cx.fillStyle='rgba(0,0,0,.18)';rr(-18,-64,36,54,16);cx.fill();
+  }
+  /* 防护罩泡泡（保留功能提示） */
+  if(opt.bubble){cx.strokeStyle='#0288a8';cx.lineWidth=2.5;
+    cx.beginPath();cx.arc(2,-94,52+Math.sin((opt.t||0)*.06)*3,0,TAU);cx.stroke()}
+  cx.restore();
+  return;
+  /* === 下方为原彩色版（保留 fallback，将来切回 Theme=Color 时启用） === */
   if(opt.alpha!==undefined)cx.globalAlpha=opt.alpha;
   const t=opt.t||0,bob=Math.sin(t*.09)*2.4;
   const dark=opt.black?'#3a3a3a':ch.dark, body=opt.black?'#5a5a5a':ch.body, belly=opt.black?'#777':ch.belly;
@@ -546,79 +585,26 @@ function fuseTick(b){
 }
 
 /* ================= 绘制：场地 ================= */
+/* ================= 场地（线稿简约风：白底+细黑边） ================= */
 function drawArena(){
-  const a=arena,a2=LAY;
-  /* 天空/背景 */
-  const g=cx.createLinearGradient(0,0,0,a2.ch);
-  if(a.id==='space'){g.addColorStop(0,'#0a0e2a');g.addColorStop(1,'#1b2350')}
-  else if(a.id==='volcano'){g.addColorStop(0,'#3d1d1d');g.addColorStop(1,'#6b2f1e')}
-  else if(a.id==='palace'){g.addColorStop(0,'#ffd9a0');g.addColorStop(1,'#ffecbf')}
-  else if(a.id==='ice'){g.addColorStop(0,'#cfeef7');g.addColorStop(1,'#e8f9ff')}
-  else if(a.id==='arena'){g.addColorStop(0,'#2a3550');g.addColorStop(1,'#3d4d75')}
-  else{g.addColorStop(0,'#6ec6ff');g.addColorStop(1,'#cdeaff')}
-  cx.fillStyle=g;cx.fillRect(0,0,a2.W,a2.ch);
-  /* 装饰 */
-  cx.save();
-  if(a.id==='grass'){
-    cx.fillStyle='rgba(255,255,255,.8)';
-    [[60,40],[a2.W*.32,70],[a2.W*.55,34],[a2.W*.8,64]].forEach(p=>{
-      cx.beginPath();cx.arc(p[0],p[1],p[1]*.35,0,TAU);cx.fill()});
-    cx.fillStyle='#66bb6a';
-    for(let i=0;i<10;i++){const x=(i+.5)*a2.W/10;
-      cx.beginPath();cx.ellipse(x,a2.groundY-6,26,7,0,0,TAU);cx.fill()}
-  }else if(a.id==='ice'){
-    cx.fillStyle='rgba(255,255,255,.75)';
-    for(let i=0;i<8;i++){const x=(i+.7)*a2.W/9;
-      cx.beginPath();cx.moveTo(x,a2.groundY-26);cx.lineTo(x+9,a2.groundY-44);cx.lineTo(x+20,a2.groundY-26);cx.closePath();cx.fill()}
-    cx.fillStyle='#b3e5fc';
-    for(let i=0;i<6;i++){const x=(i+.8)*a2.W/7,y=60+i%2*40;
-      cx.beginPath();cx.moveTo(x,y);cx.lineTo(x+6,y-16);cx.lineTo(x+13,y);cx.closePath();cx.fill()}
-  }else if(a.id==='volcano'){
-    cx.fillStyle='rgba(255,120,50,.9)';
-    cx.beginPath();cx.arc(a2.W*.16,a2.groundY-10,14,0,TAU);cx.fill();
-    cx.beginPath();cx.arc(a2.W*.84,a2.groundY-10,17,0,TAU);cx.fill();
-    cx.fillStyle='rgba(255,160,80,.35)';
-    for(let i=0;i<9;i++){const x=(i+.5)*a2.W/9;
-      cx.beginPath();cx.arc(x,a2.groundY-2+rnd(-3,3),6+rnd(0,5),0,TAU);cx.fill()}
-  }else if(a.id==='space'){
-    cx.fillStyle='#fff';
-    for(let i=0;i<60;i++){const sx=((i*97)%1000)/1000*a2.W, sy=((i*61)%740)/740*a2.ch;
-      cx.globalAlpha=.3+((i*13)%10)/16;cx.beginPath();cx.arc(sx,sy,(i%3)+.6,0,TAU);cx.fill()}
-    cx.globalAlpha=1;
-    cx.fillStyle='#e8ecff';cx.beginPath();cx.arc(a2.W*.8,46,22,0,TAU);cx.fill();
-    cx.fillStyle='#fff';cx.beginPath();cx.arc(a2.W*.8,46,8,0,TAU);cx.fill();
-    cx.fillStyle='#cfe0ff';cx.beginPath();cx.arc(a2.W*.15,90,13,0,TAU);cx.fill();
-  }else if(a.id==='palace'){
-    cx.strokeStyle='#c0392b';cx.lineWidth=10;
-    for(const fx of[0.06,0.22,0.78,0.94]){cx.beginPath();cx.moveTo(a2.W*fx,a2.ch*.2);cx.lineTo(a2.W*fx,a2.groundY);cx.stroke()}
-    cx.strokeStyle='#e67e22';cx.lineWidth=8;
-    cx.beginPath();cx.moveTo(0,a2.ch*.2);cx.lineTo(a2.W,a2.ch*.2);cx.stroke();
-    cx.strokeStyle='#c0392b';cx.lineWidth=5;
-    cx.beginPath();cx.moveTo(0,a2.ch*.2);cx.lineTo(0,a2.groundY);cx.moveTo(a2.W,a2.ch*.2);cx.lineTo(a2.W,a2.groundY);cx.stroke();
-    cx.fillStyle='#e67e22';
-    for(let i=0;i<12;i++){const x=i*a2.W/12;
-      cx.beginPath();cx.moveTo(x,a2.ch*.2-14);cx.lineTo(x+12,a2.ch*.2);cx.lineTo(x,a2.ch*.2+14);cx.lineTo(x-12,a2.ch*.2);cx.closePath();cx.fill()}
-  }else if(a.id==='arena'){
-    cx.strokeStyle='#e74c3c';cx.lineWidth=5;
-    cx.beginPath();cx.moveTo(0,LAY.topY2+LAY.charH*.5);cx.lineTo(a2.W,LAY.topY2+LAY.charH*.5);cx.stroke();
-    cx.beginPath();cx.moveTo(0,LAY.botY-LAY.charH*.55);cx.lineTo(a2.W,LAY.botY-LAY.charH*.55);cx.stroke();
-  }
-  /* 地面线 */
-  const gy=a2.groundY;
-  if(a.id==='ice'){cx.fillStyle='#dff6ff';cx.fillRect(0,gy,a2.W,a2.ch-gy);
-    cx.fillStyle='#fff';for(let i=0;i<16;i++)cx.fillRect((i*73)%a2.W,gy+6+rnd(0,16),26,3)}
-  else if(a.id==='space'){cx.fillStyle='#232a52';cx.fillRect(0,gy,a2.W,a2.ch-gy)}
-  else if(a.id==='volcano'){cx.fillStyle='#4a2116';cx.fillRect(0,gy,a2.W,a2.ch-gy);
-    cx.fillStyle='#ff7a45';cx.fillRect(0,gy,2,a2.ch-gy);cx.fillRect(a2.W-2,gy,2,a2.ch-gy)}
-  else if(a.id==='palace'){cx.fillStyle='#e8c88a';cx.fillRect(0,gy,a2.W,a2.ch-gy)}
-  else if(a.id==='arena'){cx.fillStyle='#5d6f96';cx.fillRect(0,gy-4,a2.W,10);
-    cx.fillStyle='#39415c';for(let i=0;i<20;i++)cx.fillRect(i*30,gy-4,16,4)}
-  else{cx.fillStyle='#4caf50';cx.fillRect(0,gy,a2.W,a2.ch-gy)}
-  cx.fillStyle='#3b3b3b';cx.fillRect(0,gy,a2.W,4);
-  cx.restore();
-  /* 中线 */
-  if(a.id!=='palace'){cx.strokeStyle='rgba(255,255,255,.22)';cx.lineWidth=3;cx.setLineDash([10,12]);
-    cx.beginPath();cx.moveTo(a2.midX,a2.topY-10);cx.lineTo(a2.midX,a2.groundY);cx.stroke();cx.setLineDash([])}
+  const a2=LAY;
+  /* 纯白底 */
+  cx.fillStyle='#ffffff';cx.fillRect(0,0,a2.W,a2.ch);
+  /* 顶部分隔线（play 区上界） */
+  cx.strokeStyle='#222';cx.lineWidth=2;
+  cx.beginPath();cx.moveTo(0,a2.topY-30);cx.lineTo(a2.W,a2.topY-30);cx.stroke();
+  /* 地面线（粗一些，作为角色脚线） */
+  cx.lineWidth=3;
+  cx.beginPath();cx.moveTo(0,a2.groundY);cx.lineTo(a2.W,a2.groundY);cx.stroke();
+  /* 中线（虚线，左/右玩家分隔） */
+  cx.strokeStyle='#bbb';cx.lineWidth=1.5;cx.setLineDash([6,8]);
+  cx.beginPath();cx.moveTo(a2.midX,a2.topY-30);cx.lineTo(a2.midX,a2.groundY);cx.stroke();cx.setLineDash([]);
+  /* 左右半区轻标记（角落里一个小三角形箭头指向中线，含义"目标：传给对面"） */
+  cx.fillStyle='#999';cx.font='11px "Microsoft YaHei",sans-serif';cx.textAlign='left';cx.textBaseline='top';
+  cx.fillText('← 传给对面',8,a2.topY-26);
+  cx.textAlign='right';
+  cx.fillText('传给对面 →',a2.W-8,a2.topY-26);
+  cx.textAlign='left';
 }
 function drawCloud(){
   if(!(arena.id==='palace'&&cloud))return;
@@ -628,9 +614,12 @@ function drawCloud(){
   cx.fillRect(x-w*.3,y-8,w*.6,h*.62);cx.fill();
   cx.strokeStyle='rgba(180,200,255,.6)';cx.lineWidth=2;rr(x-w*.3,y-8,w*.6,h*.62,8);cx.stroke();
 }
-/* ================= 绘制：炸弹 ================= */
+/* ================= 绘制：炸弹（线稿简约风：白底+黑圆+大"炸弹"字+种类小标记） ================= */
+const BOMB_TAG={normal:'●',ice:'❄',split:'✂',gift:'★',accel:'▲',slow:'▽',bounce:'◇',homing:'➤',smoke:'☁',gold:'◆'};
 function drawBombVis(b){
-  let x=b.x,y=b.y,d=b.d?b.d:LAY.bombD, k=b.k;
+  let x=b.x,y=b.y, k=b.k;
+  /* ★ b.d 是 BOMBS[k] 配置对象而非尺寸数字 —— 直接用 LAY.bombD 作半径，避免 R=NaN 静默吞掉 */
+  let d=LAY.bombD;
   /* NaN/Infinity 防御：AI 决策偶发让坐标变 NaN —— 优先回退到持有者位置，场上一定看得见 */
   if(!isFinite(x)||!isFinite(y)){
     const h=b.holder;
@@ -644,118 +633,39 @@ function drawBombVis(b){
   const R=d*.5,fuseFrac=(b.d&&b.fuse!==undefined)?clamp(b.fuse/(b.d.fuse[1]||4),0,1):0;
   cx.save();cx.translate(x,y);
   const panic=b.fuse<=1&&b.fuse>0;
-  /* 引信火花 */
-  const spark=panic?7:4.4;
-  cx.strokeStyle='#f5a';cx.lineWidth=3;
-  cx.beginPath();cx.moveTo(0,-R+2);cx.lineTo(rnd(-6,6),-R-8-spark);cx.stroke();
-  cx.fillStyle=panic?'#ff1744':'#ffb300';
-  for(let i=0;i<(panic?8:5);i++){const a=rnd(0,TAU),rr2=rnd(3,spark+5);
-    cx.beginPath();cx.arc(Math.cos(a)*rr2,-R-10-spark+Math.sin(a)*rr2*.4,1.8,0,TAU);cx.fill()}
-  /* 主体 */
-  cx.shadowColor='rgba(0,0,0,.35)';cx.shadowBlur=10;
-  if(k==='gift'){ // 礼物盒
-    cx.fillStyle='#e53935';rr(-R*.7,-R*.75,R*1.4,R*1.5,R*8);cx.fill();
-    cx.shadowBlur=0;
-    cx.fillStyle='#ffd54f';cx.fillRect(-R*.7,-R*.75,R*1.4,R*1.5*.28);
-    cx.fillRect(-R*.75,-R*.75,R*.16,R*1.5);
-    cx.fillRect(R*.6,-R*.75,R*.16,R*1.5);
-    cx.strokeStyle='#fff176';cx.lineWidth=3;
-    cx.beginPath();cx.moveTo(0,-R*.7);cx.lineTo(0,-R*1.15);cx.stroke();
-  }else if(k==='ice'){ // 冰晶
-    cx.fillStyle='#43c6e8';
-    cx.beginPath();cx.moveTo(0,-R*1.05);cx.lineTo(R*.62,-R*.1);cx.lineTo(R*.42,R*.75);cx.lineTo(0,R*.95);cx.lineTo(-R*.42,R*.75);cx.lineTo(-R*.62,-R*.1);cx.closePath();cx.fill();
-    cx.shadowBlur=0;cx.strokeStyle='#cdf4ff';cx.lineWidth=2;
-    cx.beginPath();cx.moveTo(0,-R*.5);cx.lineTo(R*.3,R*.2);cx.lineTo(0,R*.5);cx.lineTo(-R*.3,R*.2);cx.closePath();cx.stroke();
-  }else if(k==='gold'){ // 星星
-    cx.fillStyle='#ffd700';
-    cx.beginPath();
-    for(let i=0;i<10;i++){const rr2=i%2?R*.42:R,aa=-Math.PI/2+i*Math.PI/5;
-      cx.lineTo(Math.cos(aa)*rr2,Math.sin(aa)*rr2)}
-    cx.closePath();cx.fill();
-    cx.shadowBlur=0;cx.fillStyle='#fff6cc';cx.beginPath();cx.arc(0,0,R*.3,0,TAU);cx.fill();
-  }else if(k==='slow'){ // 龟壳椭圆
-    cx.fillStyle='#3fbf5f';cx.beginPath();cx.ellipse(0,0,R,R*.85,0,0,TAU);cx.fill();
-    cx.shadowBlur=0;cx.strokeStyle='#d7f7e2';cx.lineWidth=2;
-    for(let i=-1;i<=1;i++){cx.beginPath();cx.ellipse(i*R*.4,0,R*.24,R*.6,0,0,TAU);cx.stroke()}
-    cx.fillStyle='#1d7a34';
-    for(const s of[-1,1]){cx.beginPath();cx.moveTo(s*R*.8,-R*.3);cx.lineTo(s*R*1.08,-R*.55);cx.lineTo(s*R*1.05,-R*.12);cx.closePath();cx.fill()}
-  }else if(k==='accel'){ // 火焰弹（带火焰裙边）
-    cx.fillStyle='#ff5e3a';cx.beginPath();cx.arc(0,0,R*.8,0,TAU);cx.fill();
-    cx.shadowBlur=0;
-    cx.fillStyle='#ffd23e';
-    const fl=6+Math.sin(frame*.5)*3;
-    cx.beginPath();cx.moveTo(-R*.75,R*.3);cx.quadraticCurveTo(-R*.9,R*.55+fl,-R*.4,R*.5+fl);
-    cx.quadraticCurveTo(-R*.2,R*.95+fl*1.2,0,R*.55+fl);
-    cx.quadraticCurveTo(R*.2,R*.95+fl*1.2,R*.4,R*.5+fl);
-    cx.quadraticCurveTo(R*.9,R*.55+fl,R*.75,R*.3);cx.closePath();cx.fill();
-    cx.fillStyle='#fff3b0';cx.beginPath();cx.arc(-R*.15,-R*.15,R*.3,0,TAU);cx.fill();
-  }else if(k==='bounce'){ // 弹簧弹球
-    cx.fillStyle='#b06ef0';cx.beginPath();cx.arc(0,0,R*.82,0,TAU);cx.fill();
-    cx.shadowBlur=0;cx.strokeStyle='#e4c8ff';cx.lineWidth=3;
-    for(const s of[-1,1]){cx.beginPath();cx.arc(s*R*.9,0,R*.4,0,TAU);cx.stroke()}
-    cx.fillStyle='#e4c8ff';for(const s of[-1,1]){cx.beginPath();cx.arc(s*R*.9,0,R*.2,0,TAU);cx.fill()}
-  }else if(k==='homing'){ // 追踪（翅膀）
-    cx.fillStyle='#ff9432';cx.beginPath();cx.arc(0,0,R*.8,0,TAU);cx.fill();
-    cx.shadowBlur=0;cx.fillStyle='#ffe2bd';
-    for(const s of[-1,1]){const w=Math.sin(frame*.3)*.4;
-      cx.save();cx.translate(s*R*.78,0);cx.rotate(s*.5);
-      cx.beginPath();cx.moveTo(0,-R*.3);cx.quadraticCurveTo(s*R*.4,-R*.4+w,s*R*.5,0);
-      cx.quadraticCurveTo(s*R*.4,R*.4+w,0,R*.3);cx.closePath();cx.fill();cx.restore()}
-  }else if(k==='smoke'){ // 烟球
-    cx.fillStyle='#8f98a3';cx.beginPath();cx.arc(0,0,R*.62,0,TAU);cx.fill();
-    cx.fillStyle='#aab3bd';cx.beginPath();cx.arc(-R*.5,-R*.1,R*.34,0,TAU);cx.fill();
-    cx.beginPath();cx.arc(R*.5,-R*.05,R*.36,0,TAU);cx.fill();
-    cx.beginPath();cx.arc(0,R*.45,R*.34,0,TAU);cx.fill();
-    cx.shadowBlur=0;
-  }else if(k==='mini'){ // 分裂小炸弹
-    cx.fillStyle='#ff5252';cx.beginPath();cx.arc(0,0,R,0,TAU);cx.fill();
-    cx.shadowBlur=0;cx.fillStyle='#ffd166';cx.beginPath();cx.arc(-R*.3,-R*.3,R*.4,0,TAU);cx.fill();
-  }else if(k==='split'){ // 分裂（黄球+叉标记）
-    cx.fillStyle='#ffd23e';cx.beginPath();cx.arc(0,0,R*.85,0,TAU);cx.fill();
-    cx.shadowBlur=0;cx.fillStyle='#e3a400';
-    cx.beginPath();cx.moveTo(-R*.3,-R*.5);cx.lineTo(R*.5,R*.3);cx.lineTo(R*.2,R*.5);cx.lineTo(-R*.6,-R*.2);cx.closePath();cx.fill();
-    cx.beginPath();cx.moveTo(R*.55,-R*.25);cx.lineTo(R*.15,-R*.65);cx.lineTo(R*.42,-R*.8);cx.lineTo(R*.8,-R*.42);cx.closePath();cx.fill();
-  }else{ // 普通黑球（浅色描边 + 渐变，任何背景都看得清身体）
-    const g2=cx.createRadialGradient(-R*.35,-R*.4,R*.12,0,0,R);
-    g2.addColorStop(0,'#6a7684');g2.addColorStop(.55,'#3a424e');g2.addColorStop(1,'#23282f');
-    cx.fillStyle=g2;cx.beginPath();cx.arc(0,0,R,0,TAU);cx.fill();
-    cx.shadowBlur=0;
-    cx.strokeStyle='rgba(215,228,242,.95)';cx.lineWidth=Math.max(2.5,R*.13);
-    cx.beginPath();cx.arc(0,0,R,0,TAU);cx.stroke();
-    cx.fillStyle='#8fa0b0';cx.fillRect(-R*.75,-R*.15,R*1.5,R*.3);
-    cx.fillRect(-R*.15,-R*.75,R*.3,R*1.5);
-    cx.beginPath();cx.arc(-R*.35,-R*.35,R*.24,0,TAU);cx.fill();
+  /* ★ 引信（细黑线 + 末端实心点） */
+  cx.strokeStyle='#222';cx.lineWidth=3;cx.lineCap='round';
+  cx.beginPath();cx.moveTo(0,-R+4);cx.lineTo(rnd(-4,4),-R-12);cx.stroke();
+  cx.fillStyle=panic?'#e53935':'#ffa';
+  cx.beginPath();cx.arc(rnd(-4,4),-R-12,3.6,0,TAU);cx.fill();
+  /* ★ 主圆（白底+黑描边，永远一眼可见） */
+  cx.fillStyle='#ffffff';
+  cx.strokeStyle='#222';cx.lineWidth=Math.max(2.5,R*.12);
+  cx.beginPath();cx.arc(0,0,R*.95,0,TAU);cx.fill();cx.stroke();
+  /* ★ 大字"炸弹" */
+  cx.fillStyle='#222';
+  cx.font='900 '+Math.round(R*.42)+'px "Microsoft YaHei","Heiti SC",sans-serif';
+  cx.textAlign='center';cx.textBaseline='middle';
+  cx.fillText('炸弹',0,2);
+  /* ★ 种类小标记（右上角） */
+  if(k!=='normal'&&BOMB_TAG[k]){
+    cx.fillStyle='#222';
+    cx.font='900 '+Math.round(R*.34)+'px sans-serif';
+    cx.fillText(BOMB_TAG[k],R*.62,-R*.62);
   }
-  cx.shadowBlur=0;
-  /* 高光 */
-  if(k!=='gift'&&k!=='gold'&&k!=='smoke'){cx.fillStyle='rgba(255,255,255,.55)';
-    cx.beginPath();cx.ellipse(-R*.32,-R*.45,R*.22,R*.14,-.6,0,TAU);cx.fill()}
-  /* 表情（最后 1/2→紧张, 1/4→惊恐） */
-  const face= b.fuse===undefined?0:(fuseFrac>.5?0:(fuseFrac>.22?1:2));
-  if(face!==0&&k!=='gift'){const ex=6,ey=-6;
-    cx.strokeStyle='#1c1c1c';cx.lineWidth=2.4;cx.lineCap='round';
-    if(face===1){cx.fillStyle='#fff';
-      cx.beginPath();cx.arc(-ex,ey,6,0,TAU);cx.fill();cx.stroke();
-      cx.beginPath();cx.arc(ex,ey,6,0,TAU);cx.fill();cx.stroke();
-      cx.fillStyle='#1c1c1c';cx.beginPath();cx.arc(-ex+2.6,ey+1.4,2.4,0,TAU);cx.arc(ex+2.6,ey+1.4,2.4,0,TAU);cx.fill();
-      cx.beginPath();cx.moveTo(0,ey+9);cx.quadraticCurveTo(0,ey+13,4,ey+11);cx.stroke();
-    }else{cx.beginPath();cx.moveTo(-ex-4,ey-4);cx.lineTo(-ex+4,ey+4);cx.moveTo(-ex+4,ey-4);cx.lineTo(-ex-4,ey+4);cx.stroke();
-      cx.beginPath();cx.moveTo(ex-4,ey-4);cx.lineTo(ex+4,ey+4);cx.moveTo(ex+4,ey-4);cx.lineTo(ex-4,ey+4);cx.stroke();
-      cx.fillStyle='#1c1c1c';cx.beginPath();cx.moveTo(0,ey+8);cx.quadraticCurveTo(0,ey+16,-3,ey+13);cx.closePath();cx.fill();
-    }}
-  /* 倒计时数字 */
-  if(b.fuse!==undefined&&b.fuse>0&&b.state!=='rest'||(b.state==='rest'&&b.fuse>0)){
+  /* ★ 倒计时数字（最后 3 秒，大字压在圆心偏下） */
+  if(b.fuse!==undefined&&b.fuse>0&&(b.state!=='rest'||b.fuse>0)){
     const f=Math.ceil(b.fuse);
-    if(f<=3){const red=panic&&f===1; const pulse=red?(1+Math.sin(frame*.5)*.3):1;
-      cx.font='900 '+Math.round(R*.82*pulse)+'px Arial';
-      cx.textAlign='center';cx.textBaseline='middle';
-      cx.lineWidth=Math.max(3,R*.14);cx.strokeStyle='rgba(255,255,255,.92)';
-      cx.strokeText(f,0,R*.08);
-      cx.fillStyle=red?'#ff1744':'#fff';
-      cx.fillText(f,0,R*.08);
-      cx.textBaseline='alphabetic';
+    if(f<=3){
+      const red=panic&&f===1;
+      cx.font='900 '+Math.round(R*.55)+'px sans-serif';
+      cx.lineWidth=Math.max(3,R*.12);cx.strokeStyle='#ffffff';
+      cx.strokeText(f,0,R*.42);
+      cx.fillStyle=red?'#e53935':'#222';
+      cx.fillText(f,0,R*.42);
     }
   }
+  cx.textBaseline='alphabetic';
   cx.restore();
 }
 /* 地上物品（道具掉落） */
@@ -1271,6 +1181,23 @@ function drawScene(){
   if(st==='play')drawPillars();
   if(P[0])drawPlayer(P[0]);
   if(P[1])drawPlayer(P[1]);
+  /* ★ 传递路径（炸弹在飞时画弧形虚线 + 箭头 —— 草图风格的"传递方向"） */
+  if(st==='play'){
+    bombs.forEach(b=>{
+      if(b.state==='fly'&&isFinite(b.sx)&&isFinite(b.sy)&&isFinite(b.x)&&isFinite(b.y)){
+        const sx=b.sx,sy=b.sy,ex=b.x,ey=b.y;
+        const mx=(sx+ex)/2, my=Math.min(sy,ey)-Math.max(50,Math.abs(ex-sx)*.35);
+        cx.strokeStyle='#888';cx.lineWidth=2.5;cx.setLineDash([6,5]);
+        cx.beginPath();cx.moveTo(sx,sy);cx.quadraticCurveTo(mx,my,ex,ey);cx.stroke();cx.setLineDash([]);
+        /* 箭头：终点位置沿曲线切线方向 */
+        const dx=ex-mx, dy=ey-my, ang=Math.atan2(dy,dx);
+        cx.save();cx.translate(ex,ey);cx.rotate(ang);
+        cx.fillStyle='#888';
+        cx.beginPath();cx.moveTo(0,0);cx.lineTo(-11,-6);cx.lineTo(-11,6);cx.closePath();cx.fill();
+        cx.restore();
+      }
+    });
+  }
   /* 炸弹（mini 缩小） */
   bombs.forEach(b=>{
     cx.save();
