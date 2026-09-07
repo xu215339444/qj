@@ -200,17 +200,18 @@ const CHARS=[
  {id:'ghost', n:'小幽灵',tips:'可穿过中央云台',body:'#e6e9f0',dark:'#aab3c5',belly:'#f7f9ff',ghost:1,sp:''},
  {id:'panda', n:'小熊猫',tips:'开局自带 1 个防护罩',body:'#f5f5f5',dark:'#20242a',belly:'#f5f5f5',panda:1,sp:''}
 ];
+/* ★ 儿童友好版引信：全部拉长约一倍（原普通弹 2~4 秒，小孩子根本来不及反应；现在接住后有充足时间按“扔”按钮） */
 const BOMBS={
- normal:{n:'普通炸弹',col:'#22252b',hi:'#5a6472',fuse:[2,4],fspd:1,dmg:1},
- ice:   {n:'冰冻炸弹',col:'#43c6e8',hi:'#cdf4ff',fuse:[3,5],fspd:.95,freeze:2},
- split: {n:'分裂炸弹',col:'#ffd23e',hi:'#fff3b0',fuse:[2,3],fspd:1.05,split:1,dmg:1},
- gift:  {n:'假炸弹',  col:'#ff5d73',hi:'#ffd0d6',fuse:[2,4],fspd:.9,gift:1},
- accel: {n:'加速炸弹',col:'#ff5e3a',hi:'#ffd0a8',fuse:[1,1.5],fspd:1.5,dmg:1},
- slow:  {n:'慢速炸弹',col:'#3fbf5f',hi:'#b7ecc8',fuse:[6,9],fspd:.65,dmg:1},
- bounce:{n:'反弹炸弹',col:'#b06ef0',hi:'#e4c8ff',fuse:[3,4],fspd:1,dmg:1,rebound:1},
- homing:{n:'追踪炸弹',col:'#ff9432',hi:'#ffe2bd',fuse:[2,3],fspd:1.05,dmg:1,homing:1},
- smoke: {n:'烟雾炸弹',col:'#8f98a3',hi:'#cdd5dd',fuse:[3,4],fspd:.95,dmg:1,smoke:5},
- gold:  {n:'黄金炸弹',col:'#ffd700',hi:'#fff6cc',fuse:[2,3],fspd:1,gold:1}
+ normal:{n:'普通炸弹',col:'#22252b',hi:'#5a6472',fuse:[4,7],fspd:1,dmg:1},
+ ice:   {n:'冰冻炸弹',col:'#43c6e8',hi:'#cdf4ff',fuse:[5,8],fspd:.95,freeze:2},
+ split: {n:'分裂炸弹',col:'#ffd23e',hi:'#fff3b0',fuse:[4,6],fspd:1.05,split:1,dmg:1},
+ gift:  {n:'假炸弹',  col:'#ff5d73',hi:'#ffd0d6',fuse:[5,8],fspd:.9,gift:1},
+ accel: {n:'加速炸弹',col:'#ff5e3a',hi:'#ffd0a8',fuse:[3,4.5],fspd:1.5,dmg:1},
+ slow:  {n:'慢速炸弹',col:'#3fbf5f',hi:'#b7ecc8',fuse:[8,12],fspd:.65,dmg:1},
+ bounce:{n:'反弹炸弹',col:'#b06ef0',hi:'#e4c8ff',fuse:[5,7],fspd:1,dmg:1,rebound:1},
+ homing:{n:'追踪炸弹',col:'#ff9432',hi:'#ffe2bd',fuse:[4,6],fspd:1.05,dmg:1,homing:1},
+ smoke: {n:'烟雾炸弹',col:'#8f98a3',hi:'#cdd5dd',fuse:[5,7],fspd:.95,dmg:1,smoke:5},
+ gold:  {n:'黄金炸弹',col:'#ffd700',hi:'#fff6cc',fuse:[4,6],fspd:1,gold:1}
 };
 const BOMB_KEYS=Object.keys(BOMBS);
 const ARENAS=[
@@ -236,10 +237,11 @@ const MODES=[
  {id:'dual',   n:'双炸弹模式',d:'场上同时 2 颗炸弹',ic:'💣'},
  {id:'ai',     n:'单人 vs AI',d:'挑战电脑，选难度',ic:'🤖'}
 ];
+/* ★ 儿童友好难度：简单=反应慢+追不准+常发呆，最适合小朋友；err 大=接球对不准会漏接(球落地自己炸) */
 const DIFFS=[
- {id:'easy',n:'简单',react:.4,err:85,mistake:.32,delay:1.0},
- {id:'norm',n:'普通',react:.2,err:36,mistake:.14,delay:.8},
- {id:'hard',n:'困难',react:.08,err:10,mistake:.03,delay:.5}
+ {id:'easy',n:'简单',react:.65,err:150,mistake:.55,delay:1.2,stare:.3},
+ {id:'norm',n:'普通',react:.3,err:80,mistake:.32,delay:.8,stare:.06},
+ {id:'hard',n:'困难',react:.12,err:26,mistake:.06,delay:.5,stare:0}
 ];
 
 /* ============ 画布/布局 ============ */
@@ -401,7 +403,7 @@ function mkP(side){
     face:side===0?1:-1,x:side===0?LAY.c1:LAY.c2,
     hearts:3,score:0,alive:true,state:'idle',stateT:0,
     invuln:0,frozen:0,shield:0,shieldItem:0,shieldInt:0,shoes:0,magnet:0,board:0,
-    items:[],slide:0,hop:0,hopCd:0,
+    items:[],slide:0,hop:0,hopCd:0,manT:0,
     hold:null,throwCd:0,think:0,ai:null,effIcons:[],hopT:0};
 }
 function pBoxMinY(p){return LAY.topY2+(p.ch.ghost?0:0)}
@@ -540,7 +542,11 @@ function fuseTick(b){
   else b.fuse-=dt*.5;
   if(b.fuse<=1.2&&b.fuse>0&&frame>lastAlarm+50&&b.state!=='rest'){SND.alarm();lastAlarm=frame}
   if(b.fuse<=0){if(b.k==='gift'){ /* 假炸弹到点：+1 分 */
-    if(b.holder){b.holder.score++;floatTxt(b.x,b.y-34,'+1 分 🎁','#ffb74d')}SND.dodge();
+    if(b.holder){b.holder.score++;floatTxt(b.x,b.y-34,'+1 分 🎁','#ffb74d')}
+    SND.dodge();
+    b.gone=1;                      /* ★ 修悬空：不设 gone 会被 held 分支 out.push 加回，负 fuse 礼物永远在场 → 对局永不结束 */
+    if(b.holder)b.holder.hold=null;
+    b.holder=null;
     removeBomb(b);return}
     explodeBomb(b)}
 }
@@ -634,12 +640,13 @@ function drawBombVis(b){
     cx.font='900 '+Math.round(R*.34)+'px sans-serif';
     cx.fillText(BOMB_TAG[k],R*.62,-R*.62);
   }
-  /* ★ 倒计时数字（最后 3 秒，大字压在圆心偏下） */
+  /* ★ 倒计时数字（儿童友好：剩余 ≤5 秒就显示大字秒数，让小朋友一眼知道还剩几秒） */
   if(b.fuse!==undefined&&b.fuse>0&&(b.state!=='rest'||b.fuse>0)){
     const f=Math.ceil(b.fuse);
-    if(f<=3){
+    if(f<=5){
       const red=panic&&f===1;
-      cx.font='900 '+Math.round(R*.55)+'px sans-serif';
+      const big=f<=3?R*.55:R*.4;
+      cx.font='900 '+Math.round(big)+'px sans-serif';
       cx.lineWidth=Math.max(3,R*.12);cx.strokeStyle='#ffffff';
       cx.strokeText(f,0,R*.42);
       cx.fillStyle=red?'#e53935':'#222';
@@ -783,6 +790,35 @@ function pBounds(p){
   return[a,b];
 }
 function clampY2(p,y){const bb=pBounds(p);return clamp(y,bb[0],bb[1])}
+/* ★ 自动接球辅助：玩家没有手动输入(没按方向键/没在屏幕上滑动)时，
+   角色自动站到炸弹落点/回站台 —— 手机上只需点“扔”按钮，不用再上下移动对准。
+   想自己控制时按住 W/S 或 ↑/↓（触屏上下滑）会临时接管，松开后恢复自动。 */
+function humanAssist(p){
+  if(!p||!p.alive)return;
+  if(p.frozen>0||p.state==='x')return;
+  if(p.hold){ /* 手里有球：回地面站台，稳稳拿住等按“扔” */
+    const bbase=LAY.groundY-LAY.charH*.5;
+    p.cyTarget=clampY2(p,bbase);
+    return;
+  }
+  const inc=bombs.find(b=>!b.gone&&b.state==='fly'&&b.side===p.side&&!b.caught);
+  if(inc){ /* 球飞过来了：自动站到接球点 */
+    p.cyTarget=clampY2(p,inc.ty);
+    return;
+  }
+  const rs=bombs.find(b=>!b.gone&&b.state==='rest'&&b.side===p.side);
+  if(rs&&Math.abs(rs.x-p.x)<LAY.bombD*2.2){ /* 掉在脚下的球自动捡起 */
+    p.cyTarget=clampY2(p,rs.y-LAY.charH*.35);
+    return;
+  }
+  if(arena.eff==='volcano'){ /* 火山火柱来了自动抬升躲开 */
+    const warn=pillars.find(pl=>pl.w>0&&Math.abs(pl.x-p.x)<30);
+    if(warn){p.cyTarget=clampY2(p,p.cy-LAY.charH*.9);return}
+  }
+  /* 空闲：回地面站台 */
+  const base=LAY.groundY-LAY.charH*.5;
+  p.cyTarget=clampY2(p,base);
+}
 function movePlayer(p){
   if(!p.alive)return;
   if(p.frozen>0){p.cyTarget=p.cy;return}
@@ -920,6 +956,8 @@ function doCatch(b,p,fromGround){
   p.hold=b;if(p.ai)p.think=0;
   SND.catch();p.state='catch';p.stateT=20;
   if(p.ch.catchAdd){b.fuse+=p.ch.catchAdd;floatTxt(p.x,p.y-60,'+0.8s 引信','#8ef')}
+  /* ★ 儿童引导：接到快爆的球时大字提醒赶紧按“扔” */
+  if(!p.ai&&b.fuse<2.6&&b.fuse>0)floatTxt(p.x,p.y-84,'⏰ 快扔！','#ff5252');
   updateItemsBar();
 }
 function miniHit(b,tar){
@@ -994,10 +1032,14 @@ function aiThink(p){
   p.think=(p.think||0)-1;
   if(p.hold){
     const fr=p.hold.fuse;
+    /* ★ 儿童友好规则：绝不“捂到最后一秒才丢”。
+       旧逻辑 wait=fr-0.6：AI 等引信烧到 0.6s 才出手 → 球飞到玩家手上引信≈0 → 玩家必炸、必输。
+       现在接到球按难度固定停顿就扔回；引信不足 1.4s 时干脆不扔(抱着自爆)，不把烫手弹丢给小朋友。 */
+    if(fr<=1.8){p.think=9999;return}         /* 太烫：不扔，自己抱住 → 公平（杜绝把只剩 1 秒的球塞给小朋友） */
     if(p.think<=0){
-      /* 接弹后按难度反应停顿，然后立刻扔回（引信越短扔得越快） */
-      const wait=fr>3.5?0.5:(fr>1?Math.max(.08,fr-.6):0);
-      p.think=Math.round(Math.max(14,(d.react*60+wait*60)*rnd(.8,1.2)));
+      let idle=0;
+      if(Math.random()<d.stare)idle=irnd(80,200);   /* 简单 AI 偶尔抱着发呆，给小玩家喘息/机会 */
+      p.think=Math.round(Math.max(12,(d.react*60+idle)*rnd(.85,1.3)));
     }else if(p.think<=10&&p.throwCd<=0){
       throwBomb(p);p.think=0;
     }
@@ -1010,7 +1052,10 @@ function aiThink(p){
   }
   const inc=bombs.find(b=>b.state==='fly'&&b.side===p.side&&!b.caught);
   if(inc){
-    if(Math.random()<d.mistake){ /* 偶尔失误 */
+    if(Math.random()<d.stare){ /* 简单 AI 偶尔愣神不追 → 接不住，球落地自己那边炸 */
+      return;
+    }
+    if(Math.random()<d.mistake){ /* 偶尔失误乱跑 */
       p.cyTarget=clampY2(p,LAY.groundY-60+rnd(-40,40));
       return;
     }
@@ -1226,19 +1271,21 @@ function update(){
     if(edge.u0&&P[0].ch&&P[0].ch.hop&&!P[0].hold&&P[0].hopCd<=0){P[0].hop=14;P[0].hopCd=80;P[0].cyTarget=P[0].cy-40;SND.dodge()}
     if(edge.u1&&P[1].ch&&P[1].ch.hop&&!P[1].hold&&P[1].hopCd<=0){P[1].hop=14;P[1].hopCd=80;P[1].cyTarget=P[1].cy-40;SND.dodge()}
     edge.t0=edge.t1=edge.i0=edge.i1=edge.u0=edge.u1=false;
+    /* ★ 手动持续方向键（先于自动辅助生效：长按 W/S 或 ↑/↓ 可自由微调站位） */
+    if(P[0]&&!P[0].ai){const m0=keys.u0||keys.d0;
+      if(keys.u0)P[0].cyTarget-=4.6;if(keys.d0)P[0].cyTarget+=4.6;
+      if(m0){P[0].cyTarget=clampY2(P[0],P[0].cyTarget);P[0].manT=8}else if(P[0].manT>0)P[0].manT--}
+    if(P[1]&&!P[1].ai){const m1=keys.u1||keys.d1;
+      if(keys.u1)P[1].cyTarget-=4.6;if(keys.d1)P[1].cyTarget+=4.6;
+      if(m1){P[1].cyTarget=clampY2(P[1],P[1].cyTarget);P[1].manT=8}else if(P[1].manT>0)P[1].manT--}
+    /* ★ 自动接球辅助：没在手动操作时接管位置，手机零操作也能接住球 */
+    P.forEach(pp=>{if(pp&&pp.alive&&!pp.ai&&pp.manT<=0)humanAssist(pp)});
     if(mode.id==='timed'){timeLeft-=1/60;
       if(timeLeft<=0){timeLeft=0;timedEnd();return}}
     movePlayer(P[0]);movePlayer(P[1]);
     P.forEach(updatePose);
     updateBombs();updateSpawn();updateItems();updatePillars();
     updateFuseBars();
-  }
-  /* 键盘持续移动目标 */
-  if(st==='play'&&!paused){
-    if(P[0]&&!P[0].ai){if(keys.u0)P[0].cyTarget-=4.6;if(keys.d0)P[0].cyTarget+=4.6;
-      P[0].cyTarget=clampY2(P[0],P[0].cyTarget)}
-    if(P[1]&&!P[1].ai){if(keys.u1)P[1].cyTarget-=4.6;if(keys.d1)P[1].cyTarget+=4.6;
-      P[1].cyTarget=clampY2(P[1],P[1].cyTarget)}
   }
   if(st==='play'||st==='pick')updateFX();
   if((st==='pick')&&previews.length)drawPreviews();
@@ -1306,6 +1353,7 @@ function dragTo(s,y){
   const p=P[s];if(!p)return;
   const rect=cv.getBoundingClientRect();
   const yy=y-rect.top;
+  p.manT=10;   /* 手指拖动 = 手动接管，自动接球辅助暂停 */
   p.cyTarget=clampY2(p,yy);
 }
 function goLobby(){
@@ -1329,8 +1377,9 @@ function togglePause(){
 /* ================= 界面 ================= */
 function helpPanel(){
   showPanel('<h1>📖 玩法</h1><p><b>目标</b>：接住对方扔来的炸弹并扔回去！引信烧完时炸弹在谁手里/谁半场，谁就被炸掉 1 颗红心。</p>'+
-    '<p>🎮 P1：W/S 上下 · A 扔炸弹 · D 道具<br>🎮 P2：↑/↓ 上下 · L 扔炸弹 · K 道具</p>'+
-    '<p>📱 手机：左半屏上滑=左玩家 / 右半屏=右玩家，底部两个大按钮扔炸弹，点道具图标使用。</p>'+
+    '<p>🎮 <b>接球是自动的</b>——炸弹飞过来角色会自己站到落点接住，你只要盯住头上冒烟的炸弹，快炸时按“扔”丢回去！</p>'+
+    '<p>🎮 P1：A 扔炸弹 · D 道具<br>🎮 P2：L 扔炸弹 · K 道具<br>（想自己挪位置可按住 W/S 或 ↑/↓）</p>'+
+    '<p>📱 手机：不用上下滑动！接球自动，只点底部两个大按钮“扔炸弹”即可，点道具图标使用。</p>'+
     '<p class="tip">炸弹种类：黑球普通 · 蓝冰晶冻人 · 黄球分裂 · 礼物盒加分 · 火焰极快 · 绿壳超慢 · 紫弹簧会弹回 · 橙翅膀追踪 · 灰烟球放烟 · 金星双加分</p>'+
     '<button class="bigbtn" id="hb">👍 知道了</button>');
   $('hb').onclick=()=>{hidePanel()};
@@ -1340,7 +1389,7 @@ function titlePanel(){
   showPanel('<h1>💣 炸弹传递大作战</h1><p style="margin-top:2px">FC 风格双人对战！接住炸弹赶紧扔回去～</p>'+
     '<button class="bigbtn" id="bPlay">🎮 开始对战</button>'+
     '<button class="bigbtn sec tny" id="bHelp" style="width:70%">📖 玩法说明</button>'+
-    '<p class="hint">支持键盘（WASD/方向键）与手机触屏</p>');
+    '<p class="hint">接球自动完成 · 快炸时按“扔”丢回去 · 支持键盘与手机触屏</p>');
   $('bPlay').onclick=()=>modePanel();
   $('bHelp').onclick=()=>helpPanel();
 }
@@ -1352,7 +1401,7 @@ function modePanel(){
   });
   html+='</div><div id="diffWrap" style="display:none"><h2>AI 难度</h2><div class="diffRow">';
   DIFFS.forEach((d,i)=>{html+='<div class="card'+(diff===d?' sel':'')+'" data-d="'+i+'"><div class="nm">'+d.n+'</div></div>'});
-  html+='</div></div>';
+  html+='</div><p class="hint">简单 = 电脑反应慢还会发呆，最适合小朋友</p></div>';
   html+='<button class="bigbtn" id="mNext">下一步：选角色 →</button>'+
         '<button class="bigbtn tny sec" id="mBack">← 返回</button>';
   showPanel(html);
