@@ -294,45 +294,6 @@ function chDraw(c,opt){
   cx.translate(opt.px,opt.py);
   cx.scale(opt.s,opt.s);
   if(opt.face<0)cx.scale(-1,1);   // 面向左
-  /* ★ 线稿简约风：白底+黑线轮廓+最简面部 —— 整个角色一眼看清楚 */
-  cx.strokeStyle='#222';cx.fillStyle='#ffffff';cx.lineWidth=3.2;cx.lineCap='round';cx.lineJoin='round';
-  /* 身体（圆角矩形，白底黑边） */
-  rr(-18,-64,36,54,16);cx.fill();cx.stroke();
-  /* 头（圆形，白底黑边） */
-  cx.beginPath();cx.arc(2,-94,26,0,TAU);cx.fill();cx.stroke();
-  /* 眼睛（两个小黑圆） */
-  cx.fillStyle='#222';
-  cx.beginPath();cx.arc(-6,-96,3.2,0,TAU);cx.arc(10,-96,3.2,0,TAU);cx.fill();
-  /* 嘴（小弧线表示微笑 / 紧张时为压扁的横线） */
-  cx.strokeStyle='#222';cx.lineWidth=2.4;
-  if(opt.mood==='x'){
-    cx.beginPath();cx.moveTo(-6,-86);cx.lineTo(10,-86);cx.stroke();
-  }else if(opt.mood==='nerve'){
-    cx.beginPath();cx.moveTo(-6,-85);cx.quadraticCurveTo(2,-82,10,-85);cx.stroke();
-  }else{
-    cx.beginPath();cx.moveTo(-6,-87);cx.quadraticCurveTo(2,-83,10,-87);cx.stroke();
-  }
-  /* 简笔手臂（throw 时单臂前伸） */
-  if(opt.pose==='throw'){
-    cx.beginPath();cx.moveTo(18,-44);cx.lineTo(30+22*opt.throwP,-58);cx.stroke();
-  }else if(opt.pose==='catch'){
-    cx.beginPath();cx.moveTo(18,-46);cx.lineTo(32,-58);cx.stroke();
-  }
-  /* 紧张时头上画 3 道汗线 */
-  if(opt.mood==='nerve'){
-    cx.strokeStyle='#222';cx.lineWidth=2;
-    cx.beginPath();cx.moveTo(22,-108);cx.lineTo(28,-114);cx.moveTo(26,-104);cx.lineTo(32,-110);cx.stroke();
-  }
-  /* 黑白状态 */
-  if(opt.black){
-    cx.fillStyle='rgba(0,0,0,.18)';rr(-18,-64,36,54,16);cx.fill();
-  }
-  /* 防护罩泡泡（保留功能提示） */
-  if(opt.bubble){cx.strokeStyle='#0288a8';cx.lineWidth=2.5;
-    cx.beginPath();cx.arc(2,-94,52+Math.sin((opt.t||0)*.06)*3,0,TAU);cx.stroke()}
-  cx.restore();
-  return;
-  /* === 下方为原彩色版（保留 fallback，将来切回 Theme=Color 时启用） === */
   if(opt.alpha!==undefined)cx.globalAlpha=opt.alpha;
   const t=opt.t||0,bob=Math.sin(t*.09)*2.4;
   const dark=opt.black?'#3a3a3a':ch.dark, body=opt.black?'#5a5a5a':ch.body, belly=opt.black?'#777':ch.belly;
@@ -585,26 +546,46 @@ function fuseTick(b){
 }
 
 /* ================= 绘制：场地 ================= */
-/* ================= 场地（线稿简约风：白底+细黑边） ================= */
+/* ================= 场地：左右对阵竞技场（清爽底 + 半场分色 + 站台） ================= */
 function drawArena(){
-  const a2=LAY;
-  /* 纯白底 */
-  cx.fillStyle='#ffffff';cx.fillRect(0,0,a2.W,a2.ch);
-  /* 顶部分隔线（play 区上界） */
-  cx.strokeStyle='#222';cx.lineWidth=2;
-  cx.beginPath();cx.moveTo(0,a2.topY-30);cx.lineTo(a2.W,a2.topY-30);cx.stroke();
-  /* 地面线（粗一些，作为角色脚线） */
-  cx.lineWidth=3;
-  cx.beginPath();cx.moveTo(0,a2.groundY);cx.lineTo(a2.W,a2.groundY);cx.stroke();
-  /* 中线（虚线，左/右玩家分隔） */
-  cx.strokeStyle='#bbb';cx.lineWidth=1.5;cx.setLineDash([6,8]);
-  cx.beginPath();cx.moveTo(a2.midX,a2.topY-30);cx.lineTo(a2.midX,a2.groundY);cx.stroke();cx.setLineDash([]);
-  /* 左右半区轻标记（角落里一个小三角形箭头指向中线，含义"目标：传给对面"） */
-  cx.fillStyle='#999';cx.font='11px "Microsoft YaHei",sans-serif';cx.textAlign='left';cx.textBaseline='top';
-  cx.fillText('← 传给对面',8,a2.topY-26);
-  cx.textAlign='right';
-  cx.fillText('传给对面 →',a2.W-8,a2.topY-26);
-  cx.textAlign='left';
+  const a2=LAY, gy=a2.groundY;
+  const id=(arena&&arena.id)||'grass';
+  /* 场地主色表（浅色调，纸面清爽，让彩色角色最醒目） */
+  const PAL={
+    grass:{top:'#dff2e2',floor:'#bfe3ad',side0:'rgba(255,150,90,.07)',side1:'rgba(90,150,255,.07)'},
+    ice:{top:'#e3f4fb',floor:'#bfe0ef',side0:'rgba(255,150,90,.06)',side1:'rgba(90,150,255,.06)'},
+    volcano:{top:'#fbe8dc',floor:'#e7b692',side0:'rgba(255,120,80,.08)',side1:'rgba(90,150,255,.06)'},
+    space:{top:'#e6e8f6',floor:'#b9bfdd',side0:'rgba(255,140,90,.06)',side1:'rgba(120,140,255,.08)'},
+    palace:{top:'#fdf1d8',floor:'#e6cd97',side0:'rgba(255,170,90,.08)',side1:'rgba(90,150,255,.05)'},
+    arena:{top:'#edf0f6',floor:'#c3cbd9',side0:'rgba(255,140,90,.06)',side1:'rgba(90,150,255,.07)'}
+  }[id]||{top:'#eaf7ec',floor:'#bfe3ad',side0:'rgba(255,150,90,.07)',side1:'rgba(90,150,255,.07)'};
+  /* 上半背景：顶部带主色 → 向下变白（清爽） */
+  const g=cx.createLinearGradient(0,0,0,gy);
+  g.addColorStop(0,PAL.top);g.addColorStop(1,'#ffffff');
+  cx.fillStyle=g;cx.fillRect(0,0,a2.W,a2.ch);
+  /* 地面 */
+  const gg=cx.createLinearGradient(0,gy,0,a2.ch);
+  gg.addColorStop(0,PAL.floor);gg.addColorStop(1,'#ffffff');
+  cx.fillStyle=gg;cx.fillRect(0,gy,a2.W,a2.ch-gy);
+  /* 左右半场淡色（对立感） */
+  cx.fillStyle=PAL.side0;cx.fillRect(0,a2.topY-30,a2.midX,gy-(a2.topY-30));
+  cx.fillStyle=PAL.side1;cx.fillRect(a2.midX,a2.topY-30,a2.W-a2.midX,gy-(a2.topY-30));
+  /* 玩家站台（脚下半透明椭圆，暖=红方 / 冷=蓝方，明确"站在这里对战"） */
+  cx.save();
+  cx.fillStyle='rgba(255,120,80,.16)';cx.strokeStyle='rgba(255,120,80,.4)';cx.lineWidth=2;
+  cx.beginPath();cx.ellipse(a2.c1,gy+14,104,30,0,0,TAU);cx.fill();cx.stroke();
+  cx.fillStyle='rgba(80,150,255,.16)';cx.strokeStyle='rgba(80,150,255,.4)';cx.lineWidth=2;
+  cx.beginPath();cx.ellipse(a2.c2,gy+14,104,30,0,0,TAU);cx.fill();cx.stroke();
+  /* 台面上端一根细地线 */
+  cx.strokeStyle='rgba(0,0,0,.25)';cx.lineWidth=2;
+  cx.beginPath();cx.moveTo(0,gy);cx.lineTo(a2.W,gy);cx.stroke();
+  cx.restore();
+  /* 中场分隔：竖虚线 + 中央小圆环（"对峙中线"，炸弹要越过这里才算传过去） */
+  cx.strokeStyle='rgba(0,0,0,.22)';cx.lineWidth=2;cx.setLineDash([8,9]);
+  cx.beginPath();cx.moveTo(a2.midX,a2.topY-26);cx.lineTo(a2.midX,gy);cx.stroke();cx.setLineDash([]);
+  /* 中线脚下小三角标记 */
+  cx.fillStyle='rgba(0,0,0,.3)';
+  cx.beginPath();cx.moveTo(a2.midX-8,gy+20);cx.lineTo(a2.midX+8,gy+20);cx.lineTo(a2.midX,gy+29);cx.closePath();cx.fill();
 }
 function drawCloud(){
   if(!(arena.id==='palace'&&cloud))return;
