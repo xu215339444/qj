@@ -171,7 +171,7 @@ body{
     <svg class="star-svg" viewBox="0 0 24 24" width="70" height="70" aria-hidden="true"><path d="M12 2l3.09 6.26 6.91 1-5 4.87 1.18 6.88L12 17.77l-6.18 3.24L7 14.13l-5-4.87 6.91-1z" fill="#ffd23f" stroke="#f5a623" stroke-width="1.4" stroke-linejoin="round"/></svg>
   </div>
   <h2 class="heading">全部拼好啦！</h2>
-  <p class="subtitle" id="vicSub">6 张图案都拼完啦，你太棒了！</p>
+  <p class="subtitle" id="vicSub">这一档的图案都拼完啦，你太棒了！</p>
   <button class="btn big" id="btnAgain" type="button">再玩一次</button>
   <a class="homelink" href="游戏大厅.html" target="_top">← 游戏大厅</a>
   <div id="confettiWrap"></div>
@@ -1177,14 +1177,223 @@ body{
     ctx.closePath(); ctx.fill();
   }
 
-  /* 三档难度各有专属 6 张图（不共用） */
+  /* ---------- 新增·神话法器 ① 乾坤圈（进简单档） ---------- */
+  function drawShenqiRing(ctx,W,H){
+    ctx.lineJoin='round'; ctx.lineCap='round';
+    var g=ctx.createLinearGradient(0,0,0,H);
+    g.addColorStop(0,'#ffd9a0'); g.addColorStop(1,'#fff4dc');
+    ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+    cloud(ctx,W*0.14,H*0.16,W*0.1);
+    cloud(ctx,W*0.86,H*0.26,W*0.08);
+    smallFlower(ctx,W*0.07,H*0.88,W*0.018,'#ff9de0');
+    smallFlower(ctx,W*0.94,H*0.9,W*0.016,'#ff9d3c');
+    var cx=W*0.5, cy=H*0.52, Ro=W*0.24, t=W*0.082, Ri=Ro-t;
+    /* 环外放射金光 */
+    ctx.strokeStyle='rgba(255,190,60,0.8)'; ctx.lineWidth=W*0.009;
+    for(var i=0;i<12;i++){
+      var a=i*Math.PI/6;
+      ctx.beginPath();
+      ctx.moveTo(cx+Math.cos(a)*(Ro+W*0.006),cy+Math.sin(a)*(Ro+W*0.006));
+      ctx.lineTo(cx+Math.cos(a)*(Ro+W*0.085),cy+Math.sin(a)*(Ro+W*0.085));
+      ctx.stroke();
+    }
+    cloud(ctx,cx,cy,W*0.12); /* 环心小云，透过环心可见 */
+    /* 金环（挖空成圈） */
+    var rg=ctx.createRadialGradient(cx-t*0.5,cy-t*0.5,t*0.2,cx,cy,Ro);
+    rg.addColorStop(0,'#fff3b0'); rg.addColorStop(0.5,'#ffcf3d'); rg.addColorStop(1,'#e89400');
+    ctx.fillStyle=rg;
+    ctx.beginPath();
+    ctx.arc(cx,cy,Ro,0,Math.PI*2);
+    ctx.arc(cx,cy,Ri,0,Math.PI*2,true);
+    ctx.fill('evenodd');
+    ctx.strokeStyle='#a86500'; ctx.lineWidth=W*0.011;
+    ctx.beginPath(); ctx.arc(cx,cy,Ro-W*0.004,0,Math.PI*2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(cx,cy,Ri+W*0.006,0,Math.PI*2); ctx.stroke();
+    /* 环面高光 */
+    ctx.strokeStyle='rgba(255,255,255,0.7)'; ctx.lineWidth=W*0.022;
+    ctx.beginPath(); ctx.arc(cx,cy,(Ro+Ri)/2,Math.PI*1.15,Math.PI*1.85); ctx.stroke();
+    /* 顶部小金珠 */
+    ctx.fillStyle='#ffd23f'; ctx.strokeStyle='#c98000'; ctx.lineWidth=W*0.006;
+    ctx.beginPath(); ctx.arc(cx,cy-Ro-W*0.012,W*0.027,0,Math.PI*2); ctx.fill(); ctx.stroke();
+    /* 底部红缨：蝴蝶结 + 两条垂带 */
+    var fyy=cy+Ro;
+    ctx.fillStyle='#ff4d5e';
+    ctx.beginPath(); ctx.ellipse(cx-W*0.046,fyy+W*0.01,W*0.038,W*0.023,0.25,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(cx+W*0.046,fyy+W*0.01,W*0.038,W*0.023,-0.25,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='#e8344a'; ctx.strokeStyle='#b01f30'; ctx.lineWidth=W*0.004;
+    roundRect(ctx,cx-W*0.016,fyy-W*0.012,W*0.032,W*0.032,W*0.008); ctx.fill(); ctx.stroke();
+    ctx.fillStyle='#ff4d5e'; ctx.strokeStyle='#c92036';
+    ctx.beginPath();
+    ctx.moveTo(cx-W*0.012,fyy+W*0.02); ctx.lineTo(cx-W*0.044,fyy+H*0.15); ctx.lineTo(cx-W*0.013,fyy+H*0.115);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(cx+W*0.012,fyy+W*0.02); ctx.lineTo(cx+W*0.044,fyy+H*0.15); ctx.lineTo(cx+W*0.013,fyy+H*0.115);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    cloud(ctx,W*0.5,H*0.955,W*0.15);
+    sparkle(ctx,W*0.75,H*0.3,W*0.03,'#fff');
+    sparkle(ctx,W*0.28,H*0.68,W*0.026,'#ffe066');
+  }
+
+  /* ---------- 新增·神话法器 ② 三叉戟（进挑战档） ---------- */
+  function drawShenqiTrident(ctx,W,H){
+    ctx.lineJoin='round'; ctx.lineCap='round';
+    var g=ctx.createLinearGradient(0,0,0,H);
+    g.addColorStop(0,'#a8deff'); g.addColorStop(0.55,'#6cc0ee'); g.addColorStop(1,'#2e7cb8');
+    ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+    /* 水中波纹 */
+    ctx.strokeStyle='rgba(255,255,255,0.3)'; ctx.lineWidth=W*0.008;
+    for(var wv=0;wv<2;wv++){
+      var wy=H*(0.5+wv*0.16);
+      ctx.beginPath(); ctx.moveTo(W*0.06,wy);
+      ctx.quadraticCurveTo(W*0.14,wy-W*0.014,W*0.22,wy);
+      ctx.quadraticCurveTo(W*0.3,wy+W*0.014,W*0.38,wy);
+      ctx.moveTo(W*0.62,wy);
+      ctx.quadraticCurveTo(W*0.7,wy-W*0.014,W*0.78,wy);
+      ctx.quadraticCurveTo(W*0.86,wy+W*0.014,W*0.94,wy);
+      ctx.stroke();
+    }
+    /* 气泡 */
+    ctx.fillStyle='rgba(255,255,255,0.5)';
+    ctx.beginPath(); ctx.arc(W*0.32,H*0.26,W*0.02,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(W*0.34,H*0.15,W*0.012,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(W*0.7,H*0.36,W*0.015,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(W*0.86,H*0.18,W*0.022,0,Math.PI*2); ctx.fill();
+    /* 海底沙地 */
+    ctx.fillStyle='#ffe9bd';
+    ctx.beginPath(); ctx.moveTo(0,H*0.92);
+    ctx.quadraticCurveTo(W*0.28,H*0.87,W*0.55,H*0.92);
+    ctx.quadraticCurveTo(W*0.8,H*0.97,W,H*0.91);
+    ctx.lineTo(W,H); ctx.lineTo(0,H); ctx.closePath(); ctx.fill();
+    /* 海草与珊瑚 */
+    ctx.strokeStyle='#2fae6a'; ctx.lineWidth=W*0.015;
+    ctx.beginPath(); ctx.moveTo(W*0.09,H*0.94); ctx.quadraticCurveTo(W*0.12,H*0.86,W*0.09,H*0.79); ctx.stroke();
+    ctx.strokeStyle='#3fbf7a'; ctx.lineWidth=W*0.011;
+    ctx.beginPath(); ctx.moveTo(W*0.91,H*0.95); ctx.quadraticCurveTo(W*0.88,H*0.88,W*0.91,H*0.83); ctx.stroke();
+    ctx.strokeStyle='#ff8c5e'; ctx.lineWidth=W*0.02;
+    var cox=W*0.16, coy=H*0.905;
+    ctx.beginPath();
+    ctx.moveTo(cox,coy); ctx.lineTo(cox,coy-W*0.055); ctx.lineTo(cox-W*0.028,coy-W*0.105);
+    ctx.moveTo(cox,coy-W*0.055); ctx.lineTo(cox+W*0.024,coy-W*0.1);
+    ctx.moveTo(cox,coy-W*0.055); ctx.lineTo(cox+W*0.04,coy-W*0.078);
+    ctx.stroke();
+    sparkle(ctx,W*0.24,H*0.6,W*0.026,'#fff');
+    sparkle(ctx,W*0.78,H*0.62,W*0.024,'#dff4ff');
+    /* ---- 三叉戟主体 ---- */
+    var cx=W*0.5, Bw=W*0.042, yTop=H*0.16, yBar=H*0.32, yShank=H*0.42, yButt=H*0.83;
+    var mg=ctx.createLinearGradient(cx-W*0.09,0,cx+W*0.09,0);
+    mg.addColorStop(0,'#cfe2f2'); mg.addColorStop(0.4,'#ffffff'); mg.addColorStop(1,'#a9c8e2');
+    var gg=ctx.createLinearGradient(cx-W*0.14,0,cx+W*0.14,0);
+    gg.addColorStop(0,'#e8a400'); gg.addColorStop(0.5,'#ffe27a'); gg.addColorStop(1,'#c07f00');
+    /* 中心尖 */
+    ctx.fillStyle=mg; ctx.strokeStyle='#6f8fa8'; ctx.lineWidth=W*0.006;
+    ctx.beginPath();
+    ctx.moveTo(cx,yTop);
+    ctx.lineTo(cx+W*0.082,yBar-H*0.02);
+    ctx.quadraticCurveTo(cx+W*0.03,yBar-H*0.005,cx,yBar-H*0.02);
+    ctx.quadraticCurveTo(cx-W*0.03,yBar-H*0.005,cx-W*0.082,yBar-H*0.02);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle='#eef6ff'; ctx.lineWidth=W*0.005;
+    ctx.beginPath(); ctx.moveTo(cx,yTop+H*0.06); ctx.lineTo(cx,yBar-H*0.03); ctx.stroke();
+    /* 两侧弯叉（圆头粗棒） */
+    ctx.strokeStyle=mg; ctx.lineWidth=W*0.034;
+    ctx.beginPath();
+    ctx.moveTo(cx-W*0.1,yBar-H*0.005);
+    ctx.quadraticCurveTo(cx-W*0.26,yBar-H*0.075,cx-W*0.21,yTop+H*0.015);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(cx+W*0.1,yBar-H*0.005);
+    ctx.quadraticCurveTo(cx+W*0.26,yBar-H*0.075,cx+W*0.21,yTop+H*0.015);
+    ctx.stroke();
+    ctx.strokeStyle='rgba(255,255,255,0.65)'; ctx.lineWidth=W*0.011;
+    ctx.beginPath();
+    ctx.moveTo(cx-W*0.125,yBar-H*0.02);
+    ctx.quadraticCurveTo(cx-W*0.24,yBar-H*0.055,cx-W*0.195,yTop+H*0.025);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(cx+W*0.125,yBar-H*0.02);
+    ctx.quadraticCurveTo(cx+W*0.24,yBar-H*0.055,cx+W*0.195,yTop+H*0.025);
+    ctx.stroke();
+    /* 叉颈（横档→金轴之间） */
+    roundRect(ctx,cx-Bw*0.85,yBar+H*0.01,Bw*1.7,H*0.1,Bw*0.3);
+    ctx.fillStyle=mg; ctx.fill();
+    ctx.strokeStyle='#6f8fa8'; ctx.lineWidth=W*0.005; ctx.stroke();
+    /* 长柄 */
+    roundRect(ctx,cx-Bw/2,yShank,Bw,yButt-yShank,Bw*0.3);
+    ctx.fillStyle='#eef4fa'; ctx.fill();
+    ctx.strokeStyle='#6f8fa8'; ctx.lineWidth=W*0.005; ctx.stroke();
+    /* 柄上金环 x3 */
+    ctx.fillStyle=gg;
+    for(var hr=0;hr<3;hr++){
+      var hy=yShank+H*0.05+hr*H*0.12;
+      roundRect(ctx,cx-Bw/2-W*0.008,hy,Bw+W*0.016,H*0.028,Bw*0.1); ctx.fill();
+    }
+    /* 横档（金色，连接三尖） */
+    ctx.fillStyle=gg; ctx.strokeStyle='#8f5c00'; ctx.lineWidth=W*0.005;
+    roundRect(ctx,cx-W*0.14,yBar-H*0.024,W*0.28,H*0.045,W*0.012);
+    ctx.fill(); ctx.stroke();
+    /* 叉底金轴 */
+    roundRect(ctx,cx-Bw/2-W*0.01,yShank-H*0.03,Bw+W*0.02,H*0.06,W*0.014);
+    ctx.fill(); ctx.stroke();
+    /* 柄底金球 */
+    ctx.fillStyle='#ffd23f'; ctx.strokeStyle='#c07f00'; ctx.lineWidth=W*0.005;
+    ctx.beginPath(); ctx.arc(cx,yButt+H*0.03,W*0.034,0,Math.PI*2); ctx.fill(); ctx.stroke();
+  }
+
+  /* ---------- 新增·神话法器 ③ 金箍棒（进困难档） ---------- */
+  function drawShenqiStaff(ctx,W,H){
+    ctx.lineJoin='round'; ctx.lineCap='round';
+    var g=ctx.createLinearGradient(0,0,0,H);
+    g.addColorStop(0,'#aee1ff'); g.addColorStop(1,'#e9f8ff');
+    ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+    cloud(ctx,W*0.13,H*0.16,W*0.1);
+    cloud(ctx,W*0.87,H*0.15,W*0.08);
+    cloud(ctx,W*0.84,H*0.7,W*0.085);
+    cloud(ctx,W*0.5,H*0.92,W*0.16); /* 棒下大祥云 */
+    var cx=W*0.5, yt=H*0.13, L=H*0.65, yb=yt+L;
+    var D=W*0.048, Dg=W*0.066, hg=H*0.078;
+    var mid0=yt+hg, mid1=yb-hg;
+    /* 背后光晕 */
+    var glow=ctx.createRadialGradient(cx,yb-H*0.22,W*0.02,cx,yb-H*0.22,W*0.42);
+    glow.addColorStop(0,'rgba(255,226,120,0.35)'); glow.addColorStop(1,'rgba(255,226,120,0)');
+    ctx.fillStyle=glow;
+    ctx.beginPath(); ctx.arc(cx,yb-H*0.22,W*0.42,0,Math.PI*2); ctx.fill();
+    /* 红身 */
+    var rg=ctx.createLinearGradient(0,mid0,0,mid1);
+    rg.addColorStop(0,'#ff5a47'); rg.addColorStop(0.5,'#e6362a'); rg.addColorStop(1,'#b91c12');
+    ctx.fillStyle=rg; ctx.strokeStyle='#8f1209'; ctx.lineWidth=W*0.004;
+    roundRect(ctx,cx-D/2,mid0,D,mid1-mid0,D/2); ctx.fill(); ctx.stroke();
+    /* 红身上的如意金纹（3 组：金点 + 左右金条） */
+    ctx.fillStyle='#ffd54a';
+    for(var k=0;k<3;k++){
+      var yk=mid0+(mid1-mid0)*(k+0.5)/3;
+      ctx.beginPath(); ctx.arc(cx,yk,W*0.009,0,Math.PI*2); ctx.fill();
+      roundRect(ctx,cx-D*0.42,yk-W*0.006,D*0.3,W*0.012,W*0.004); ctx.fill();
+      roundRect(ctx,cx+D*0.12,yk-W*0.006,D*0.3,W*0.012,W*0.004); ctx.fill();
+    }
+    /* 两端金箍（略粗，圆帽） */
+    var gg=ctx.createLinearGradient(cx-Dg/2,0,cx+Dg/2,0);
+    gg.addColorStop(0,'#e8a400'); gg.addColorStop(0.35,'#ffe989'); gg.addColorStop(1,'#bd7a00');
+    ctx.fillStyle=gg; ctx.strokeStyle='#8f5c00'; ctx.lineWidth=W*0.005;
+    roundRect(ctx,cx-Dg/2,yt,Dg,hg,Dg/2); ctx.fill(); ctx.stroke();
+    roundRect(ctx,cx-Dg/2,yb-hg,Dg,hg,Dg/2); ctx.fill(); ctx.stroke();
+    /* 金箍与红身相接处的分隔线 */
+    ctx.strokeStyle='#8f5c00'; ctx.lineWidth=W*0.0035;
+    ctx.beginPath(); ctx.moveTo(cx-D/2-W*0.006,mid0+W*0.004); ctx.lineTo(cx+D/2+W*0.006,mid0+W*0.004); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx-D/2-W*0.006,mid1-W*0.004); ctx.lineTo(cx+D/2+W*0.006,mid1-W*0.004); ctx.stroke();
+    sparkle(ctx,W*0.26,H*0.3,W*0.028,'#fff7c4');
+    sparkle(ctx,W*0.74,H*0.32,W*0.03,'#ffe066');
+    sparkle(ctx,W*0.7,H*0.85,W*0.026,'#ffffff');
+  }
+
+  /* 三档难度各有专属 9 张图（原 6 张 + 新 3 件神话法器，不共用） */
   var PATTERNS_EASY=[
     {id:'sword',name:'宝剑',draw:drawSword},
     {id:'sunrise',name:'日出',draw:drawSunrise},
     {id:'house',name:'房子',draw:drawHouse},
     {id:'cat',name:'小猫咪',draw:drawCat},
     {id:'elephant',name:'大象',draw:drawElephant},
-    {id:'flower',name:'花朵',draw:drawFlower}
+    {id:'flower',name:'花朵',draw:drawFlower},
+    {id:'qiankun',name:'乾坤圈',draw:drawShenqiRing}
   ];
   var PATTERNS_CHAL=[
     {id:'puppy',name:'小狗',draw:drawPuppy},
@@ -1192,7 +1401,8 @@ body{
     {id:'sailboat',name:'帆船',draw:drawSailboat},
     {id:'icecream',name:'冰淇淋',draw:drawIcecream},
     {id:'rainbow',name:'彩虹',draw:drawRainbow},
-    {id:'car',name:'小汽车',draw:drawCar}
+    {id:'car',name:'小汽车',draw:drawCar},
+    {id:'sanchaji',name:'三叉戟',draw:drawShenqiTrident}
   ];
   var PATTERNS_HARD=[
     {id:'dino',name:'恐龙',draw:drawDino},
@@ -1200,7 +1410,8 @@ body{
     {id:'whale',name:'鲸鱼',draw:drawWhale},
     {id:'planet',name:'星球',draw:drawPlanet},
     {id:'penguin',name:'企鹅',draw:drawPenguin},
-    {id:'train',name:'小火车',draw:drawTrain}
+    {id:'train',name:'小火车',draw:drawTrain},
+    {id:'jingu',name:'金箍棒',draw:drawShenqiStaff}
   ];
   var PATTERNS=PATTERNS_EASY; /* 当前档图集，随 setMode 切换 */
 
@@ -1222,11 +1433,11 @@ body{
 
   /* ---------- 状态 ---------- */
   var cells=[], offscreen=null, steps=0, curPatternIndex=0, selected=-1, winning=false;
-  /* 每档完成进度独立：{easy:[6], chal:[6], hard:[6]} */
-  function freshDone(){ return {easy:[false,false,false,false,false,false],chal:[false,false,false,false,false,false],hard:[false,false,false,false,false,false]}; }
+  /* 每档完成进度独立：{easy:[9], chal:[9], hard:[9]} */
+  function freshDone(){ return {easy:[false,false,false,false,false,false,false,false,false],chal:[false,false,false,false,false,false,false,false,false],hard:[false,false,false,false,false,false,false,false,false]}; }
   var completed=freshDone();
   function DONE(){ return completed[MODE]; }
-  /* 难度：easy 3x3 九块 / chal 4x4 十六块 / hard 5x5 二十五块，三档各自专属 6 张图 */
+  /* 难度：easy 3x3 九块 / chal 4x4 十六块 / hard 5x5 二十五块，三档各自专属 9 张图 */
   var MODE='easy';
   var DIFFS={
     easy:{label:'简单',n:9,c:3,r:3,note:'3×3 · 每张图有专属画',btn:'modeEasy',set:PATTERNS_EASY},
@@ -1271,7 +1482,8 @@ body{
         for(var i=0;i<6;i++) completed.easy[i]=!!o[i];
       }else{
         ['easy','chal','hard'].forEach(function(k){
-          if(o[k] && o[k].length===6) for(var j=0;j<6;j++) completed[k][j]=!!o[k][j];
+          /* 兼容旧版 6 长存档与新 9 长存档 */
+          if(o[k] && o[k].length) for(var j=0;j<Math.min(9,o[k].length);j++) completed[k][j]=!!o[k][j];
         });
       }
     }catch(e){}
@@ -1492,13 +1704,13 @@ body{
   }
   function showVictory(){
     var vs=$('vicSub');
-    if(vs) vs.textContent='「'+DIFFS[MODE].label+'档」的 6 张图案都拼完啦，你太棒了！';
+    if(vs) vs.textContent='「'+DIFFS[MODE].label+'档」的 '+PATTERNS.length+' 张图案都拼完啦，你太棒了！';
     spawnConfetti();
     show('screenVictory');
     sfxVictory();
   }
   function resetAll(){
-    for(var i=0;i<6;i++) DONE()[i]=false;
+    for(var i=0;i<PATTERNS.length;i++) DONE()[i]=false;
     saveProgress();
     showSelect();
   }
