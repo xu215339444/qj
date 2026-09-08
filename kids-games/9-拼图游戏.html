@@ -1234,112 +1234,154 @@ body{
     sparkle(ctx,W*0.28,H*0.68,W*0.026,'#ffe066');
   }
 
-  /* ---------- 新增·神话法器 ② 三叉戟（进挑战档） ---------- */
+      /* ---------- 新增·神话法器 ② 三叉戟（进挑战档） ---------- */
   function drawShenqiTrident(ctx,W,H){
     ctx.lineJoin='round'; ctx.lineCap='round';
+    /* 背景 */
     var g=ctx.createLinearGradient(0,0,0,H);
-    g.addColorStop(0,'#a8deff'); g.addColorStop(0.55,'#6cc0ee'); g.addColorStop(1,'#2e7cb8');
+    g.addColorStop(0,'#c8edff'); g.addColorStop(0.5,'#7cccf2'); g.addColorStop(1,'#1c6095');
     ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
-    /* 水中波纹 */
-    ctx.strokeStyle='rgba(255,255,255,0.3)'; ctx.lineWidth=W*0.008;
-    for(var wv=0;wv<2;wv++){
-      var wy=H*(0.5+wv*0.16);
-      ctx.beginPath(); ctx.moveTo(W*0.06,wy);
-      ctx.quadraticCurveTo(W*0.14,wy-W*0.014,W*0.22,wy);
-      ctx.quadraticCurveTo(W*0.3,wy+W*0.014,W*0.38,wy);
-      ctx.moveTo(W*0.62,wy);
-      ctx.quadraticCurveTo(W*0.7,wy-W*0.014,W*0.78,wy);
-      ctx.quadraticCurveTo(W*0.86,wy+W*0.014,W*0.94,wy);
+    /* 海面水波 */
+    ctx.strokeStyle='rgba(255,255,255,0.55)'; ctx.lineWidth=W*0.01;
+    ctx.beginPath(); ctx.moveTo(W*0.08,H*0.07);
+    ctx.quadraticCurveTo(W*0.2,H*0.045,W*0.33,H*0.07);
+    ctx.quadraticCurveTo(W*0.46,H*0.095,W*0.6,H*0.07);
+    ctx.quadraticCurveTo(W*0.74,H*0.045,W*0.88,H*0.07);
+    ctx.stroke();
+    /* 顶部阳光 */
+    ctx.fillStyle='rgba(255,255,255,0.2)';
+    ctx.beginPath(); ctx.ellipse(W*0.5,H*0.12,W*0.36,H*0.065,0,0,Math.PI*2); ctx.fill();
+    /* 中部两侧小鱼（提供切片纹理） */
+    ctx.fillStyle='#ffbe66';
+    ctx.beginPath(); ctx.ellipse(W*0.16,H*0.56,W*0.036,H*0.022,0.15,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(W*0.195,H*0.556); ctx.lineTo(W*0.22,H*0.54); ctx.lineTo(W*0.212,H*0.576); ctx.closePath(); ctx.fill();
+    ctx.fillStyle='#8a4a12';
+    ctx.beginPath(); ctx.arc(W*0.143,H*0.552,W*0.004,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='#ffcfe4';
+    ctx.beginPath(); ctx.ellipse(W*0.85,H*0.47,W*0.03,H*0.019,0.2,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(W*0.82,H*0.472); ctx.lineTo(W*0.794,H*0.458); ctx.lineTo(W*0.804,H*0.486); ctx.closePath(); ctx.fill();
+    ctx.fillStyle='#7a2a4a';
+    ctx.beginPath(); ctx.arc(W*0.862,H*0.467,W*0.0035,0,Math.PI*2); ctx.fill();
+    /* 气泡 */
+    ctx.strokeStyle='rgba(255,255,255,0.65)'; ctx.lineWidth=W*0.008;
+    ctx.beginPath(); ctx.arc(W*0.315,H*0.28,W*0.014,0,Math.PI*2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(W*0.34,H*0.19,W*0.009,0,Math.PI*2); ctx.stroke();
+    ctx.fillStyle='rgba(255,255,255,0.4)';
+    ctx.beginPath(); ctx.arc(W*0.78,H*0.3,W*0.02,0,Math.PI*2); ctx.fill();
+    /* 沙地 */
+    ctx.fillStyle='#ffecc6';
+    ctx.beginPath(); ctx.moveTo(0,H*0.9);
+    ctx.quadraticCurveTo(W*0.3,H*0.855,W*0.62,H*0.9);
+    ctx.quadraticCurveTo(W*0.86,H*0.94,W,H*0.9);
+    ctx.lineTo(W,H); ctx.lineTo(0,H); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle='rgba(200,150,85,0.5)'; ctx.lineWidth=W*0.007;
+    ctx.beginPath(); ctx.moveTo(W*0.2,H*0.935); ctx.quadraticCurveTo(W*0.32,H*0.952,W*0.45,H*0.94); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(W*0.6,H*0.932); ctx.quadraticCurveTo(W*0.7,H*0.948,W*0.82,H*0.936); ctx.stroke();
+    /* 珊瑚 */
+    ctx.strokeStyle='#ff9468'; ctx.lineWidth=W*0.021;
+    ctx.beginPath();
+    ctx.moveTo(W*0.14,H*0.9); ctx.lineTo(W*0.14,H*0.84); ctx.lineTo(W*0.105,H*0.785);
+    ctx.moveTo(W*0.14,H*0.84); ctx.lineTo(W*0.175,H*0.782);
+    ctx.moveTo(W*0.14,H*0.84); ctx.lineTo(W*0.19,H*0.825);
+    ctx.stroke();
+    ctx.fillStyle='#ffc19a';
+    ctx.beginPath(); ctx.arc(W*0.105,H*0.78,W*0.007,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(W*0.175,H*0.777,W*0.007,0,Math.PI*2); ctx.fill();
+    /* 海草 */
+    ctx.strokeStyle='#36b070'; ctx.lineWidth=W*0.015;
+    ctx.beginPath(); ctx.moveTo(W*0.9,H*0.93); ctx.quadraticCurveTo(W*0.93,H*0.855,W*0.9,H*0.785); ctx.stroke();
+    ctx.strokeStyle='#4cc78b'; ctx.lineWidth=W*0.01;
+    ctx.beginPath(); ctx.moveTo(W*0.855,H*0.935); ctx.quadraticCurveTo(W*0.878,H*0.87,W*0.85,H*0.82); ctx.stroke();
+    /* 海星 */
+    ctx.fillStyle='#ffb35c'; ctx.strokeStyle='#d97e17'; ctx.lineWidth=W*0.005;
+    var sx=W*0.76,sy=H*0.908,sr=W*0.026;
+    ctx.beginPath();
+    for(var st=0;st<5;st++){
+      var a2=-Math.PI/2+st*Math.PI*2/5;
+      var px=sx+Math.cos(a2)*sr, py=sy+Math.sin(a2)*sr;
+      if(st===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
+      var b2=a2+Math.PI/5, px2=sx+Math.cos(b2)*sr*0.42, py2=sy+Math.sin(b2)*sr*0.42;
+      ctx.lineTo(px2,py2);
+    }
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    /* ==== 主体：金光三叉戟（等高三尖、外展宽幅） ==== */
+    var cx=W*0.5, yT=H*0.16, yB=H*0.36;
+    var kg=ctx.createLinearGradient(cx-W*0.15,0,cx+W*0.15,0);
+    kg.addColorStop(0,'#ffdf6b'); kg.addColorStop(0.45,'#fff6c0'); kg.addColorStop(1,'#e89a00');
+    var goldDk='#a86500';
+    /* 中央大尖（更宽更矮） */
+    ctx.fillStyle=kg; ctx.strokeStyle=goldDk; ctx.lineWidth=W*0.006;
+    ctx.beginPath();
+    ctx.moveTo(cx-W*0.058,yB);
+    ctx.quadraticCurveTo(cx-W*0.072,H*0.27,cx-W*0.032,yT+W*0.005);
+    ctx.quadraticCurveTo(cx,yT-W*0.005,cx+W*0.032,yT+W*0.005);
+    ctx.quadraticCurveTo(cx+W*0.072,H*0.27,cx+W*0.058,yB);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    /* 中脊高光 */
+    ctx.strokeStyle='rgba(255,255,255,0.9)'; ctx.lineWidth=W*0.009;
+    ctx.beginPath(); ctx.moveTo(cx,yT+W*0.025); ctx.lineTo(cx,yB-W*0.015); ctx.stroke();
+    /* 左右侧刃（外展弯刃，宽度接近中尖） */
+    for(var s2=-1;s2<=1;s2+=2){
+      ctx.fillStyle=kg; ctx.strokeStyle=goldDk; ctx.lineWidth=W*0.006;
+      ctx.beginPath();
+      ctx.moveTo(cx+s2*W*0.07,yB-W*0.012);
+      ctx.quadraticCurveTo(cx+s2*W*0.29,yB-W*0.06,cx+s2*W*0.3,yT-W*0.005);
+      ctx.lineTo(cx+s2*W*0.235,yT-W*0.022);
+      ctx.quadraticCurveTo(cx+s2*W*0.16,yB-W*0.085,cx+s2*W*0.11,yB-W*0.015);
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+      /* 侧刃内缘亮线 */
+      ctx.strokeStyle='rgba(255,255,255,0.7)'; ctx.lineWidth=W*0.006;
+      ctx.beginPath();
+      ctx.moveTo(cx+s2*W*0.135,yB-W*0.05);
+      ctx.quadraticCurveTo(cx+s2*W*0.22,yB-W*0.055,cx+s2*W*0.27,yT-W*0.012);
       ctx.stroke();
     }
-    /* 气泡 */
-    ctx.fillStyle='rgba(255,255,255,0.5)';
-    ctx.beginPath(); ctx.arc(W*0.32,H*0.26,W*0.02,0,Math.PI*2); ctx.fill();
-    ctx.beginPath(); ctx.arc(W*0.34,H*0.15,W*0.012,0,Math.PI*2); ctx.fill();
-    ctx.beginPath(); ctx.arc(W*0.7,H*0.36,W*0.015,0,Math.PI*2); ctx.fill();
-    ctx.beginPath(); ctx.arc(W*0.86,H*0.18,W*0.022,0,Math.PI*2); ctx.fill();
-    /* 海底沙地 */
-    ctx.fillStyle='#ffe9bd';
-    ctx.beginPath(); ctx.moveTo(0,H*0.92);
-    ctx.quadraticCurveTo(W*0.28,H*0.87,W*0.55,H*0.92);
-    ctx.quadraticCurveTo(W*0.8,H*0.97,W,H*0.91);
-    ctx.lineTo(W,H); ctx.lineTo(0,H); ctx.closePath(); ctx.fill();
-    /* 海草与珊瑚 */
-    ctx.strokeStyle='#2fae6a'; ctx.lineWidth=W*0.015;
-    ctx.beginPath(); ctx.moveTo(W*0.09,H*0.94); ctx.quadraticCurveTo(W*0.12,H*0.86,W*0.09,H*0.79); ctx.stroke();
-    ctx.strokeStyle='#3fbf7a'; ctx.lineWidth=W*0.011;
-    ctx.beginPath(); ctx.moveTo(W*0.91,H*0.95); ctx.quadraticCurveTo(W*0.88,H*0.88,W*0.91,H*0.83); ctx.stroke();
-    ctx.strokeStyle='#ff8c5e'; ctx.lineWidth=W*0.02;
-    var cox=W*0.16, coy=H*0.905;
-    ctx.beginPath();
-    ctx.moveTo(cox,coy); ctx.lineTo(cox,coy-W*0.055); ctx.lineTo(cox-W*0.028,coy-W*0.105);
-    ctx.moveTo(cox,coy-W*0.055); ctx.lineTo(cox+W*0.024,coy-W*0.1);
-    ctx.moveTo(cox,coy-W*0.055); ctx.lineTo(cox+W*0.04,coy-W*0.078);
-    ctx.stroke();
-    sparkle(ctx,W*0.24,H*0.6,W*0.026,'#fff');
-    sparkle(ctx,W*0.78,H*0.62,W*0.024,'#dff4ff');
-    /* ---- 三叉戟主体 ---- */
-    var cx=W*0.5, Bw=W*0.042, yTop=H*0.16, yBar=H*0.32, yShank=H*0.42, yButt=H*0.83;
-    var mg=ctx.createLinearGradient(cx-W*0.09,0,cx+W*0.09,0);
-    mg.addColorStop(0,'#cfe2f2'); mg.addColorStop(0.4,'#ffffff'); mg.addColorStop(1,'#a9c8e2');
-    var gg=ctx.createLinearGradient(cx-W*0.14,0,cx+W*0.14,0);
-    gg.addColorStop(0,'#e8a400'); gg.addColorStop(0.5,'#ffe27a'); gg.addColorStop(1,'#c07f00');
-    /* 中心尖 */
-    ctx.fillStyle=mg; ctx.strokeStyle='#6f8fa8'; ctx.lineWidth=W*0.006;
-    ctx.beginPath();
-    ctx.moveTo(cx,yTop);
-    ctx.lineTo(cx+W*0.082,yBar-H*0.02);
-    ctx.quadraticCurveTo(cx+W*0.03,yBar-H*0.005,cx,yBar-H*0.02);
-    ctx.quadraticCurveTo(cx-W*0.03,yBar-H*0.005,cx-W*0.082,yBar-H*0.02);
-    ctx.closePath(); ctx.fill(); ctx.stroke();
-    ctx.strokeStyle='#eef6ff'; ctx.lineWidth=W*0.005;
-    ctx.beginPath(); ctx.moveTo(cx,yTop+H*0.06); ctx.lineTo(cx,yBar-H*0.03); ctx.stroke();
-    /* 两侧弯叉（圆头粗棒） */
-    ctx.strokeStyle=mg; ctx.lineWidth=W*0.034;
-    ctx.beginPath();
-    ctx.moveTo(cx-W*0.1,yBar-H*0.005);
-    ctx.quadraticCurveTo(cx-W*0.26,yBar-H*0.075,cx-W*0.21,yTop+H*0.015);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(cx+W*0.1,yBar-H*0.005);
-    ctx.quadraticCurveTo(cx+W*0.26,yBar-H*0.075,cx+W*0.21,yTop+H*0.015);
-    ctx.stroke();
-    ctx.strokeStyle='rgba(255,255,255,0.65)'; ctx.lineWidth=W*0.011;
-    ctx.beginPath();
-    ctx.moveTo(cx-W*0.125,yBar-H*0.02);
-    ctx.quadraticCurveTo(cx-W*0.24,yBar-H*0.055,cx-W*0.195,yTop+H*0.025);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(cx+W*0.125,yBar-H*0.02);
-    ctx.quadraticCurveTo(cx+W*0.24,yBar-H*0.055,cx+W*0.195,yTop+H*0.025);
-    ctx.stroke();
-    /* 叉颈（横档→金轴之间） */
-    roundRect(ctx,cx-Bw*0.85,yBar+H*0.01,Bw*1.7,H*0.1,Bw*0.3);
-    ctx.fillStyle=mg; ctx.fill();
-    ctx.strokeStyle='#6f8fa8'; ctx.lineWidth=W*0.005; ctx.stroke();
-    /* 长柄 */
-    roundRect(ctx,cx-Bw/2,yShank,Bw,yButt-yShank,Bw*0.3);
-    ctx.fillStyle='#eef4fa'; ctx.fill();
-    ctx.strokeStyle='#6f8fa8'; ctx.lineWidth=W*0.005; ctx.stroke();
+    /* 横档（金，加宽到覆盖三尖根部） */
+    var kg2=ctx.createLinearGradient(cx-W*0.22,0,cx+W*0.22,0);
+    kg2.addColorStop(0,'#ffcf3d'); kg2.addColorStop(0.5,'#fff3a8'); kg2.addColorStop(1,'#e89400');
+    ctx.fillStyle=kg2; ctx.strokeStyle=goldDk; ctx.lineWidth=W*0.005;
+    roundRect(ctx,cx-W*0.21,yB-W*0.015,W*0.42,H*0.03,W*0.013);
+    ctx.fill(); ctx.stroke();
+    /* 中央红宝珠 */
+    ctx.fillStyle='#ff5a6e'; ctx.strokeStyle='#b01f30'; ctx.lineWidth=W*0.004;
+    ctx.beginPath(); ctx.arc(cx,yB,W*0.022,0,Math.PI*2); ctx.fill(); ctx.stroke();
+    /* 金色长柄 */
+    var hy=yB+W*0.024, hb=H*0.75;
+    var kg3=ctx.createLinearGradient(cx-W*0.03,0,cx+W*0.03,0);
+    kg3.addColorStop(0,'#fff0a0'); kg3.addColorStop(0.5,'#f2b62e'); kg3.addColorStop(1,'#d98a00');
+    ctx.fillStyle=kg3; ctx.strokeStyle=goldDk; ctx.lineWidth=W*0.005;
+    roundRect(ctx,cx-W*0.027,hy,W*0.054,hb-hy,W*0.012);
+    ctx.fill(); ctx.stroke();
     /* 柄上金环 x3 */
-    ctx.fillStyle=gg;
-    for(var hr=0;hr<3;hr++){
-      var hy=yShank+H*0.05+hr*H*0.12;
-      roundRect(ctx,cx-Bw/2-W*0.008,hy,Bw+W*0.016,H*0.028,Bw*0.1); ctx.fill();
+    ctx.fillStyle='#e08c00'; ctx.strokeStyle=goldDk; ctx.lineWidth=W*0.0035;
+    for(var hr2=0;hr2<3;hr2++){
+      var yr2=hy+H*(0.09+hr2*0.1);
+      roundRect(ctx,cx-W*0.034,yr2,W*0.068,H*0.022,W*0.006); ctx.fill(); ctx.stroke();
     }
-    /* 横档（金色，连接三尖） */
-    ctx.fillStyle=gg; ctx.strokeStyle='#8f5c00'; ctx.lineWidth=W*0.005;
-    roundRect(ctx,cx-W*0.14,yBar-H*0.024,W*0.28,H*0.045,W*0.012);
-    ctx.fill(); ctx.stroke();
-    /* 叉底金轴 */
-    roundRect(ctx,cx-Bw/2-W*0.01,yShank-H*0.03,Bw+W*0.02,H*0.06,W*0.014);
-    ctx.fill(); ctx.stroke();
     /* 柄底金球 */
-    ctx.fillStyle='#ffd23f'; ctx.strokeStyle='#c07f00'; ctx.lineWidth=W*0.005;
-    ctx.beginPath(); ctx.arc(cx,yButt+H*0.03,W*0.034,0,Math.PI*2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle='#ffd23f'; ctx.strokeStyle=goldDk; ctx.lineWidth=W*0.004;
+    ctx.beginPath(); ctx.arc(cx,hb+H*0.008,W*0.023,0,Math.PI*2); ctx.fill(); ctx.stroke();
+    /* 红缨流苏（三条垂带） */
+    ctx.strokeStyle='#ff5a6e'; ctx.lineWidth=W*0.011;
+    ctx.beginPath(); ctx.moveTo(cx-W*0.009,hb+H*0.02); ctx.quadraticCurveTo(cx-W*0.042,hb+H*0.058,cx-W*0.058,hb+H*0.09); ctx.stroke();
+    ctx.strokeStyle='#ff8ca0';
+    ctx.beginPath(); ctx.moveTo(cx,hb+H*0.022); ctx.quadraticCurveTo(cx-W*0.008,hb+H*0.06,cx-W*0.014,hb+H*0.092); ctx.stroke();
+    ctx.strokeStyle='#ff4d63';
+    ctx.beginPath(); ctx.moveTo(cx+W*0.009,hb+H*0.02); ctx.quadraticCurveTo(cx+W*0.044,hb+H*0.058,cx+W*0.052,hb+H*0.088); ctx.stroke();
+    ctx.fillStyle='#ff5a6e';
+    ctx.beginPath(); ctx.arc(cx-W*0.058,hb+H*0.09,W*0.005,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='#ff8ca0';
+    ctx.beginPath(); ctx.arc(cx-W*0.014,hb+H*0.092,W*0.005,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='#ff4d63';
+    ctx.beginPath(); ctx.arc(cx+W*0.052,hb+H*0.088,W*0.005,0,Math.PI*2); ctx.fill();
+    /* 星光 */
+    sparkle(ctx,W*0.2,H*0.38,W*0.024,'#ffffff');
+    sparkle(ctx,W*0.82,H*0.6,W*0.028,'#ffe066');
+    sparkle(ctx,W*0.55,H*0.2,W*0.02,'#fff7c4');
+    sparkle(ctx,W*0.3,H*0.74,W*0.02,'#dff4ff');
   }
 
-  /* ---------- 新增·神话法器 ③ 金箍棒（进困难档） ---------- */
+/* ---------- 新增·神话法器 ③ 金箍棒（进困难档） ---------- */
   function drawShenqiStaff(ctx,W,H){
     ctx.lineJoin='round'; ctx.lineCap='round';
     var g=ctx.createLinearGradient(0,0,0,H);
