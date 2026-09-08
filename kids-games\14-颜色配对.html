@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>颜色配对</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0; height: 100%; overflow: hidden;
+    font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+    background: linear-gradient(175deg, #bcd9ff 0%, #e8dcff 60%, #ffd9e8 100%);
+    color: #5b4b8a; user-select: none; -webkit-user-select: none;
+    touch-action: none; overscroll-behavior: none;
+  }
+  #app { display: flex; flex-direction: column; height: 100%; }
+  #hud {
+    flex: none; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    padding: 8px 10px; background: rgba(255,255,255,.5); z-index: 5;
+  }
+  .hudbox {
+    display: flex; align-items: center; gap: 5px; background: rgba(255,255,255,.8);
+    border-radius: 11px; padding: 5px 11px; font-size: 14px; font-weight: 800; white-space: nowrap;
+    color: #5b4b8a;
+  }
+  #hintBtn, #menuBtn {
+    margin-left: auto; border: 0; cursor: pointer; font-family: inherit; font-weight: 800;
+    font-size: 13px; padding: 6px 12px; border-radius: 11px; background: rgba(255,255,255,.85); color: #5b4b8a;
+  }
+  #hintBtn { margin-left: 0; background: #ffd34d; color: #7a5200; }
+  #hintBtn:active { transform: translateY(1px); }
+  #stage { flex: 1; min-height: 0; position: relative; display: flex; }
+  canvas { display: block; width: 100%; height: 100%; }
+
+  .overlay { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+    background: rgba(60,40,100,.6); z-index: 20; padding: 16px; overflow-y: auto; }
+  .card {
+    background: #fffdf6; color: #4a3b6b; border-radius: 28px; padding: 22px 24px;
+    max-width: 430px; width: 100%; text-align: center; box-shadow: 0 18px 50px rgba(0,0,0,.45);
+  }
+  .card h1 { margin: 0 0 8px; font-size: 30px; color: #8f5fd9; }
+  .card h2 { margin: 0 0 8px; font-size: 27px; color: #e08a12; }
+  .stars { font-size: 34px; letter-spacing: 6px; color: #ffca28; margin: 6px 0 10px; text-shadow: 0 2px 0 rgba(0,0,0,.12); }
+  .rule { font-size: 15px; font-weight: 700; line-height: 1.8; color: #6a5a8a; }
+  .rule b { color: #e08a12; }
+  .small { font-size: 12.5px; font-weight: 700; color: #a090b8; margin-top: 6px; line-height: 1.7; }
+  .rows { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin: 10px 0 2px; }
+  .pill { font-size: 13px; font-weight: 800; border-radius: 999px; padding: 5px 12px; background: #efe6ff; color: #7a5fd9; }
+  .pill.y { background: #fff3d6; color: #b57a10; }
+  .pill.g { background: #e8f6e0; color: #3d8c4a; }
+  .bigbtn {
+    display: block; width: 100%; margin-top: 14px; padding: 15px; border: 0; border-radius: 999px;
+    background: linear-gradient(180deg, #b98ef0, #8f5fd9); color: #fff; font-family: inherit;
+    font-size: 23px; font-weight: 900; box-shadow: 0 6px 0 #6a3fa8; cursor: pointer;
+  }
+  .bigbtn.yellow { background: linear-gradient(180deg,#ffd34d,#f0a020); box-shadow: 0 6px 0 #b5760a; }
+  .bigbtn:active { transform: translateY(3px); box-shadow: none; }
+  .smallbtn {
+    display: block; width: 100%; margin-top: 10px; padding: 12px; border: 0; border-radius: 999px;
+    background: #eef1f6; color: #5b6a8a; font-family: inherit; font-size: 17px; font-weight: 800; cursor: pointer;
+  }
+  .homelink {
+    position: fixed; bottom: 4px; left: 50%; transform: translateX(-50%); z-index: 99;
+    color: rgba(255,255,255,.85); font-size: 13px; text-decoration: none;
+    background: rgba(60,40,100,.4); padding: 4px 14px; border-radius: 999px;
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="hud">
+    <div class="hudbox" id="lvTxt">第 1 关</div>
+    <div class="hudbox" id="progTxt">还剩 3 对</div>
+    <div class="hudbox" id="errTxt">错了 0 次</div>
+    <button id="hintBtn">帮帮我</button>
+    <button id="menuBtn">菜单</button>
+  </div>
+  <div id="stage"><canvas id="cv"></canvas></div>
+  <div id="overlayBox"></div>
+</div>
+<a class="homelink" href="游戏大厅.html" target="_top">← 游戏大厅</a>
+
+<script>
+(function () {
+'use strict';
+function $(id) { return document.getElementById(id); }
+function clamp(v, a, b) { return v < a ? a : (v > b ? b : v); }
+function rnd(a, b) { return a + Math.random() * (b - a); }
+function shuffle(arr) {
+  for (var i = arr.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var t = arr[i]; arr[i] = arr[j]; arr[j] = t;
+  }
+  return arr;
+}
+
+/* ================= 音效 ================= */
+var AC = null;
+function audio() {
+  if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { AC = null; } }
+  if (AC && AC.state === 'suspended') { try { AC.resume(); } catch (e) {} }
+  return AC;
+}
+function tone(f, d, ty, v, delay) {
+  if (!AC) return;
+  try {
+    var o = AC.createOscillator(), g = AC.createGain(), t0 = AC.currentTime + (delay || 0);
+    o.type = ty || 'sine'; o.frequency.value = f;
+    g.gain.setValueAtTime(v || 0.3, t0);
+    g.gain.exponentialRampToValueAtTime(0.001, t0 + d);
+    o.connect(g); g.connect(AC.destination); o.start(t0); o.stop(t0 + d + 0.02);
+  } catch (e) {}
+}
+var sfxPick  = function () { tone(660, 0.06, 'triangle', 0.18); };
+var sfxGood  = function () { [659, 880, 1319].forEach(function (f, i) { tone(f, 0.16, 'triangle', 0.26, i * 0.06); }); };
+var sfxWrong = function () { tone(220, 0.16, 'sawtooth', 0.2); tone(170, 0.2, 'sine', 0.16, 0.08); };
+var sfxWin   = function () { [523, 659, 784, 1047, 1319, 1568].forEach(function (f, i) { tone(f, 0.26, 'triangle', 0.3, i * 0.1); }); };
+var sfxTick  = function () { tone(700, 0.05, 'triangle', 0.16); };
+
+/* ================= 关卡 ================= */
+var LEVELS = [
+  { n: 3, colors: ['#e53935', '#ffca28', '#3a7bd5'],                 shapes: ['circle'],                                 note: '红黄蓝' },
+  { n: 4, colors: ['#e53935', '#ffca28', '#3a7bd5', '#43a047'],      shapes: ['circle'],                                 note: '四种颜色' },
+  { n: 5, colors: ['#e53935', '#ffca28', '#3a7bd5', '#43a047', '#9b6bd6'], shapes: ['circle'],                           note: '五种颜色' },
+  { n: 5, colors: ['#e53935', '#ffca28', '#3a7bd5'],                 shapes: ['circle', 'square', 'triangle'],            note: '同色不同形状' },
+  { n: 6, colors: ['#e53935', '#ffca28', '#3a7bd5', '#43a047'],      shapes: ['circle', 'square', 'triangle', 'star'],    note: '颜色+形状' },
+  { n: 6, colors: ['#e53935', '#ff8fb1', '#3a7bd5', '#4dd0e1', '#ffca28', '#43a047'], shapes: ['circle', 'square', 'triangle', 'star'], note: '相似色陷阱' },
+  { n: 7, colors: ['#e53935', '#ffca28', '#3a7bd5', '#43a047', '#9b6bd6'], shapes: ['circle', 'square', 'triangle', 'star', 'heart', 'flower', 'cloud'], note: '更多形状' },
+  { n: 8, colors: ['#e53935', '#ffca28', '#3a7bd5', '#43a047', '#9b6bd6', '#ff8f3c'], shapes: ['circle', 'square', 'triangle', 'star', 'heart', 'flower', 'cloud', 'moon'], note: '大挑战' }
+];
+
+/* ================= 状态 ================= */
+var cv = $('cv'), ctx = cv.getContext('2d');
+var W = 0, H = 0, DPR = 1;
+var level = 0, state = 'menu';          // menu | play | over
+var pairs = [];                          // [{color, shape, ok}]
+var right = [];                          // 右列顺序：每个右项对应左项索引
+var selL = -1, selR = -1;
+var wrongCount = 0, doneCount = 0;
+var matched = [];                        // 已配对连线动画
+var shake = { li: -1, ri: -1, t: 0 };
+var flash = { li: -1, ri: -1, t: 0 };
+var hintOn = 0;
+var lineAnim = [];                       // 连线生长动画 {a,b,prog,color}
+var confetti = [], parts = [];
+var msgT = 0, msgTxt = '', msgCol = '#fff';
+var lastT = 0, tick = 0;
+var roundId = 0;
+
+/* ================= 布局 ================= */
+function resize() {
+  var r = $('stage').getBoundingClientRect();
+  W = Math.max(1, r.width); H = Math.max(1, r.height);
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
+  cv.style.width = W + 'px'; cv.style.height = H + 'px';
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+}
+function colX(side) { return side === 'L' ? Math.round(W * 0.22) : Math.round(W * 0.78); }
+function rowY(i) {
+  var n = pairs.length || 1;
+  var top = Math.round(H * 0.12), bot = Math.round(H * 0.88);
+  if (n === 1) return (top + bot) / 2;
+  return top + (bot - top) * i / (n - 1);
+}
+function itemSize() {
+  var n = pairs.length || 1;
+  return Math.round(clamp(Math.min(W * 0.16, (H * 0.76) / n * 0.82), 40, 78));
+}
+
+/* ================= 生成关卡 ================= */
+function genLevel() {
+  var L = LEVELS[level];
+  pairs = [];
+  var used = {};
+  for (var i = 0; i < L.n; i++) {
+    var color = L.colors[i % L.colors.length];
+    var shape = L.shapes[Math.floor(Math.random() * L.shapes.length)];
+    var key = color + '|' + shape, tries = 0;
+    while (used[key] && tries++ < 40) {
+      color = L.colors[Math.floor(Math.random() * L.colors.length)];
+      shape = L.shapes[Math.floor(Math.random() * L.shapes.length)];
+      key = color + '|' + shape;
+    }
+    used[key] = 1;
+    pairs.push({ color: color, shape: shape, ok: false });
+  }
+  right = [];
+  var idx = [];
+  for (var j = 0; j < L.n; j++) idx.push(j);
+  shuffle(idx);
+  // 别让某个右项落在正对的位置太多（视觉上别太简单），但保留随机性即可
+  right = idx;
+  selL = -1; selR = -1;
+  wrongCount = 0; doneCount = 0;
+  matched = []; lineAnim = []; shake = { li: -1, ri: -1, t: 0 }; flash = { li: -1, ri: -1, t: 0 };
+  hintOn = 0; msgT = 0;
+  state = 'play';
+  hideOverlay();
+  syncHud();
+}
+function startGame() { level = 0; genLevel(); }
+function toLevel(n) { level = clamp(n, 0, LEVELS.length - 1); genLevel(); }
+
+/* ================= 交互 ================= */
+function hitTest(x, y) {
+  var s = itemSize(), h = s * 0.9;
+  var minD = 1e9, hit = null;
+  for (var i = 0; i < pairs.length; i++) {
+    var pts = [
+      { x: colX('L'), y: rowY(i), side: 'L', i: i },
+      { x: colX('R'), y: rowY(right[i]), side: 'R', i: right[i] }
+    ];
+    for (var k = 0; k < 2; k++) {
+      var p = pts[k];
+      var d = Math.hypot(x - p.x, y - p.y);
+      if (d < s * 0.85 && d < minD) { minD = d; hit = p; }
+    }
+  }
+  return hit;
+}
+function pickSide(side, idx) {
+  if (state !== 'play') return;
+  // 已配对的不能再点（R 侧 idx = 列位置）
+  if (side === 'L' && pairs[idx].ok) return;
+  if (side === 'R' && pairs[right[idx]].ok) return;
+  audio(); sfxPick();
+  if (side === 'L') {
+    if (selL === idx) { selL = -1; return; }
+    selL = idx;
+  } else {
+    if (selR === idx) { selR = -1; return; }
+    selR = idx;
+  }
+  if (selL >= 0 && selR >= 0) judge();
+  syncHud();
+}
+function judge() {
+  var li = selL, ri = selR;
+  var matchedPair = right[ri];           // 右项 ri 对应的左项
+  var good = (li === matchedPair);
+  if (good) {
+    sfxGood();
+    pairs[li].ok = true;
+    doneCount++;
+    matched.push({ a: li, b: ri });
+    lineAnim.push({ a: li, b: ri, prog: 0, color: pairs[li].color });
+    parts.push({ x: (colX('L') + colX('R')) / 2, y: (rowY(li) + rowY(ri)) / 2, txt: '配对成功！', c: pairs[li].color });
+    selL = -1; selR = -1;
+    if (doneCount === pairs.length) {
+      setTimeout(function () { levelClear(); }, 650);
+    }
+  } else {
+    sfxWrong();
+    wrongCount++;
+    flash = { li: li, ri: ri, t: 0.7 };
+    parts.push({ x: (colX('L') + colX('R')) / 2, y: (rowY(li) + rowY(ri)) / 2, txt: '颜色和形状都要一样哦', c: '#ff8a8a' });
+    selL = -1; selR = -1;
+    shake = { li: li, ri: ri, t: 0.45 };
+  }
+  syncHud();
+}
+
+/* ================= 过关 ================= */
+function rateLevel() {
+  if (wrongCount === 0) return 3;
+  if (wrongCount <= 2) return 2;
+  return 1;
+}
+function levelClear() {
+  state = 'over';
+  var star = rateLevel();
+  sfxWin();
+  var last = level >= LEVELS.length - 1;
+  var rid = ++roundId;
+  $('overlayBox').innerHTML =
+    '<div class="overlay"><div class="card">' +
+      '<h2>全都连上啦！</h2>' +
+      '<div class="stars">' + '★'.repeat(star) + '☆'.repeat(3 - star) + '</div>' +
+      '<div class="rule">' + (wrongCount === 0 ? '一次都没错，太厉害了！' : '错了 <b>' + wrongCount + '</b> 次，已经很棒了！') + '</div>' +
+      (last
+        ? '<button class="bigbtn yellow" id="ovAgain">领奖状！</button>'
+        : '<button class="bigbtn" id="ovNext">下一关</button>') +
+      '<button class="smallbtn" id="ovReplay">再来一次</button>' +
+    '</div></div>';
+  $('ovNext') && ($('ovNext').onclick = function () { if (rid !== roundId) return; level++; genLevel(); });
+  $('ovAgain') && ($('ovAgain').onclick = function () { if (rid !== roundId) return; showFinal(); });
+  $('ovReplay').onclick = function () { if (rid !== roundId) return; genLevel(); };
+}
+function showFinal() {
+  state = 'over';
+  sfxWin();
+  var rid = ++roundId;
+  $('overlayBox').innerHTML =
+    '<div class="overlay"><div class="card">' +
+      '<h1>配色小天才！</h1>' +
+      '<div class="stars">★★★</div>' +
+      '<div class="rule">8 关全部连完啦！<br>红的对红的，方的对方方的～</div>' +
+      '<button class="bigbtn yellow" id="ovAgain2">再玩一次</button>' +
+      '<button class="smallbtn" id="ovMenu3">回菜单</button>' +
+    '</div></div>';
+  $('ovAgain2').onclick = function () { if (rid !== roundId) return; startGame(); };
+  $('ovMenu3').onclick = function () { if (rid !== roundId) return; showMenu(); };
+}
+function showMenu() {
+  state = 'menu';
+  hideOverlay();
+  $('overlayBox').innerHTML =
+    '<div class="overlay"><div class="card">' +
+      '<h1>颜色配对</h1>' +
+      '<div class="rule">左边点一下，右边点一下，<br><b class="b3">颜色和形状都一样的</b>就连起来啦！</div>' +
+      '<div class="rows">' +
+        '<span class="pill">8 关</span><span class="pill y">越玩越难</span><span class="pill g">连对送星星</span>' +
+        '<span class="pill">迷路点帮帮我</span>' +
+      '</div>' +
+      '<div class="small">从 3 对纯色开始，后面会有同色不同形、相似色陷阱哦</div>' +
+      '<button class="bigbtn" id="ovStart">开始玩！</button>' +
+    '</div></div>';
+  $('ovStart').onclick = function () { audio(); startGame(); };
+}
+function hideOverlay() { $('overlayBox').innerHTML = ''; }
+function syncHud() {
+  $('lvTxt').textContent = '第 ' + (level + 1) + ' 关';
+  $('progTxt').textContent = '还剩 ' + (pairs.length - doneCount) + ' 对';
+  $('errTxt').textContent = '错了 ' + wrongCount + ' 次';
+}
+function showMsg(t, c) { msgT = 1.6; msgTxt = t; msgCol = c || '#fff'; }
+
+/* ================= 更新 ================= */
+function update(dt) {
+  tick++;
+  if (msgT > 0) msgT -= dt;
+  if (hintOn > 0) hintOn -= dt;
+  if (flash.t > 0) flash.t -= dt;
+  if (shake.t > 0) shake.t -= dt;
+  for (var i = lineAnim.length - 1; i >= 0; i--) {
+    var la = lineAnim[i];
+    if (la.prog < 1) { la.prog = Math.min(1, la.prog + dt * 2.2); }
+  }
+  for (var j = parts.length - 1; j >= 0; j--) {
+    var p = parts[j];
+    p.y -= 26 * dt; p.life -= dt;
+    if (p.life <= 0) parts.splice(j, 1);
+  }
+  for (var k = confetti.length - 1; k >= 0; k--) {
+    var cf = confetti[k];
+    cf.x += cf.vx * dt; cf.y += cf.vy * dt; cf.vy += 300 * dt; cf.rot += cf.spin * dt; cf.life -= dt;
+    if (cf.life <= 0) confetti.splice(k, 1);
+  }
+}
+
+/* ================= 绘制 ================= */
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+  // 背景
+  var g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, '#cfe4ff'); g.addColorStop(0.55, '#e9dcff'); g.addColorStop(1, '#ffd9e8');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 1;
+  for (var sx = 0; sx < W; sx += 46) { ctx.beginPath(); ctx.moveTo(sx, 0); ctx.lineTo(sx + 20, H); ctx.stroke(); }
+
+  if (!pairs.length) return;
+
+  var s = itemSize();
+
+  // 已配对连线（先画线，再画对勾）
+  for (var i = 0; i < matched.length; i++) {
+    var m = matched[i];
+    var p1 = { x: colX('L'), y: rowY(m.a) };
+    var p2 = { x: colX('R'), y: rowY(m.b) };
+    drawLine(p1, p2, pairs[m.a].color, 1);
+  }
+  // 生长动画线
+  for (var j = 0; j < lineAnim.length; j++) {
+    var la = lineAnim[j];
+    var q1 = { x: colX('L'), y: rowY(la.a) };
+    var q2 = { x: colX('R'), y: rowY(la.b) };
+    var mx = (q1.x + q2.x) / 2, my = (q1.y + q2.y) / 2 - 26;
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(q1.x, q1.y);
+    ctx.quadraticCurveTo(mx, my, q2.x, q2.y);
+    ctx.strokeStyle = la.color; ctx.lineWidth = 5; ctx.lineCap = 'round';
+    ctx.setLineDash([12, 9]); ctx.lineDashOffset = -tick * 14;
+    ctx.stroke();
+    ctx.setLineDash([]);
+    // 用 clip 模拟生长
+    ctx.restore();
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(q1.x, q1.y);
+    ctx.quadraticCurveTo(mx, my, q2.x, q2.y);
+    ctx.strokeStyle = la.color; ctx.lineWidth = 5; ctx.lineCap = 'round';
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // 提示线
+  if (hintOn > 0) {
+    ctx.save();
+    ctx.globalAlpha = clamp(hintOn, 0, 1) * 0.8;
+    for (var h2 = 0; h2 < pairs.length; h2++) {
+      if (pairs[h2].ok) continue;
+      var hp1 = { x: colX('L'), y: rowY(h2) };
+      var hp2 = { x: colX('R'), y: rowY(right[h2]) };
+      var hmx = (hp1.x + hp2.x) / 2, hmy = (hp1.y + hp2.y) / 2 - 26;
+      ctx.beginPath();
+      ctx.moveTo(hp1.x, hp1.y);
+      ctx.quadraticCurveTo(hmx, hmy, hp2.x, hp2.y);
+      ctx.strokeStyle = pairs[h2].color; ctx.lineWidth = 3; ctx.setLineDash([8, 7]);
+      ctx.stroke(); ctx.setLineDash([]);
+    }
+    ctx.restore();
+  }
+
+  // 左列
+  for (var a = 0; a < pairs.length; a++) drawItem('L', a, colX('L'), rowY(a), pairs[a], a === selL, pairs[a].ok);
+  // 右列（图案 = 它对应的左项）
+  for (var b = 0; b < pairs.length; b++) {
+    var src = pairs[right[b]];
+    drawItem('R', b, colX('R'), rowY(b), src, b === selR, pairs[right[b]].ok);
+  }
+
+  // 对勾
+  for (var c = 0; c < matched.length; c++) {
+    var mc = matched[c];
+    ctx.save();
+    ctx.fillStyle = '#fff';
+    ctx.strokeStyle = '#43a047'; ctx.lineWidth = 3;
+    var cx1 = colX('L'), cy1 = rowY(mc.a);
+    ctx.font = '900 ' + Math.round(s * 0.5) + 'px sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.strokeText('✓', cx1, cy1);
+    ctx.fillText('✓', cx1, cy1);
+    var cx2 = colX('R'), cy2 = rowY(mc.b);
+    ctx.strokeText('✓', cx2, cy2);
+    ctx.fillText('✓', cx2, cy2);
+    ctx.restore();
+  }
+
+  // 飘字
+  for (var d = 0; d < parts.length; d++) {
+    var p3 = parts[d];
+    ctx.save();
+    ctx.globalAlpha = clamp(p3.life / 0.5, 0, 1);
+    ctx.font = '900 ' + Math.round(clamp(W * 0.042, 15, 24)) + 'px "PingFang SC","Microsoft YaHei",sans-serif';
+    ctx.textAlign = 'center';
+    ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(60,40,100,.7)';
+    ctx.strokeText(p3.txt, p3.x, p3.y);
+    ctx.fillStyle = p3.c; ctx.fillText(p3.txt, p3.x, p3.y);
+    ctx.restore();
+  }
+  // 彩带
+  for (var e = 0; e < confetti.length; e++) {
+    var cf = confetti[e];
+    ctx.save();
+    ctx.globalAlpha = clamp(cf.life / 0.6, 0, 1);
+    ctx.translate(cf.x, cf.y); ctx.rotate(cf.rot);
+    ctx.fillStyle = cf.c;
+    ctx.fillRect(-cf.s / 2, -cf.s / 3, cf.s, cf.s * 0.66);
+    ctx.restore();
+  }
+}
+function drawLine(a, b, color, alpha) {
+  var mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2 - 26;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.strokeStyle = color; ctx.lineWidth = 4.5; ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(a.x, a.y);
+  ctx.quadraticCurveTo(mx, my, b.x, b.y);
+  ctx.stroke();
+  ctx.restore();
+}
+function drawItem(side, idx, x, y, pair, selected, done) {
+  var s = itemSize();
+  var ox = 0, oy = 0;
+  var isHit = shake.t > 0 && ((side === 'L' && idx === shake.li) || (side === 'R' && idx === shake.ri));
+  if (isHit) ox = Math.sin(tick * 0.6) * 7;
+  ctx.save();
+  ctx.translate(x + ox, y + oy);
+  var isFl = flash.t > 0 && ((side === 'L' && idx === flash.li) || (side === 'R' && idx === flash.ri));
+  if (isFl) {
+    ctx.fillStyle = 'rgba(255,80,80,.25)';
+    roundRect(-s * 0.55, -s * 0.55, s * 1.1, s * 1.1, s * 0.28); ctx.fill();
+  }
+  // 底板
+  ctx.fillStyle = done ? 'rgba(255,255,255,.55)' : '#fff';
+  roundRect(-s * 0.55, -s * 0.55, s * 1.1, s * 1.1, s * 0.28); ctx.fill();
+  ctx.strokeStyle = selected ? '#ffb43d' : (done ? '#c8c8c8' : '#d8cff0');
+  ctx.lineWidth = selected ? 4.5 : 3;
+  roundRect(-s * 0.55, -s * 0.55, s * 1.1, s * 1.1, s * 0.28); ctx.stroke();
+  if (selected) {
+    ctx.strokeStyle = 'rgba(255,180,61,.35)'; ctx.lineWidth = 9;
+    roundRect(-s * 0.55, -s * 0.55, s * 1.1, s * 1.1, s * 0.28); ctx.stroke();
+  }
+  if (done) ctx.globalAlpha = 0.4;
+  // 图案
+  drawShape(pair.shape, pair.color, s * 0.36);
+  ctx.restore();
+}
+function roundRect(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+function drawShape(kind, color, r) {
+  ctx.fillStyle = color;
+  ctx.strokeStyle = 'rgba(0,0,0,.18)'; ctx.lineWidth = 2;
+  switch (kind) {
+    case 'circle':
+      ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = 'rgba(255,255,255,.35)';
+      ctx.beginPath(); ctx.arc(-r * 0.3, -r * 0.3, r * 0.28, 0, 7); ctx.fill();
+      break;
+    case 'square':
+      roundRect(-r * 0.82, -r * 0.82, r * 1.64, r * 1.64, r * 0.16); ctx.fill(); ctx.stroke();
+      break;
+    case 'triangle':
+      ctx.beginPath();
+      ctx.moveTo(0, -r * 0.95); ctx.lineTo(r * 0.92, r * 0.72); ctx.lineTo(-r * 0.92, r * 0.72);
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+      break;
+    case 'star':
+      ctx.beginPath();
+      for (var i = 0; i < 10; i++) {
+        var a2 = -Math.PI / 2 + i * Math.PI / 5;
+        var rad = i % 2 === 0 ? r : r * 0.45;
+        var px2 = Math.cos(a2) * rad, py2 = Math.sin(a2) * rad;
+        if (i === 0) ctx.moveTo(px2, py2); else ctx.lineTo(px2, py2);
+      }
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+      break;
+    case 'heart':
+      ctx.beginPath();
+      ctx.moveTo(0, r * 0.75);
+      ctx.bezierCurveTo(-r * 1.1, -r * 0.35, -r * 0.45, -r * 1.0, 0, -r * 0.35);
+      ctx.bezierCurveTo(r * 0.45, -r * 1.0, r * 1.1, -r * 0.35, 0, r * 0.75);
+      ctx.fill(); ctx.stroke();
+      break;
+    case 'flower':
+      ctx.beginPath();
+      for (var p2 = 0; p2 < 6; p2++) {
+        var a3 = p2 * Math.PI / 3;
+        ctx.moveTo(Math.cos(a3) * r * 0.55, Math.sin(a3) * r * 0.55);
+        ctx.arc(Math.cos(a3) * r * 0.55, Math.sin(a3) * r * 0.55, r * 0.42, 0, 7);
+      }
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#ffd34d';
+      ctx.beginPath(); ctx.arc(0, 0, r * 0.3, 0, 7); ctx.fill();
+      ctx.stroke();
+      break;
+    case 'cloud':
+      ctx.beginPath();
+      ctx.arc(-r * 0.35, r * 0.05, r * 0.4, 0, 7);
+      ctx.arc(r * 0.15, -r * 0.2, r * 0.5, 0, 7);
+      ctx.arc(r * 0.55, r * 0.05, r * 0.4, 0, 7);
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle = 'rgba(255,255,255,.4)';
+      ctx.beginPath(); ctx.arc(-r * 0.25, -r * 0.15, r * 0.18, 0, 7); ctx.fill();
+      break;
+    case 'moon':
+      ctx.beginPath(); ctx.arc(0, 0, r * 0.85, 0, 7); ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.beginPath(); ctx.arc(r * 0.35, -r * 0.2, r * 0.7, 0, 7); ctx.fill();
+      ctx.fillStyle = color;
+      ctx.beginPath(); ctx.arc(r * 0.32, -r * 0.18, r * 0.62, 0, 7); ctx.fill();
+      break;
+  }
+}
+
+/* ================= 输入 ================= */
+function pos(e) {
+  var r = cv.getBoundingClientRect();
+  return { x: e.clientX - r.left, y: e.clientY - r.top };
+}
+cv.addEventListener('pointerdown', function (e) {
+  e.preventDefault(); audio();
+  var p = pos(e);
+  var hit = hitTest(p.x, p.y);
+  if (hit) {
+    if (hit.side === 'L') pickSide('L', hit.i);
+    else pickSide('R', hit.i);
+  }
+});
+
+$('hintBtn').onclick = function () {
+  audio(); sfxTick();
+  if (state !== 'play') return;
+  hintOn = 2.2;
+  showMsg('跟着彩线走！', '#ffca28');
+};
+$('menuBtn').onclick = function () { audio(); sfxTick(); showMenu(); };
+
+/* ================= 测试钩子 ================= */
+window.__match = {
+  get state() { return state; },
+  get level() { return level + 1; },
+  get pairs() { return pairs.map(function (p) { return { color: p.color, shape: p.shape, ok: p.ok }; }); },
+  get right() { return right.slice(); },
+  get selL() { return selL; },
+  get selR() { return selR; },
+  get wrong() { return wrongCount; },
+  get done() { return doneCount; },
+  get n() { return pairs.length; },
+  get hintOn() { return hintOn > 0; },
+  start: function () { startGame(); },
+  toLevel: function (n) { toLevel(n); },
+  pick: function (i, j) { pickSide('L', i); pickSide('R', j); },
+  pickL: function (i) { pickSide('L', i); },
+  pickR: function (j) { pickSide('R', j); },
+  hint: function () { $('hintBtn').onclick(); },
+  autoPlay: function () {
+    var guard = 0;
+    while (state === 'play' && guard++ < 200) {
+      // 找第一个未配对的左项
+      var li = -1;
+      for (var i = 0; i < pairs.length; i++) if (!pairs[i].ok) { li = i; break; }
+      if (li < 0) break;
+      var rj = right.indexOf(li);
+      pickSide('L', li); pickSide('R', rj);
+      if (selL >= 0 || selR >= 0) break;   // 被判定打断？一般不会
+    }
+    return { state: state, done: doneCount, n: pairs.length, wrong: wrongCount };
+  }
+};
+
+/* ================= 启动 ================= */
+function loop(t) {
+  var dt = Math.min((t - lastT) / 1000 || 0.016, 0.05);
+  lastT = t;
+  update(dt);
+  draw();
+  requestAnimationFrame(loop);
+}
+window.addEventListener('resize', function () { resize(); });
+resize();
+genLevel();   // 先垫一关，保证首帧有图案
+showMenu();
+requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
