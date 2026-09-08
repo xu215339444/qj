@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0f6db8">
+<title>游泳游戏</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{width:100%;height:100%;overflow:hidden;}
+body{
+  font-family:"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans CJK SC",sans-serif;
+  background:#0f6db8;color:#fff;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;
+}
+#app{position:fixed;inset:0;}
+canvas{display:block;position:absolute;inset:0;z-index:1;}
+.hidden{display:none !important;}
+
+/* ---------- 屏幕 ---------- */
+.screen{position:absolute;inset:0;z-index:5;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:20px;
+  background:linear-gradient(180deg,#3eb5ee 0%,#1680c8 45%,#0a4f8a 100%);}
+#screen-race{background:transparent;}
+
+.screen h1{font-size:min(64px,14vw);font-weight:900;letter-spacing:4px;text-shadow:0 4px 10px rgba(0,40,90,.45);margin-bottom:18px;}
+.screen h2{font-size:min(54px,12vw);font-weight:900;text-shadow:0 4px 10px rgba(0,40,90,.45);margin-bottom:16px;}
+.tip{font-size:min(22px,4.8vw);line-height:1.9;color:#eaf7ff;text-shadow:0 2px 5px rgba(0,40,90,.4);margin-bottom:14px;}
+.tip b{color:#ffd54a;}
+
+.bigbtn{
+  font-size:min(34px,7vw);padding:16px 46px;margin-top:18px;border:none;border-radius:999px;
+  background:linear-gradient(180deg,#ffd54a,#ffab2e);color:#7a4a00;font-weight:900;
+  box-shadow:0 6px 0 #c87d10,0 12px 22px rgba(0,0,0,.28);cursor:pointer;font-family:inherit;
+}
+.bigbtn:active{transform:translateY(5px);box-shadow:0 1px 0 #c87d10,0 6px 12px rgba(0,0,0,.25);}
+
+/* ---------- 比赛 HUD ---------- */
+#hud-timer{
+  position:absolute;top:8px;left:50%;transform:translateX(-50%);z-index:20;pointer-events:none;
+  font-size:min(54px,11vw);font-weight:900;color:#fff;text-shadow:0 3px 8px rgba(0,40,90,.5);
+}
+#hud-timer.warn{color:#ffd54a;animation:pulse .45s infinite alternate;}
+@keyframes pulse{from{transform:translateX(-50%) scale(1);}to{transform:translateX(-50%) scale(1.14);}}
+.huddist{
+  position:absolute;top:16px;z-index:20;pointer-events:none;
+  font-size:min(24px,5vw);font-weight:800;padding:5px 12px;border-radius:12px;
+}
+#hud-p{left:10px;color:#cfeaff;background:rgba(10,60,120,.4);}
+#hud-c{right:10px;color:#ffe0b0;background:rgba(10,60,120,.4);}
+
+#count-flash{
+  position:absolute;top:22%;left:0;right:0;text-align:center;z-index:25;pointer-events:none;
+  font-size:min(130px,30vw);font-weight:900;color:#fff;text-shadow:0 6px 18px rgba(0,40,90,.6);opacity:0;
+}
+#count-flash.flashanim{animation:flashAni 1s ease-out both;}
+@keyframes flashAni{
+  0%{opacity:0;transform:scale(2.4);}
+  22%{opacity:1;}
+  75%{opacity:1;}
+  100%{opacity:0;transform:scale(1);}
+}
+
+/* ---------- 加油按钮 ---------- */
+#btn-go{
+  position:absolute;left:50%;bottom:16px;transform:translateX(-50%);z-index:30;
+  width:min(60vw,190px);height:min(60vw,190px);border-radius:50%;
+  border:7px solid #fff;background:radial-gradient(circle at 35% 30%,#ffc25e,#ff5e2e 62%,#e13d0c);
+  color:#fff;font-size:min(16vw,54px);font-weight:900;font-family:inherit;
+  box-shadow:0 9px 0 #b02e00,0 16px 26px rgba(0,0,0,.4);cursor:pointer;
+  touch-action:none;text-shadow:0 3px 6px rgba(90,20,0,.5);
+}
+#btn-go.pressed{transform:translateX(-50%) translateY(7px);box-shadow:0 2px 0 #b02e00,0 6px 12px rgba(0,0,0,.3);}
+
+/* ---------- 结算 ---------- */
+.resrow{font-size:min(42px,9vw);font-weight:900;margin:8px 0;text-shadow:0 3px 8px rgba(0,40,90,.4);}
+.resrow.p{color:#bfe6ff;}
+.resrow.c{color:#ffcf8e;}
+#result-stars{font-size:min(52px,12vw);color:#ffd54a;letter-spacing:10px;text-shadow:0 3px 10px rgba(0,0,0,.3);margin-top:14px;}
+#result-text{font-size:min(30px,6.5vw);font-weight:800;color:#fff;margin-top:8px;text-shadow:0 3px 8px rgba(0,40,90,.5);}
+
+/* ---------- 返回大厅 ---------- */
+.homelink{
+  position:fixed;left:10px;bottom:8px;z-index:60;color:rgba(255,255,255,.85);font-size:14px;text-decoration:none;
+  background:rgba(0,30,60,.35);padding:4px 12px;border-radius:14px;
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- 开始界面 -->
+  <div id="screen-start" class="screen">
+    <h1>游泳游戏</h1>
+    <p class="tip">和小鱼儿一起比赛游泳！<br>
+      按住下方 <b>「加油！」</b> 按钮就会快快游，<br>松开就慢慢游。<br>
+      30 秒结束，看谁游得最远！</p>
+    <button id="btn-start" class="bigbtn">开始比赛！</button>
+  </div>
+
+  <!-- 比赛界面 -->
+  <div id="screen-race" class="screen hidden">
+    <canvas id="cv"></canvas>
+    <div id="hud-timer">30</div>
+    <div id="hud-p" class="huddist">你 0 米</div>
+    <div id="hud-c" class="huddist">电脑 0 米</div>
+    <div id="count-flash"></div>
+    <button id="btn-go">加油！</button>
+  </div>
+
+  <!-- 结算界面 -->
+  <div id="screen-result" class="screen hidden">
+    <h2>时间到！</h2>
+    <div id="result-p" class="resrow p">你 0 米</div>
+    <div id="result-c" class="resrow c">电脑 0 米</div>
+    <div id="result-stars">★ ★ ★</div>
+    <div id="result-text">游得真远！</div>
+    <button id="btn-again" class="bigbtn">再来一局</button>
+  </div>
+
+</div>
+
+<a class="homelink" href="游戏大厅.html" target="_top">← 游戏大厅</a>
+
+<script>
+(function(){
+'use strict';
+
+/* ================= 画布与布局 ================= */
+var canvas=document.getElementById('cv'), ctx=canvas.getContext('2d');
+var W=0,H=0,DPR=Math.max(1,window.devicePixelRatio||1);
+var hudH=90, btnAreaH=170, trackTop=0, trackBot=0, trackH=0, laneH=0;
+var laneA=0,laneB=0,left=0,trackW=0,swimScale=1.6;
+
+function resize(){
+  W=window.innerWidth; H=window.innerHeight;
+  canvas.width=Math.round(W*DPR); canvas.height=Math.round(H*DPR);
+  canvas.style.width=W+'px'; canvas.style.height=H+'px';
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  layout();
+}
+window.addEventListener('resize',resize);
+
+function layout(){
+  hudH=Math.max(66,H*0.1);
+  btnAreaH=Math.max(150,H*0.2);
+  trackTop=hudH+12;
+  trackBot=H-btnAreaH-10;
+  trackH=Math.max(100,trackBot-trackTop);
+  laneH=trackH/2;
+  laneA=trackTop+laneH/2;
+  laneB=trackBot-laneH/2;
+  left=Math.max(26,W*0.04);
+  trackW=W-left-26;
+  swimScale=Math.min(2.8,Math.max(1.1,laneH/56));
+}
+resize();
+
+/* ================= DOM ================= */
+var elStart=document.getElementById('screen-start');
+var elRace=document.getElementById('screen-race');
+var elResult=document.getElementById('screen-result');
+var elTimer=document.getElementById('hud-timer');
+var elPm=document.getElementById('hud-p');
+var elCm=document.getElementById('hud-c');
+var elFlash=document.getElementById('count-flash');
+var elRP=document.getElementById('result-p');
+var elRC=document.getElementById('result-c');
+var elStars=document.getElementById('result-stars');
+var elRText=document.getElementById('result-text');
+var btnStart=document.getElementById('btn-start');
+var btnGo=document.getElementById('btn-go');
+var btnAgain=document.getElementById('btn-again');
+
+/* ================= 音效 ================= */
+var actx=null;
+function ensureAudio(){
+  try{
+    if(actx){ if(actx.state==='suspended') actx.resume(); return actx; }
+    var AC=window.AudioContext||window.webkitAudioContext;
+    if(AC){ actx=new AC(); }
+  }catch(e){ actx=null; }
+  return actx;
+}
+function beep(freq,dur,type,vol,when){
+  try{
+    var a=ensureAudio(); if(!a) return;
+    var t0=a.currentTime+(when||0);
+    var o=a.createOscillator(), g=a.createGain();
+    o.type=type||'sine';
+    o.frequency.setValueAtTime(freq,t0);
+    g.gain.setValueAtTime(vol||0.12,t0);
+    g.gain.exponentialRampToValueAtTime(0.001,t0+dur);
+    o.connect(g); g.connect(a.destination);
+    o.start(t0); o.stop(t0+dur+0.03);
+  }catch(e){}
+}
+var bubbleTick=0;
+function playBubble(){
+  bubbleTick--;
+  if(bubbleTick<=0){
+    beep(260+Math.random()*780,0.05,'triangle',0.05);
+    bubbleTick=3+Math.floor(Math.random()*4);
+  }
+}
+function playWhistle(){ beep(880,0.14,'square',0.09); beep(1318,0.3,'square',0.09,0.16); }
+function playTick(){ beep(720,0.09,'sine',0.13); }
+function playWin(){ beep(523,0.16,'triangle',0.13); beep(659,0.16,'triangle',0.13,0.16); beep(784,0.32,'triangle',0.13,0.32); }
+function playLose(){ beep(330,0.28,'sine',0.12); beep(262,0.42,'sine',0.12,0.3); }
+
+/* ================= 游戏状态 ================= */
+var RACE_TIME=30, MAXM=70;
+var STATE='start';
+var timeLeft=0, pDist=0, cDist=0, holding=false;
+var pSpeed=0, cSpeed=1.3, cTarget=1.3, sprintT=0, nextChange=1.0;
+var scrollX=0, strokePhase=0, lastSec=30;
+var particles=[], bubParts=[], fish=[], weeds=[], bgBubbles=[];
+
+function rand(a,b){ return a+Math.random()*(b-a); }
+function wrapX(x){ var w=W+80; var r=x%w; if(r<0) r+=w; return r-40; }
+
+function initDecor(){
+  fish=[];
+  var cols=['#ffd54a','#ff9f68','#ff6f91','#7fd8ff','#b9f18c','#c9a0ff'];
+  for(var i=0;i<6;i++){
+    fish.push({x:Math.random()*2000,y:rand(laneA-30,laneB+30),sz:rand(10,20),
+      v:rand(-14,30),c:cols[i%6],ph:Math.random()*6});
+  }
+  weeds=[];
+  for(var i=0;i<8;i++){
+    weeds.push({x:Math.random()*2000,y:rand(trackBot-10,H-6),h:rand(50,110),ph:Math.random()*6,side:Math.random()<0.5?-1:1});
+  }
+  bgBubbles=[];
+  for(var i=0;i<10;i++){ bgBubbles.push({x:Math.random()*W,y:Math.random()*H,r:rand(3,9),v:rand(6,18)}); }
+}
+
+function resetRace(){
+  layout();
+  timeLeft=RACE_TIME; pDist=0; cDist=0;
+  pSpeed=0; cSpeed=1.3; cTarget=1.3; sprintT=0; nextChange=1.0;
+  holding=false; lastSec=Math.ceil(RACE_TIME);
+  scrollX=0; strokePhase=0; bubbleTick=0;
+  particles=[]; bubParts=[];
+  initDecor();
+  elFlash.classList.add('hidden');
+  elTimer.classList.remove('warn');
+  updateHUD();
+}
+
+function updateHUD(){
+  elTimer.textContent=Math.max(0,Math.ceil(timeLeft))+'';
+  elTimer.classList.toggle('warn',timeLeft<=5);
+  elPm.textContent='你 '+Math.round(pDist)+' 米';
+  elCm.textContent='电脑 '+Math.round(cDist)+' 米';
+}
+
+function showScreen(name){
+  elStart.classList.toggle('hidden',name!=='start');
+  elRace.classList.toggle('hidden',name!=='race');
+  elResult.classList.toggle('hidden',name!=='result');
+}
+
+function startGame(){
+  ensureAudio(); playWhistle();
+  resetRace();
+  STATE='race';
+  showScreen('race');
+}
+
+function endGame(){
+  holding=false;
+  STATE='result';
+  elFlash.classList.add('hidden');
+  if(pDist>=cDist){ playWin(); } else { playLose(); }
+  var pM=Math.round(pDist), cM=Math.round(cDist);
+  elRP.textContent='你 '+pM+' 米';
+  elRC.textContent='电脑 '+cM+' 米';
+  if(pM>cM){ elStars.textContent='★ ★ ★'; elRText.textContent='游得真远！'; }
+  else if(pM===cM){ elStars.textContent='★ ★'; elRText.textContent='打了个平手，也很棒！'; }
+  else { elStars.textContent='★'; elRText.textContent='再练练更远！'; }
+  showScreen('result');
+}
+
+function flashCount(s){
+  elFlash.textContent=s;
+  elFlash.classList.remove('flashanim');
+  void elFlash.offsetWidth;
+  elFlash.classList.add('flashanim');
+}
+
+/* ================= 更新 ================= */
+function update(dt){
+  if(STATE!=='race') return;
+
+  timeLeft-=dt;
+  if(timeLeft<=0){ timeLeft=0; updateHUD(); endGame(); return; }
+
+  // 玩家速度：按住加速
+  var targetP=0.85+(holding?1.35:0);
+  pSpeed+=(targetP-pSpeed)*Math.min(1,dt*4);
+  pDist+=pSpeed*dt;
+
+  // 电脑速度：随机波动 + 偶尔冲刺
+  nextChange-=dt;
+  if(nextChange<=0){
+    nextChange=0.8+Math.random()*1.6;
+    var r=Math.random();
+    if(r<0.22){ cTarget=rand(1.7,2.2); }
+    else if(r<0.45){ cTarget=rand(1.0,1.35); }
+    else { cTarget=rand(1.25,1.65); }
+  }
+  if(sprintT>0){ sprintT-=dt; if(sprintT<=0){ cTarget=1.25; } }
+  else if(Math.random()<dt*0.35){ sprintT=rand(1.0,2.0); cTarget=rand(2.0,2.35); }
+  cSpeed+=(cTarget-cSpeed)*Math.min(1,dt*0.9);
+  cDist+=cSpeed*dt;
+
+  strokePhase+=dt*(holding?11:6);
+  scrollX+=(pSpeed*0.8+0.6)*46*dt;
+
+  // 按住时的浪花与咕嘟咕嘟
+  if(holding){
+    playBubble();
+    if(Math.random()<dt*18){
+      particles.push({x:swimX('p')-rand(12,34),y:swimY('p')+rand(-6,10),
+        vx:rand(-70,-28),vy:rand(-42,12),r:rand(2,5),life:1,max:1});
+    }
+    if(Math.random()<dt*10){
+      bubParts.push({x:swimX('p')+rand(-8,16),y:swimY('p')-rand(6,22),
+        vy:-rand(30,72),r:rand(2,5),life:1,max:1});
+    }
+  }
+
+  for(var i=particles.length-1;i>=0;i--){
+    var p=particles[i]; p.life-=dt*1.6; p.x+=p.vx*dt; p.y+=p.vy*dt; p.vy-=24*dt;
+    if(p.life<=0) particles.splice(i,1);
+  }
+  for(var i=bubParts.length-1;i>=0;i--){
+    var b=bubParts[i]; b.life-=dt*0.9; b.y+=b.vy*dt; b.x+=Math.sin(b.y*0.1)*10*dt;
+    if(b.life<=0) bubParts.splice(i,1);
+  }
+  for(var i=0;i<fish.length;i++){ fish[i].x+=fish[i].v*dt; fish[i].ph+=dt*4; }
+  for(var i=0;i<weeds.length;i++){ weeds[i].ph+=dt*2; }
+  for(var i=0;i<bgBubbles.length;i++){
+    var bb=bgBubbles[i]; bb.y-=bb.v*dt; bb.x+=Math.sin(bb.y*0.02)*6*dt;
+    if(bb.y<-20){ bb.y=H+20; bb.x=Math.random()*W; }
+  }
+
+  // 最后 5 秒倒计时提示
+  var s=Math.ceil(timeLeft);
+  if(timeLeft<=5.01 && s!==lastSec){ lastSec=s; playTick(); flashCount(s); }
+
+  updateHUD();
+}
+
+/* ================= 绘制 ================= */
+function swimX(who){ var d=who==='p'?pDist:cDist; var r=Math.min(1,d/MAXM); return left+r*trackW; }
+function swimY(who){ return who==='p'?laneB:laneA; }
+
+function drawWeed(wd){
+  var sx=wrapX(wd.x-scrollX);
+  ctx.strokeStyle='rgba(58,180,84,0.85)'; ctx.lineWidth=5; ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(sx,wd.y);
+  var n=8, seg=wd.h/n;
+  for(var i=1;i<=n;i++){
+    var t=i/n, dx=Math.sin(t*3.14+wd.ph)*8*wd.side;
+    ctx.lineTo(sx+dx,wd.y-seg*i);
+  }
+  ctx.stroke();
+}
+
+function drawFish(f){
+  var sx=wrapX(f.x-scrollX);
+  ctx.save(); ctx.translate(sx,f.y);
+  if(f.v<0) ctx.scale(-1,1);
+  ctx.fillStyle=f.c;
+  ctx.beginPath(); ctx.ellipse(0,0,f.sz,f.sz*0.55,0,0,6.28); ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(-f.sz,0); ctx.lineTo(-f.sz*1.6,-f.sz*0.5); ctx.lineTo(-f.sz*1.6,f.sz*0.5);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle='rgba(0,0,0,0.55)';
+  ctx.beginPath(); ctx.arc(f.sz*0.62,-f.sz*0.2,f.sz*0.12,0,6.28); ctx.fill();
+  ctx.restore();
+}
+
+function drawSwimmer(x,y,sc,cap,ph){
+  ctx.save();
+  ctx.translate(x,y);
+  // 影子
+  ctx.fillStyle='rgba(0,0,0,0.14)';
+  ctx.beginPath(); ctx.ellipse(0,6*sc,16*sc,5*sc,0,0,6.28); ctx.fill();
+  // 打腿
+  var kick=Math.sin(ph)*0.9;
+  ctx.strokeStyle='#ffb27a'; ctx.lineWidth=5*sc; ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(0,-2*sc); ctx.lineTo(-5*sc+kick*4*sc,14*sc); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0,-2*sc); ctx.lineTo(-5*sc-kick*4*sc,14*sc); ctx.stroke();
+  // 身体
+  ctx.fillStyle='#ffb27a';
+  ctx.beginPath(); ctx.ellipse(0,-6*sc,6*sc,9*sc,0,0,6.28); ctx.fill();
+  // 泳裤
+  ctx.fillStyle=cap;
+  ctx.beginPath(); ctx.ellipse(0,-2*sc,7*sc,4*sc,0,0,3.14); ctx.fill();
+  // 划臂
+  var a1=Math.sin(ph), a2=Math.sin(ph+Math.PI);
+  ctx.strokeStyle='#ffb27a'; ctx.lineWidth=4.5*sc;
+  ctx.beginPath(); ctx.moveTo(-2*sc,-8*sc);
+  ctx.lineTo(-2*sc+Math.cos(a1)*12*sc,-8*sc+Math.sin(a1)*12*sc); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(2*sc,-8*sc);
+  ctx.lineTo(2*sc+Math.cos(a2)*12*sc,-8*sc+Math.sin(a2)*12*sc); ctx.stroke();
+  // 头
+  ctx.fillStyle='#ffe3c0';
+  ctx.beginPath(); ctx.arc(3*sc,-20*sc,8.5*sc,0,6.28); ctx.fill();
+  // 泳帽
+  ctx.fillStyle=cap;
+  ctx.beginPath(); ctx.arc(3*sc,-20*sc,8.5*sc,Math.PI*0.95,Math.PI*2.05); ctx.fill();
+  ctx.fillRect(-4*sc,-21.5*sc,15*sc,3.5*sc);
+  // 泳镜
+  ctx.fillStyle='#1f3d5c';
+  ctx.beginPath(); ctx.arc(4*sc,-19*sc,3.2*sc,0,6.28); ctx.fill();
+  ctx.beginPath(); ctx.arc(8.2*sc,-19*sc,3.2*sc,0,6.28); ctx.fill();
+  ctx.strokeStyle='rgba(0,0,0,0.35)'; ctx.lineWidth=1.5*sc;
+  ctx.beginPath(); ctx.moveTo(5*sc,-19*sc); ctx.lineTo(7*sc,-19*sc); ctx.stroke();
+  ctx.restore();
+}
+
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  // 水
+  var g=ctx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,'#2391d6'); g.addColorStop(0.5,'#0f6db8'); g.addColorStop(1,'#08487f');
+  ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+  // 水波
+  for(var i=0;i<6;i++){
+    var y=hudH+16+(i+0.4)*(trackH/6);
+    ctx.strokeStyle='rgba(255,255,255,'+(0.16-i*0.02).toFixed(2)+')'; ctx.lineWidth=2;
+    ctx.beginPath();
+    for(var x=0;x<=W;x+=7){
+      var wv=Math.sin((x+scrollX)*0.02+i*1.7)*7+Math.sin((x-scrollX)*0.045+i)*3;
+      if(x===0) ctx.moveTo(x,y+wv); else ctx.lineTo(x,y+wv);
+    }
+    ctx.stroke();
+  }
+  // 泳道线
+  var laneTop=laneA-laneH/2, laneBot=laneB+laneH/2, laneMid=(laneA+laneB)/2;
+  ctx.setLineDash([12,16]);
+  ctx.strokeStyle='rgba(255,255,255,0.3)'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(left-12,laneTop); ctx.lineTo(left+trackW+12,laneTop); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(left-12,laneMid); ctx.lineTo(left+trackW+12,laneMid); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(left-12,laneBot); ctx.lineTo(left+trackW+12,laneBot); ctx.stroke();
+  ctx.setLineDash([]);
+  // 距离刻度
+  ctx.fillStyle='rgba(255,255,255,0.5)'; ctx.font='10px sans-serif'; ctx.textAlign='center';
+  ctx.strokeStyle='rgba(255,255,255,0.45)'; ctx.lineWidth=2;
+  for(var m=10;m<=MAXM;m+=10){
+    var tx=left+(m/MAXM)*trackW;
+    ctx.beginPath(); ctx.moveTo(tx,laneTop-7); ctx.lineTo(tx,laneTop+7); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(tx,laneBot-7); ctx.lineTo(tx,laneBot+7); ctx.stroke();
+    ctx.fillText(m,tx,laneTop-9);
+  }
+  // 装饰：水草、小鱼、背景泡泡
+  for(var i=0;i<weeds.length;i++) drawWeed(weeds[i]);
+  for(var i=0;i<fish.length;i++) drawFish(fish[i]);
+  for(var i=0;i<bgBubbles.length;i++){
+    ctx.strokeStyle='rgba(255,255,255,0.35)'; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.arc(bgBubbles[i].x,bgBubbles[i].y,bgBubbles[i].r,0,6.28); ctx.stroke();
+  }
+  // 浪花粒子
+  for(var i=0;i<particles.length;i++){
+    ctx.globalAlpha=Math.max(0,particles[i].life/particles[i].max);
+    ctx.fillStyle='#fff';
+    ctx.beginPath(); ctx.arc(particles[i].x,particles[i].y,particles[i].r,0,6.28); ctx.fill();
+  }
+  ctx.globalAlpha=1;
+  // 游泳员
+  drawSwimmer(swimX('c'),laneA,swimScale,'#ff6b35',strokePhase+0.5);
+  drawSwimmer(swimX('p'),laneB,swimScale,'#2ea7ff',strokePhase);
+  // 咕嘟咕嘟泡泡
+  for(var i=0;i<bubParts.length;i++){
+    ctx.globalAlpha=Math.max(0,bubParts[i].life);
+    ctx.strokeStyle='rgba(205,240,255,0.85)'; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.arc(bubParts[i].x,bubParts[i].y,bubParts[i].r,0,6.28); ctx.stroke();
+  }
+  ctx.globalAlpha=1;
+}
+
+/* ================= 主循环 ================= */
+var lastT=0;
+function loop(ts){
+  var dt=Math.min((ts-lastT)/1000,0.05); lastT=ts;
+  update(dt);
+  draw();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(function(ts){ lastT=ts; requestAnimationFrame(loop); });
+
+/* ================= 输入 ================= */
+btnStart.addEventListener('click',function(){ ensureAudio(); startGame(); });
+btnAgain.addEventListener('click',function(){ ensureAudio(); startGame(); });
+
+btnGo.addEventListener('pointerdown',function(e){
+  e.preventDefault();
+  ensureAudio();
+  holding=true;
+  btnGo.classList.add('pressed');
+  try{ btnGo.setPointerCapture(e.pointerId); }catch(err){}
+});
+['pointerup','pointercancel','lostpointercapture'].forEach(function(ev){
+  btnGo.addEventListener(ev,function(){ holding=false; btnGo.classList.remove('pressed'); });
+});
+btnGo.addEventListener('contextmenu',function(e){ e.preventDefault(); });
+
+/* ================= 测试接口 ================= */
+window.__swim={
+  get state(){ return STATE; },
+  get pDist(){ return pDist; },
+  get cDist(){ return cDist; },
+  get timeLeft(){ return timeLeft; },
+  get holding(){ return holding; },
+  set timeLeft(v){ timeLeft=v; },
+  setHolding:function(v){ holding=v; },
+  forceEnd:function(){ endGame(); }
+};
+
+})();
+</script>
+</body>
+</html>
