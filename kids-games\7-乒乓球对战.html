@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>乒乓球对战</title>
+<style>
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;height:100%;background:#0f1a2b;color:#fff;
+    font-family:"PingFang SC","Microsoft YaHei","Heiti SC",sans-serif;
+    user-select:none;-webkit-user-select:none;touch-action:none;overscroll-behavior:none;}
+  #wrap{max-width:840px;margin:0 auto;padding:12px 10px 0;}
+  #stage{position:relative;}
+  #game{width:100%;height:auto;display:block;aspect-ratio:800/520;
+    border-radius:16px;box-shadow:0 8px 26px rgba(0,0,0,.5);
+    touch-action:none;cursor:pointer;background:#101b2e;}
+  .screen{position:absolute;inset:0;z-index:5;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:16px;text-align:center;
+    background:rgba(10,20,35,.74);border-radius:16px;padding:20px;overflow:auto;}
+  .hidden{display:none !important;}
+  .game-title{font-size:42px;font-weight:bold;letter-spacing:4px;
+    color:#ffd54a;text-shadow:0 3px 0 #8a5a00,0 0 18px rgba(255,213,74,.35);}
+  .rule{font-size:19px;line-height:1.75;color:#dce9fb;margin:2px 0;}
+  .rule p{margin:5px 0;}
+  .bigbtn{font-size:28px;padding:16px 52px;border-radius:44px;border:none;
+    background:#ff8c2e;color:#fff;font-weight:bold;cursor:pointer;
+    box-shadow:0 6px 0 #b8560f;letter-spacing:2px;font-family:inherit;}
+  .bigbtn:active{transform:translateY(5px);box-shadow:0 1px 0 #b8560f;}
+  #endTitle{font-size:44px;font-weight:bold;color:#ffd54a;text-shadow:0 3px 0 #8a5a00;}
+  #finalScore{font-size:38px;font-weight:bold;letter-spacing:6px;}
+  .stars{font-size:52px;color:#ffd54a;letter-spacing:10px;text-shadow:0 0 18px rgba(255,213,74,.7);}
+  #encourage{font-size:20px;color:#dce9fb;}
+  .homelink{display:block;text-align:center;margin:16px 0 10px;color:#8fb3e8;
+    text-decoration:none;font-size:17px;}
+  .homelink:active{color:#cfe0f5;}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="stage">
+    <canvas id="game"></canvas>
+
+    <div id="startScreen" class="screen">
+      <svg width="76" height="76" viewBox="0 0 76 76" aria-hidden="true">
+        <circle cx="30" cy="28" r="15" fill="#ff8c2e"/>
+        <circle cx="30" cy="28" r="7" fill="#ffe08a"/>
+        <line x1="34" y1="32" x2="58" y2="56" stroke="#fff" stroke-width="5" stroke-linecap="round"/>
+        <line x1="58" y1="56" x2="45" y2="60" stroke="#fff" stroke-width="5" stroke-linecap="round"/>
+        <line x1="58" y1="56" x2="63" y2="44" stroke="#fff" stroke-width="5" stroke-linecap="round"/>
+      </svg>
+      <div class="game-title">乒乓球对战</div>
+      <div class="rule">
+        <p>用手指或鼠标拖住左边的球拍接球</p>
+        <p>谁先丢球，对方得 1 分</p>
+        <p>先得 5 分就赢啦！</p>
+        <p>得分越多球越快，加油！</p>
+      </div>
+      <button id="btnStart" class="bigbtn">开始游戏</button>
+    </div>
+
+    <div id="endScreen" class="screen hidden">
+      <div id="endTitle">你赢了！</div>
+      <div id="finalScore">5 : 0</div>
+      <div id="stars" class="stars">★★★</div>
+      <div id="encourage">太棒啦！</div>
+      <button id="btnAgain" class="bigbtn">再来一局</button>
+    </div>
+  </div>
+  <a class="homelink" href="游戏大厅.html" target="_top">← 游戏大厅</a>
+</div>
+
+<script>
+(function(){
+'use strict';
+var W=800,H=520;
+var canvas=document.getElementById('game');
+var ctx=canvas.getContext('2d');
+var dpr=Math.max(1,window.devicePixelRatio||1);
+canvas.width=W*dpr;canvas.height=H*dpr;
+ctx.setTransform(dpr,0,0,dpr,0,0);
+
+var startScreen=document.getElementById('startScreen');
+var endScreen=document.getElementById('endScreen');
+var elEndTitle=document.getElementById('endTitle');
+var elFinalScore=document.getElementById('finalScore');
+var elStars=document.getElementById('stars');
+var elEncourage=document.getElementById('encourage');
+
+var player={x:42,y:H/2,w:18,h:118};   // 孩子球拍：大一点
+var cpu={x:W-42,y:H/2,w:18,h:80};     // 电脑球拍：略小
+var ball={x:W/2,y:H/2,vx:0,vy:0,r:7,trail:[]};
+
+var state='start';          // start | play | over
+var pause=0;
+var playerScore=0,cpuScore=0;
+var level=0,maxLevel=7;     // 球速档位，0~7 共 8 档封顶
+var BASE_SPEED=280,SPEED_STEP=55;
+var MAX_ANGLE=55*Math.PI/180;
+var CPU_SPEED=330;          // 电脑球拍速度上限，低于玩家即时拖拽
+var scoreFlash=null;
+var floats=[];
+var aiErr=0,aiMiss=0;
+var dragging=false;
+var crossings=0,lastVxSign=1;
+
+/* ---------- 音效（Web Audio 合成，失败静默降级） ---------- */
+var actx=null;
+function ac(){ if(actx) return actx; try{ var AC=window.AudioContext||window.webkitAudioContext; actx=new AC(); }catch(e){ actx=null; } return actx; }
+function beep(freq,dur,type,delay,vol){
+  var c=ac(); if(!c) return;
+  try{
+    var o=c.createOscillator(),g=c.createGain();
+    o.type=type||'sine';o.frequency.value=freq;
+    o.connect(g);g.connect(c.destination);
+    var t=c.currentTime+(delay||0),v=(vol==null)?0.15:vol;
+    g.gain.setValueAtTime(0.0001,t);
+    g.gain.exponentialRampToValueAtTime(v,t+0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001,t+(dur||0.15));
+    o.start(t);o.stop(t+(dur||0.15)+0.03);
+  }catch(e){}
+}
+
+/* ---------- 工具 ---------- */
+function clamp(v,a,b){ return v<a?a:(v>b?b:v); }
+function curSpeed(){ return BASE_SPEED+level*SPEED_STEP; }
+function roundRectPath(x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r);
+  ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r);
+  ctx.arcTo(x,y,x+w,y,r);
+  ctx.closePath();
+}
+function floatText(text,x,y,size,color){ floats.push({text:text,x:x,y:y,t:1.3,size:size,color:color}); }
+
+/* ---------- 发球 / 得分 / 结束 ---------- */
+function serve(fromSide){
+  ball.x=W/2;ball.y=H/2;ball.trail=[];
+  var target=(fromSide==='player')?cpu:player;
+  // 发球大致对准对方球拍，更容易接到；带一点随机让比赛有变化
+  var ang=Math.atan2(target.y-ball.y,target.x-ball.x);
+  ang+=(Math.random()*2-1)*0.08;
+  var sp=curSpeed();
+  ball.vx=Math.cos(ang)*sp;
+  ball.vy=Math.sin(ang)*sp;
+}
+function handleScore(who){
+  if(state!=='play') return;
+  if(who==='player'){ playerScore++; scoreFlash={side:'player',t:0.9}; beep(880,0.2,'triangle',0,0.16); }
+  else{ cpuScore++; scoreFlash={side:'cpu',t:0.9}; beep(480,0.2,'triangle',0,0.12); }
+  aiMiss=0;
+  var nl=Math.min(maxLevel,Math.floor((playerScore+cpuScore)/2));
+  if(nl>level){
+    level=nl;
+    floatText('球变快啦！',W/2,H*0.42,46,'#ffe08a');
+    beep(520,0.12,'square',0,0.1);beep(680,0.12,'square',0.13,0.1);
+  }
+  if(playerScore>=5){ endGame('win'); return; }
+  if(cpuScore>=5){ endGame('lose'); return; }
+  pause=0.8;                                  // 得分后停顿约 0.8 秒再发球
+  serve(who==='player'?'cpu':'player');       // 谁丢球谁发球
+}
+function endGame(who){
+  state='over';
+  var win=(who==='win');
+  elEndTitle.textContent=win?'你赢了！':'再试一次';
+  elFinalScore.textContent=playerScore+' : '+cpuScore;
+  elStars.textContent=win?'★★★':'★';
+  elEncourage.textContent=win?'太棒啦，你拿到三颗星！':'没关系，多练练就能赢！送你一颗星';
+  endScreen.classList.remove('hidden');
+  if(win){ beep(523,0.15,'triangle',0,0.14);beep(659,0.15,'triangle',0.15,0.14);beep(784,0.15,'triangle',0.3,0.14);beep(1047,0.35,'triangle',0.45,0.16); }
+  else{ beep(523,0.2,'sine',0,0.1);beep(392,0.2,'sine',0.22,0.1);beep(330,0.3,'sine',0.44,0.1); }
+}
+function startGame(){
+  ac();beep(660,0.1,'triangle',0,0.12);
+  startScreen.classList.add('hidden');
+  endScreen.classList.add('hidden');
+  playerScore=0;cpuScore=0;level=0;
+  player.y=H/2;cpu.y=H/2;aiErr=0;aiMiss=0;floats=[];crossings=0;
+  state='play';pause=0.5;
+  serve('cpu');
+}
+document.getElementById('btnStart').addEventListener('click',startGame);
+document.getElementById('btnAgain').addEventListener('click',startGame);
+
+/* ---------- 球拍拖拽（鼠标 + 触摸） ---------- */
+function pointerY(e){ var r=canvas.getBoundingClientRect(); return (e.clientY-r.top)/r.height*H; }
+function movePlayer(e){
+  player.y=clamp(pointerY(e),player.h/2,H-player.h/2);
+}
+canvas.addEventListener('pointerdown',function(e){
+  dragging=true;movePlayer(e);
+  try{ canvas.setPointerCapture(e.pointerId); }catch(err){}
+});
+canvas.addEventListener('pointermove',function(e){ if(dragging) movePlayer(e); });
+canvas.addEventListener('pointerup',function(){ dragging=false; });
+canvas.addEventListener('pointercancel',function(){ dragging=false; });
+
+/* ---------- 电脑 AI：预测落点 + 延迟 + 速度上限 + 随档位失误 ---------- */
+function updateAI(dt){
+  var target;
+  if(ball.vx>0){
+    var t=(cpu.x-ball.x)/ball.vx;
+    if(t>0) target=clamp(ball.y+ball.vy*t,cpu.h/2,H-cpu.h/2);
+    else target=cpu.y;
+  }else{
+    target=H/2;
+  }
+  aiErr+=(Math.random()-0.5)*dt*(30+level*26);   // 球越快失误越明显
+  aiErr*=Math.pow(0.02,dt);
+  target+=aiErr;
+  var diff=target-cpu.y;
+  var step=Math.max(-CPU_SPEED*dt,Math.min(CPU_SPEED*dt,diff));
+  cpu.y=clamp(cpu.y+step,cpu.h/2,H-cpu.h/2);
+}
+
+/* ---------- 反弹：拍面位置决定角度 ---------- */
+function bounce(p){
+  var half=p.h/2;
+  var rel=clamp((ball.y-p.y)/half,-1,1);
+  var ang=rel*MAX_ANGLE;
+  var sp=curSpeed();
+  var dir=(ball.vx>0)?-1:1;
+  ball.vx=Math.cos(ang)*sp*dir;
+  ball.vy=Math.sin(ang)*sp;
+  ball.x=(dir<0)?(p.x-p.w/2-ball.r-1):(p.x+p.w/2+ball.r+1);
+  beep(150,0.05,'square',0,0.05);
+}
+
+/* ---------- 主循环 ---------- */
+function update(dt){
+  if(scoreFlash){ scoreFlash.t-=dt; if(scoreFlash.t<=0) scoreFlash=null; }
+  for(var i=floats.length-1;i>=0;i--){
+    var f=floats[i];f.t-=dt;f.y-=30*dt;
+    if(f.t<=0) floats.splice(i,1);
+  }
+  if(state!=='play') return;
+  updateAI(dt);
+  if(pause>0){ pause-=dt; return; }
+
+  ball.trail.unshift({x:ball.x,y:ball.y});
+  if(ball.trail.length>10) ball.trail.pop();
+  ball.x+=ball.vx*dt;
+  ball.y+=ball.vy*dt;
+
+  if(ball.y-ball.r<48){ ball.y=48+ball.r; ball.vy=Math.abs(ball.vy); }
+  if(ball.y+ball.r>H-6){ ball.y=H-6-ball.r; ball.vy=-Math.abs(ball.vy); }
+
+  if(ball.vx>0&&lastVxSign<=0) crossings++;
+  lastVxSign=(ball.vx>0)?1:(ball.vx<0?-1:lastVxSign);
+
+  /* 电脑拍碰撞（aiMiss 时穿拍漏接） */
+  if(ball.vx>0&&ball.x+ball.r>=cpu.x-cpu.w/2&&ball.x-ball.r<=cpu.x+cpu.w/2&&Math.abs(ball.y-cpu.y)<=cpu.h/2+ball.r){
+    if(aiMiss>0){ aiMiss=0; ball.x=cpu.x+cpu.w/2+ball.r+2; }
+    else bounce(cpu);
+  }
+  /* 玩家拍碰撞 */
+  if(ball.vx<0&&ball.x-ball.r<=player.x+player.w/2&&ball.x+ball.r>=player.x-player.w/2&&Math.abs(ball.y-player.y)<=player.h/2+ball.r){
+    bounce(player);
+  }
+  if(ball.x<-30) handleScore('cpu');
+  else if(ball.x>W+30) handleScore('player');
+}
+
+function draw(){
+  /* 背景与顶部 */
+  ctx.fillStyle='#101b2e';ctx.fillRect(0,0,W,H);
+  /* 木色球台 */
+  var g=ctx.createLinearGradient(0,46,0,H);
+  g.addColorStop(0,'#c88a3c');g.addColorStop(0.5,'#b06a22');g.addColorStop(1,'#8f5418');
+  ctx.fillStyle=g;ctx.fillRect(6,46,W-12,H-52);
+  ctx.strokeStyle='#e8c48a';ctx.lineWidth=3;ctx.strokeRect(6,46,W-12,H-52);
+  /* 中线与中心圆 */
+  ctx.strokeStyle='rgba(255,255,255,0.45)';ctx.lineWidth=2;
+  ctx.setLineDash([8,8]);
+  ctx.beginPath();ctx.moveTo(W/2,48);ctx.lineTo(W/2,H-6);ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.beginPath();ctx.arc(W/2,H/2,26,0,Math.PI*2);ctx.stroke();
+  /* 球拍 */
+  ctx.fillStyle='#ff9d3d';roundRectPath(player.x-player.w/2,player.y-player.h/2,player.w,player.h,9);ctx.fill();
+  ctx.fillStyle='#4fc3f7';roundRectPath(cpu.x-cpu.w/2,cpu.y-cpu.h/2,cpu.w,cpu.h,9);ctx.fill();
+  /* 小球拖尾 */
+  var tl=ball.trail.length;
+  for(var i=tl-1;i>=0;i--){
+    var tr=ball.trail[i],k=i/tl;
+    ctx.beginPath();ctx.arc(tr.x,tr.y,ball.r*(1-k*0.6),0,Math.PI*2);
+    ctx.fillStyle='rgba(255,255,255,'+(0.26*(1-k)).toFixed(3)+')';ctx.fill();
+  }
+  ctx.beginPath();ctx.arc(ball.x,ball.y,ball.r,0,Math.PI*2);ctx.fillStyle='#ffffff';ctx.fill();
+  ctx.beginPath();ctx.arc(ball.x-2,ball.y-2,ball.r*0.4,0,Math.PI*2);ctx.fillStyle='#d8e8ff';ctx.fill();
+  /* 比分 HUD */
+  ctx.fillStyle='rgba(0,0,0,0.3)';ctx.fillRect(0,0,W,46);
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillStyle='#cfe0f5';ctx.font='bold 20px sans-serif';
+  ctx.fillText('你',100,23);
+  ctx.fillText('电脑',700,23);
+  if(scoreFlash&&scoreFlash.side==='player'){ ctx.fillStyle='#ffd54a';ctx.font='bold 38px sans-serif'; }
+  else{ ctx.fillStyle='#ffffff';ctx.font='bold 30px sans-serif'; }
+  ctx.fillText(String(playerScore),170,24);
+  if(scoreFlash&&scoreFlash.side==='cpu'){ ctx.fillStyle='#ffd54a';ctx.font='bold 38px sans-serif'; }
+  else{ ctx.fillStyle='#ffffff';ctx.font='bold 30px sans-serif'; }
+  ctx.fillText(String(cpuScore),630,24);
+  /* 提示文字（球变快啦！） */
+  for(var j=0;j<floats.length;j++){
+    var ft=floats[j],a=Math.min(1,ft.t/0.4);
+    ctx.globalAlpha=a;
+    ctx.font='bold '+ft.size+'px sans-serif';
+    ctx.strokeStyle='rgba(0,0,0,0.6)';ctx.lineWidth=6;
+    ctx.strokeText(ft.text,ft.x,ft.y);
+    ctx.fillStyle=ft.color;
+    ctx.fillText(ft.text,ft.x,ft.y);
+  }
+  ctx.globalAlpha=1;
+}
+
+var last=performance.now();
+function frame(now){
+  var dt=(now-last)/1000;last=now;
+  if(dt>0.05) dt=0.05;
+  update(dt);
+  draw();
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+/* 测试辅助接口 */
+window.__pp={
+  get state(){ return state; },
+  get ball(){ return {x:ball.x,y:ball.y,vx:ball.vx,vy:ball.vy}; },
+  get player(){ return {y:player.y}; },
+  get cpu(){ return {y:cpu.y}; },
+  get score(){ return {player:playerScore,cpu:cpuScore}; },
+  get crossings(){ return crossings; },
+  forceComputerMiss:function(){ if(state==='play') aiMiss=1; },
+  addPlayerScore:function(){ if(state==='play') handleScore('player'); }
+};
+})();
+</script>
+</body>
+</html>
