@@ -1427,7 +1427,275 @@ body{
     sparkle(ctx,W*0.7,H*0.85,W*0.026,'#ffffff');
   }
 
-  /* 三档难度各有专属 9 张图（原 6 张 + 新 3 件神话法器，不共用） */
+  /* ===== 第二批三图：小木桥(easy) / 热气球(chal) / 跨海大桥(hard) ===== */
+  function drawWoodBridge(ctx,W,H){
+    /* 天空 */
+    var g=ctx.createLinearGradient(0,0,0,H);
+    g.addColorStop(0,'#8fd0ff'); g.addColorStop(0.7,'#dff3ff'); g.addColorStop(1,'#d5f0e0');
+    ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+    /* 太阳 */
+    ctx.fillStyle='#ffd23f';
+    ctx.beginPath(); ctx.arc(W*0.15,H*0.15,W*0.05,0,Math.PI*2); ctx.fill();
+    ctx.lineWidth=Math.max(2,W*0.006); ctx.strokeStyle='#ff9d2f'; ctx.stroke();
+    cloud(ctx,W*0.6,H*0.13,W*0.08);
+    cloud(ctx,W*0.88,H*0.3,W*0.06);
+    /* 远山 */
+    ctx.fillStyle='#a8df86';
+    ctx.beginPath(); ctx.moveTo(0,H*0.52); ctx.quadraticCurveTo(W*0.16,H*0.34,W*0.34,H*0.52);
+    ctx.lineTo(W*0.34,H*0.6); ctx.lineTo(0,H*0.6); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(W,H*0.5); ctx.quadraticCurveTo(W*0.84,H*0.33,W*0.66,H*0.5);
+    ctx.lineTo(W*0.66,H*0.6); ctx.lineTo(W,H*0.6); ctx.closePath(); ctx.fill();
+    /* 左右河岸草坡 */
+    ctx.fillStyle='#7ed957';
+    ctx.beginPath(); ctx.moveTo(0,H*0.72); ctx.quadraticCurveTo(W*0.12,H*0.64,W*0.26,H*0.68);
+    ctx.lineTo(W*0.26,H); ctx.lineTo(0,H); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(W,H*0.72); ctx.quadraticCurveTo(W*0.88,H*0.64,W*0.74,H*0.68);
+    ctx.lineTo(W*0.74,H); ctx.lineTo(W,H); ctx.closePath(); ctx.fill();
+    /* 河水 */
+    var wg=ctx.createLinearGradient(0,H*0.68,0,H);
+    wg.addColorStop(0,'#4cb6ee'); wg.addColorStop(1,'#a5dcf5');
+    ctx.fillStyle=wg;
+    ctx.beginPath(); ctx.moveTo(W*0.26,H*0.68); ctx.quadraticCurveTo(W*0.5,H*0.635,W*0.74,H*0.68);
+    ctx.lineTo(W*0.74,H); ctx.lineTo(W*0.26,H); ctx.closePath(); ctx.fill();
+    /* 水面波纹 */
+    ctx.strokeStyle='rgba(255,255,255,0.75)'; ctx.lineWidth=Math.max(1.5,W*0.004); ctx.lineCap='round';
+    for(var wi=0;wi<4;wi++){
+      var wy=H*(0.78+wi*0.055);
+      ctx.beginPath(); ctx.moveTo(W*0.32+wi*W*0.012,wy); ctx.quadraticCurveTo(W*0.37+wi*W*0.012,wy-W*0.008,W*0.42+wi*W*0.012,wy); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(W*0.58-wi*W*0.012,wy+W*0.012); ctx.quadraticCurveTo(W*0.63-wi*W*0.012,wy+W*0.004,W*0.68-wi*W*0.012,wy+W*0.012); ctx.stroke();
+    }
+    /* 桥身主体：桥面横板 + 左右桥腿 + 下弦拱弧 */
+    var by=H*0.64;
+    /* 下弦拱弧（先画，被桥面盖住上端） */
+    ctx.lineCap='butt';
+    ctx.strokeStyle='#8a4f22'; ctx.lineWidth=W*0.05;
+    ctx.beginPath(); ctx.moveTo(W*0.30,by+W*0.01);
+    ctx.quadraticCurveTo(W*0.5,H*1.02,W*0.70,by+W*0.01); ctx.stroke();
+    ctx.strokeStyle='#a5672f'; ctx.lineWidth=W*0.032;
+    ctx.beginPath(); ctx.moveTo(W*0.30,by+W*0.002);
+    ctx.quadraticCurveTo(W*0.5,H*0.985,W*0.70,by+W*0.002); ctx.stroke();
+    /* 左右桥腿 */
+    ctx.fillStyle='#a5672f';
+    roundRect(ctx,W*0.285,by,W*0.05,H*0.3,H*0.012); ctx.fill();
+    roundRect(ctx,W*0.665,by,W*0.05,H*0.3,H*0.012); ctx.fill();
+    ctx.fillStyle='#7c4419';
+    roundRect(ctx,W*0.295,by+W*0.004,W*0.03,H*0.3,H*0.01); ctx.fill();
+    roundRect(ctx,W*0.675,by+W*0.004,W*0.03,H*0.3,H*0.01); ctx.fill();
+    /* 桥面横板（盖住拱与腿的顶端） */
+    var bg2=ctx.createLinearGradient(0,by-W*0.028,0,by+W*0.004);
+    bg2.addColorStop(0,'#d99a55'); bg2.addColorStop(1,'#a5672f');
+    ctx.fillStyle=bg2;
+    roundRect(ctx,W*0.27,by-W*0.03,W*0.46,W*0.034,W*0.01); ctx.fill();
+    ctx.lineWidth=Math.max(2,W*0.006); ctx.strokeStyle='#6b3a12'; ctx.stroke();
+    /* 木板拼缝 */
+    ctx.strokeStyle='#7c4419'; ctx.lineWidth=Math.max(1,W*0.003);
+    for(var pl=1;pl<6;pl++){ var px=W*(0.27+pl*0.46/6); ctx.beginPath(); ctx.moveTo(px,by-W*0.028); ctx.lineTo(px,by+W*0.002); ctx.stroke(); }
+    /* 红色栏杆 + 竖栏 */
+    ctx.strokeStyle='#d6453d'; ctx.lineWidth=Math.max(2,W*0.006);
+    ctx.beginPath(); ctx.moveTo(W*0.27,by-W*0.055); ctx.lineTo(W*0.73,by-W*0.055); ctx.stroke();
+    ctx.strokeStyle='#b8322b';
+    for(var rl=0;rl<7;rl++){
+      var rx=W*(0.295+rl*0.40/6);
+      ctx.beginPath(); ctx.moveTo(rx,by-W*0.028); ctx.lineTo(rx,by-W*0.058); ctx.stroke();
+    }
+    /* 小鸭子（左河水） */
+    function duck(px,py,ps,dir){
+      ctx.fillStyle='#ffd94a';
+      ctx.beginPath(); ctx.ellipse(px,py,ps*1.4,ps,0,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(px+dir*ps*0.5,py-ps*0.9,ps*0.8,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(px+dir*ps*1.6,py-ps*0.7,ps*0.32,0,Math.PI*2);
+      ctx.fillStyle='#ff8a2f'; ctx.fill();
+      ctx.beginPath(); ctx.arc(px+dir*ps*0.5,py-ps*1.0,ps*0.3,0,Math.PI*2);
+      ctx.fillStyle='#333'; ctx.fill();
+    }
+    duck(W*0.38,H*0.82,W*0.025,1);
+    duck(W*0.46,H*0.88,W*0.021,-1);
+    /* 岸边小花 */
+    smallFlower(ctx,W*0.11,H*0.84,W*0.022,'#ff5b8f');
+    smallFlower(ctx,W*0.05,H*0.93,W*0.018,'#ffd23f');
+    smallFlower(ctx,W*0.9,H*0.86,W*0.022,'#ff8ce6');
+    smallFlower(ctx,W*0.955,H*0.78,W*0.017,'#ff5b8f');
+  }
+
+  function drawBalloon(ctx,W,H){
+    /* 天空 */
+    var g=ctx.createLinearGradient(0,0,0,H);
+    g.addColorStop(0,'#5fc0ff'); g.addColorStop(0.65,'#c4e9ff'); g.addColorStop(1,'#eaf8ff');
+    ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+    /* 阳光 */
+    ctx.save(); ctx.translate(W*0.85,H*0.16);
+    ctx.fillStyle='#ffd23f';
+    ctx.beginPath(); ctx.arc(0,0,W*0.05,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle='#ffb84d'; ctx.lineWidth=Math.max(2,W*0.005); ctx.lineCap='round';
+    for(var i=0;i<10;i++){
+      ctx.rotate(Math.PI*2/10);
+      ctx.beginPath(); ctx.moveTo(W*0.072,0); ctx.lineTo(W*0.095,0); ctx.stroke();
+    }
+    ctx.restore();
+    cloud(ctx,W*0.13,H*0.2,W*0.11);
+    cloud(ctx,W*0.2,H*0.34,W*0.07);
+    /* 气球球体（竖条纹，clip 椭圆） */
+    var cx=W*0.5, cy=H*0.4, R=W*0.235;
+    ctx.save(); ctx.translate(cx,cy); ctx.scale(1,0.93);
+    ctx.beginPath(); ctx.arc(0,0,R,0,Math.PI*2); ctx.clip();
+    var bands=['#ff6b5e','#ffa23f','#ffd23f','#5fd38c','#4db8ff','#b07cf0'];
+    var step=2*R/bands.length;
+    for(var b=0;b<bands.length;b++){
+      ctx.fillStyle=bands[b];
+      ctx.fillRect(-R+b*step,-R,step+1,2*R);
+    }
+    ctx.restore();
+    /* 球体描边（还原后叠光效） */
+    ctx.save(); ctx.translate(cx,cy); ctx.scale(1,0.93);
+    ctx.beginPath(); ctx.arc(0,0,R,0,Math.PI*2);
+    ctx.lineWidth=Math.max(2.5,W*0.008); ctx.strokeStyle='#3a3a4a'; ctx.stroke();
+    ctx.restore();
+    /* 高光弧 */
+    ctx.strokeStyle='rgba(255,255,255,0.85)'; ctx.lineWidth=Math.max(2.5,W*0.007); ctx.lineCap='round';
+    ctx.beginPath(); ctx.arc(cx-W*0.02,cy-W*0.02,R*0.66,-Math.PI*0.72,-Math.PI*0.28); ctx.stroke();
+    /* 悬索：球底 → 吊篮 */
+    var by2=cy+R*0.93;
+    ctx.strokeStyle='#5a4a2a'; ctx.lineWidth=Math.max(1.5,W*0.005);
+    ctx.beginPath(); ctx.moveTo(cx-R*0.42,by2); ctx.lineTo(cx-R*0.2,cy+R*0.93+H*0.05); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx+R*0.42,by2); ctx.lineTo(cx+R*0.2,cy+R*0.93+H*0.05); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx-R*0.42,by2); ctx.lineTo(cx-R*0.34,cy+R*0.93+H*0.06); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx+R*0.42,by2); ctx.lineTo(cx+R*0.34,cy+R*0.93+H*0.06); ctx.stroke();
+    /* 吊篮 */
+    var bkx=cx-W*0.1, bky=cy+R*0.93+H*0.015, bkw=W*0.2, bkh=H*0.085;
+    var bgg=ctx.createLinearGradient(0,bky,0,bky+bkh);
+    bgg.addColorStop(0,'#c98a4b'); bgg.addColorStop(1,'#8a5a2b');
+    ctx.fillStyle=bgg;
+    roundRect(ctx,bkx,bky,bkw,bkh,W*0.015); ctx.fill();
+    ctx.lineWidth=Math.max(2,W*0.006); ctx.strokeStyle='#5e3310'; ctx.stroke();
+    ctx.strokeStyle='#a5672f'; ctx.lineWidth=Math.max(1,W*0.003);
+    for(var s2=1;s2<4;s2++){ ctx.beginPath(); ctx.moveTo(bkx,bky+bkh*s2/4); ctx.lineTo(bkx+bkw,bky+bkh*s2/4); ctx.stroke(); }
+    ctx.beginPath(); ctx.moveTo(bkx+bkw*0.25,bky+bkh); ctx.lineTo(bkx+bkw*0.25,bky+bkh+H*0.018); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(bkx+bkw*0.75,bky+bkh); ctx.lineTo(bkx+bkw*0.75,bky+bkh+H*0.018); ctx.stroke();
+    /* 小鸟 */
+    function bird(px,py,ps){
+      ctx.strokeStyle='#4a4a5a'; ctx.lineWidth=Math.max(1.5,W*0.004); ctx.lineCap='round';
+      ctx.beginPath(); ctx.moveTo(px-ps,py); ctx.quadraticCurveTo(px-ps*0.4,py-ps,px,py);
+      ctx.quadraticCurveTo(px+ps*0.4,py-ps,px+ps,py); ctx.stroke();
+    }
+    bird(W*0.16,H*0.5,W*0.035);
+    bird(W*0.84,H*0.42,W*0.028);
+    /* 底部绿地 */
+    ctx.fillStyle='#8fdd62';
+    ctx.beginPath(); ctx.moveTo(0,H*0.88);
+    ctx.quadraticCurveTo(W*0.25,H*0.8,W*0.5,H*0.88);
+    ctx.quadraticCurveTo(W*0.75,H*0.96,W,H*0.88);
+    ctx.lineTo(W,H); ctx.lineTo(0,H); ctx.closePath(); ctx.fill();
+    smallFlower(ctx,W*0.12,H*0.96,W*0.02,'#ff5b8f');
+    smallFlower(ctx,W*0.87,H*0.95,W*0.022,'#ffd23f');
+  }
+
+  function drawSeaBridge(ctx,W,H){
+    /* 晚霞天空 */
+    var g=ctx.createLinearGradient(0,0,0,H*0.58);
+    g.addColorStop(0,'#ffe3a8'); g.addColorStop(0.45,'#ffb36b'); g.addColorStop(1,'#f2835e');
+    ctx.fillStyle=g; ctx.fillRect(0,0,W,H*0.58);
+    /* 太阳（被桥塔部分遮挡） */
+    var sg=ctx.createRadialGradient(W*0.5,H*0.42,W*0.01,W*0.5,H*0.42,W*0.085);
+    sg.addColorStop(0,'#fff3b8'); sg.addColorStop(0.6,'#ffd23f'); sg.addColorStop(1,'rgba(255,190,60,0.25)');
+    ctx.fillStyle=sg;
+    ctx.beginPath(); ctx.arc(W*0.5,H*0.42,W*0.085,0,Math.PI*2); ctx.fill();
+    /* 淡云 */
+    ctx.fillStyle='rgba(255,255,255,0.6)';
+    ctx.beginPath(); ctx.arc(W*0.16,H*0.2,W*0.05,0,Math.PI*2); ctx.arc(W*0.24,H*0.17,W*0.065,0,Math.PI*2); ctx.arc(W*0.32,H*0.2,W*0.045,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(W*0.75,H*0.3,W*0.05,0,Math.PI*2); ctx.arc(W*0.83,H*0.28,W*0.07,0,Math.PI*2); ctx.arc(W*0.91,H*0.31,W*0.045,0,Math.PI*2); ctx.fill();
+    /* 海面 */
+    var hg=ctx.createLinearGradient(0,H*0.58,0,H);
+    hg.addColorStop(0,'#3f8fc9'); hg.addColorStop(0.35,'#2a6ea3'); hg.addColorStop(1,'#174a78');
+    ctx.fillStyle=hg; ctx.fillRect(0,H*0.58,W,H*0.42);
+    /* 太阳倒影光柱 */
+    ctx.fillStyle='rgba(255,235,150,0.35)';
+    for(var z=0;z<4;z++){
+      var zy=H*(0.62+z*0.085);
+      ctx.beginPath(); ctx.moveTo(W*0.5-W*0.02,zy); ctx.quadraticCurveTo(W*0.5,zy+H*0.02,W*0.5+W*0.02,zy);
+      ctx.lineTo(W*0.5+W*0.02,zy+H*0.03); ctx.quadraticCurveTo(W*0.5,zy+H*0.05,W*0.5-W*0.02,zy+H*0.03); ctx.closePath(); ctx.fill();
+    }
+    /* 海浪波纹 */
+    ctx.strokeStyle='rgba(255,255,255,0.5)'; ctx.lineWidth=Math.max(1.2,W*0.0035); ctx.lineCap='round';
+    for(var wv=0;wv<8;wv++){
+      var wx0=W*(wv*0.13+((wv%3)*0.02)), wyy=H*(0.68+wv*0.036);
+      ctx.beginPath(); ctx.moveTo(wx0,wyy);
+      ctx.quadraticCurveTo(wx0+W*0.03,wyy-W*0.01,wx0+W*0.06,wyy); ctx.stroke();
+    }
+    /* 桥面（横贯，先画供塔覆盖） */
+    var deckY=H*0.45;
+    ctx.fillStyle='#d6dae0';
+    roundRect(ctx,-W*0.05,deckY,W*1.1,W*0.028,W*0.008); ctx.fill();
+    ctx.fillStyle='#9aa0aa'; ctx.fillRect(0,deckY+W*0.02,W,W*0.008);
+    /* 中央车道黄虚线 */
+    ctx.strokeStyle='#ffd23f'; ctx.lineWidth=Math.max(1.5,W*0.004); ctx.setLineDash([W*0.03,W*0.025]);
+    ctx.beginPath(); ctx.moveTo(0,deckY+W*0.014); ctx.lineTo(W,deckY+W*0.014); ctx.stroke();
+    ctx.setLineDash([]);
+    /* 桥栏竖杆 */
+    ctx.strokeStyle='#6a7078'; ctx.lineWidth=Math.max(1,W*0.003);
+    for(var q=0;q<18;q++){ var qx=W*(0.02+q*0.056); ctx.beginPath(); ctx.moveTo(qx,deckY-W*0.012); ctx.lineTo(qx,deckY+W*0.002); ctx.stroke(); }
+    /* 桥上小车 */
+    function car(px,dir,bodyC){
+      var cw=W*0.09,ch=W*0.03;
+      roundRect(ctx,px-dir*cw/2,deckY-ch,cw,ch,W*0.006);
+      ctx.fillStyle=bodyC; ctx.fill();
+      ctx.fillStyle='#a8cce8';
+      roundRect(ctx,px+dir*cw*0.06,deckY-ch*1.35,cw*0.34,ch*0.42,W*0.004); ctx.fill();
+      ctx.fillStyle='#333';
+      ctx.beginPath(); ctx.arc(px-dir*cw*0.25,deckY-W*0.002,W*0.007,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(px+dir*cw*0.3,deckY-W*0.002,W*0.007,0,Math.PI*2); ctx.fill();
+    }
+    car(W*0.28,1,'#e64545');
+    car(W*0.72,-1,'#ffcf3f');
+    /* 主桥塔：两柱 + 顶横梁 + 底横梁（H 形） */
+    var tcx=W*0.5, tTop=H*0.17, tBot=H*0.62;
+    ctx.fillStyle='#eef0f4';
+    roundRect(ctx,tcx-W*0.022,tTop,W*0.022,H*0.05,W*0.004); ctx.fill();
+    roundRect(ctx,tcx,tTop,W*0.022,H*0.05,W*0.004); ctx.fill();
+    ctx.fillStyle='#e3e6eb';
+    roundRect(ctx,tcx-W*0.022,tTop+W*0.02,W*0.044,W*0.022,W*0.004); ctx.fill();
+    ctx.fillStyle='#c4c9d1';
+    roundRect(ctx,tcx-W*0.016,tTop+W*0.048,W*0.032,H*0.42,W*0.004); ctx.fill();
+    roundRect(ctx,tcx-W*0.016,H*0.56,W*0.032,W*0.06,W*0.004); ctx.fill();
+    ctx.strokeStyle='#7e848d'; ctx.lineWidth=Math.max(1.5,W*0.004);
+    ctx.strokeRect(tcx-W*0.022,tTop,W*0.022,H*0.05);
+    ctx.strokeRect(tcx,tTop,W*0.022,H*0.05);
+    ctx.strokeRect(tcx-W*0.016,tTop+W*0.048,W*0.032,H*0.42);
+    ctx.strokeRect(tcx-W*0.016,H*0.56,W*0.032,W*0.06);
+    /* 航空警示灯 */
+    ctx.fillStyle='#ff5a5a';
+    ctx.beginPath(); ctx.arc(tcx-W*0.008,tTop+W*0.006,W*0.006,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(tcx+W*0.008,tTop+W*0.006,W*0.006,0,Math.PI*2); ctx.fill();
+    /* 斜拉索（塔顶 → 桥面左右各 6 根） */
+    ctx.strokeStyle='#f4f6f8'; ctx.lineWidth=Math.max(1.5,W*0.005);
+    for(var sIdx=1;sIdx<=6;sIdx++){
+      var ax=W*0.5-sIdx*W*0.075;
+      ctx.beginPath(); ctx.moveTo(tcx-W*0.005,tTop+W*0.02); ctx.lineTo(ax,deckY); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(tcx+W*0.005,tTop+W*0.02); ctx.lineTo(W*0.5+sIdx*W*0.075,deckY); ctx.stroke();
+      /* 索端锚点小三角 */
+      ctx.fillStyle='#ffd23f';
+      ctx.beginPath(); ctx.moveTo(ax-W*0.008,deckY); ctx.lineTo(ax+W*0.008,deckY); ctx.lineTo(ax,deckY+W*0.008); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(W*0.5+sIdx*W*0.075-W*0.008,deckY); ctx.lineTo(W*0.5+sIdx*W*0.075+W*0.008,deckY); ctx.lineTo(W*0.5+sIdx*W*0.075,deckY+W*0.008); ctx.closePath(); ctx.fill();
+    }
+    /* 桥墩（水中） */
+    ctx.fillStyle='#9aa0aa';
+    roundRect(ctx,tcx-W*0.03,H*0.6,W*0.06,H*0.14,W*0.008); ctx.fill();
+    ctx.fillStyle='#7e848d';
+    roundRect(ctx,tcx-W*0.04,H*0.72,W*0.08,H*0.04,W*0.01); ctx.fill();
+    /* 帆船 */
+    ctx.fillStyle='#fff';
+    ctx.beginPath(); ctx.moveTo(W*0.16,H*0.68); ctx.lineTo(W*0.16,H*0.58); ctx.lineTo(W*0.225,H*0.68); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle='#8a2f1a'; ctx.lineWidth=Math.max(1,W*0.003);
+    ctx.beginPath(); ctx.moveTo(W*0.16,H*0.68); ctx.lineTo(W*0.16,H*0.565); ctx.stroke();
+    ctx.fillStyle='#c96a3a';
+    ctx.beginPath(); ctx.moveTo(W*0.115,H*0.68); ctx.lineTo(W*0.205,H*0.68); ctx.lineTo(W*0.19,H*0.72); ctx.lineTo(W*0.13,H*0.72); ctx.closePath(); ctx.fill();
+    /* 海鸥 */
+    ctx.strokeStyle='#3a3a4a'; ctx.lineWidth=Math.max(1.5,W*0.004);
+    ctx.beginPath(); ctx.moveTo(W*0.84,H*0.63); ctx.quadraticCurveTo(W*0.87,H*0.6,W*0.9,H*0.63); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(W*0.28,H*0.56); ctx.quadraticCurveTo(W*0.31,H*0.53,W*0.34,H*0.56); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(W*0.68,H*0.5); ctx.quadraticCurveTo(W*0.71,H*0.47,W*0.74,H*0.5); ctx.stroke();
+  }
+
+  /* 三档难度各有专属图集（原 6 张 + 神话法器 + 第二批新图，不共用） */
   var PATTERNS_EASY=[
     {id:'sword',name:'宝剑',draw:drawSword},
     {id:'sunrise',name:'日出',draw:drawSunrise},
@@ -1435,7 +1703,8 @@ body{
     {id:'cat',name:'小猫咪',draw:drawCat},
     {id:'elephant',name:'大象',draw:drawElephant},
     {id:'flower',name:'花朵',draw:drawFlower},
-    {id:'qiankun',name:'乾坤圈',draw:drawShenqiRing}
+    {id:'qiankun',name:'乾坤圈',draw:drawShenqiRing},
+    {id:'bridge',name:'小木桥',draw:drawWoodBridge}
   ];
   var PATTERNS_CHAL=[
     {id:'puppy',name:'小狗',draw:drawPuppy},
@@ -1444,7 +1713,8 @@ body{
     {id:'icecream',name:'冰淇淋',draw:drawIcecream},
     {id:'rainbow',name:'彩虹',draw:drawRainbow},
     {id:'car',name:'小汽车',draw:drawCar},
-    {id:'sanchaji',name:'三叉戟',draw:drawShenqiTrident}
+    {id:'sanchaji',name:'三叉戟',draw:drawShenqiTrident},
+    {id:'balloon',name:'热气球',draw:drawBalloon}
   ];
   var PATTERNS_HARD=[
     {id:'dino',name:'恐龙',draw:drawDino},
@@ -1453,7 +1723,8 @@ body{
     {id:'planet',name:'星球',draw:drawPlanet},
     {id:'penguin',name:'企鹅',draw:drawPenguin},
     {id:'train',name:'小火车',draw:drawTrain},
-    {id:'jingu',name:'金箍棒',draw:drawShenqiStaff}
+    {id:'jingu',name:'金箍棒',draw:drawShenqiStaff},
+    {id:'seabridge',name:'跨海大桥',draw:drawSeaBridge}
   ];
   var PATTERNS=PATTERNS_EASY; /* 当前档图集，随 setMode 切换 */
 
@@ -1475,11 +1746,12 @@ body{
 
   /* ---------- 状态 ---------- */
   var cells=[], offscreen=null, steps=0, curPatternIndex=0, selected=-1, winning=false;
-  /* 每档完成进度独立：{easy:[9], chal:[9], hard:[9]} */
-  function freshDone(){ return {easy:[false,false,false,false,false,false,false,false,false],chal:[false,false,false,false,false,false,false,false,false],hard:[false,false,false,false,false,false,false,false,false]}; }
+  /* 每档完成进度独立，长度跟随各自图集（不再写死数字） */
+  function arrN(n){ var a=[]; for(var i=0;i<n;i++) a.push(false); return a; }
+  function freshDone(){ return {easy:arrN(PATTERNS_EASY.length),chal:arrN(PATTERNS_CHAL.length),hard:arrN(PATTERNS_HARD.length)}; }
   var completed=freshDone();
   function DONE(){ return completed[MODE]; }
-  /* 难度：easy 3x3 九块 / chal 4x4 十六块 / hard 5x5 二十五块，三档各自专属 9 张图 */
+  /* 难度：easy 3x3 九块 / chal 4x4 十六块 / hard 5x5 二十五块，三档各自专属图集 */
   var MODE='easy';
   var DIFFS={
     easy:{label:'简单',n:9,c:3,r:3,note:'3×3 · 每张图有专属画',btn:'modeEasy',set:PATTERNS_EASY},
@@ -1514,6 +1786,7 @@ body{
   function saveProgress(){
     try{ localStorage.setItem('puzzleProgress',JSON.stringify(completed)); }catch(e){}
   }
+  var SETS={easy:PATTERNS_EASY,chal:PATTERNS_CHAL,hard:PATTERNS_HARD};
   function loadProgress(){
     try{
       var raw=localStorage.getItem('puzzleProgress');
@@ -1524,8 +1797,8 @@ body{
         for(var i=0;i<6;i++) completed.easy[i]=!!o[i];
       }else{
         ['easy','chal','hard'].forEach(function(k){
-          /* 兼容旧版 6 长存档与新 9 长存档 */
-          if(o[k] && o[k].length) for(var j=0;j<Math.min(9,o[k].length);j++) completed[k][j]=!!o[k][j];
+          /* 兼容旧版 6/7/9 长存档：上限取当前档图集长度，新图位默认未完成 */
+          if(o[k] && o[k].length) for(var j=0;j<Math.min(SETS[k].length,o[k].length);j++) completed[k][j]=!!o[k][j];
         });
       }
     }catch(e){}
