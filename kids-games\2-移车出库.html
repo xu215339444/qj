@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>移车出库 · 挪车闯关</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    font-family: "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB", sans-serif;
+    background: linear-gradient(170deg, #a8e6ff 0%, #c9b6ff 55%, #ffc3d8 100%);
+    overflow: hidden; user-select: none;
+  }
+  body { display: flex; align-items: center; justify-content: center; }
+  #app {
+    width: 100%; max-width: 560px; height: 100%;
+    display: flex; flex-direction: column; padding: 10px 14px 16px; gap: 8px;
+  }
+
+  /* 顶部信息栏 */
+  .hud {
+    flex: none; display: flex; align-items: center; gap: 10px;
+    background: rgba(255,255,255,.55); border-radius: 20px; padding: 8px 14px;
+    box-shadow: 0 4px 14px rgba(80,60,140,.12);
+  }
+  .hud .chip {
+    background: #fff; border-radius: 14px; padding: 4px 12px;
+    font-size: 16px; font-weight: 800; color: #5b4b8a;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .hud .chip b { font-size: 20px; color: #e08a12; }
+  .hud .chip.green b { color: #57b848; }
+  .hud .tag { font-size: 13px; font-weight: 800; color: #fff; padding: 3px 10px; border-radius: 20px; background: #7ad46b; }
+  .hud .grow { margin-left: auto; }
+
+  /* 说明条 */
+  .tipbar {
+    flex: none; text-align: center; font-size: 14px; font-weight: 700;
+    color: #5b4b8a; background: rgba(255,255,255,.5); border-radius: 14px; padding: 6px 10px;
+  }
+  .tipbar span { color: #e08a12; }
+
+  /* 棋盘 */
+  .board-area { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 0; }
+  .board-wrap { display: flex; align-items: center; gap: 6px; }
+  .board {
+    position: relative; border-radius: 18px;
+    background: #e8e2f5;
+    background-image:
+      linear-gradient(rgba(255,255,255,.85) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.85) 1px, transparent 1px);
+    box-shadow: inset 0 3px 10px rgba(80,60,140,.18), 0 8px 18px rgba(80,60,140,.18);
+    overflow: hidden;
+  }
+  .board::after {   /* 出口缺口 */
+    content: ""; position: absolute; right: -2px;
+    top: calc(var(--exit) * var(--cell) + var(--cell) * 0.24);
+    height: calc(var(--cell) * 0.52); width: 8px;
+    background: #fffdf6; border-radius: 4px 0 0 4px;
+  }
+  .exit-mark {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    color: #fff; font-weight: 900; font-size: 13px; text-shadow: 0 2px 0 rgba(120,90,180,.5);
+  }
+  .exit-mark .arrow {
+    width: 0; height: 0; border-left: 17px solid #fff;
+    border-top: 10px solid transparent; border-bottom: 10px solid transparent;
+    margin-bottom: 4px; animation: nudge 1.2s infinite;
+  }
+  @keyframes nudge { 50% { transform: translateX(5px) } }
+
+  /* 小汽车 */
+  .car {
+    position: absolute; border-radius: 11px; cursor: grab;
+    background: linear-gradient(160deg, var(--body), var(--dark));
+    box-shadow: inset 0 -3px 0 rgba(0,0,0,.16), 0 3px 6px rgba(0,0,0,.22);
+    display: flex; align-items: center; justify-content: center;
+    transition: left .18s ease, top .18s ease;
+    touch-action: none;
+  }
+  .car.sel { outline: 4px solid #fff; outline-offset: 1px; z-index: 5; box-shadow: 0 0 0 3px #ffd34d, 0 4px 10px rgba(0,0,0,.25); }
+  .car.dragging { transition: none; z-index: 9; cursor: grabbing; }
+  .car.hint { animation: blink .55s 3; }
+  @keyframes blink { 50% { box-shadow: 0 0 0 5px #ffd34d, 0 4px 10px rgba(0,0,0,.3); } }
+  .car .win { position: absolute; background: rgba(255,255,255,.5); border-radius: 4px; }
+  .car.h .win { right: 15%; top: 17%; width: 25%; height: 66%; }
+  .car.v .win { bottom: 15%; left: 17%; width: 66%; height: 25%; }
+  .car .lamp { position: absolute; background: #fffbe0; border-radius: 50%; box-shadow: 0 0 4px #fff6b0; }
+  .car.h .lamp { right: 5%; top: 22%; width: 6px; height: 6px; box-shadow: 0 0 4px #fff6b0, 0 17px 0 #fffbe0; }
+  .car.v .lamp { bottom: 5%; left: 22%; width: 6px; height: 6px; box-shadow: 0 0 4px #fff6b0, 17px 0 0 #fffbe0; }
+  .car.red { box-shadow: inset 0 -3px 0 rgba(0,0,0,.16), 0 0 0 3px rgba(255,255,255,.6), 0 3px 8px rgba(0,0,0,.28); }
+  .car.red .arrowhead {
+    width: 0; height: 0; border-left: 11px solid rgba(255,255,255,.9);
+    border-top: 7px solid transparent; border-bottom: 7px solid transparent;
+  }
+  /* 可移动位置虚影 */
+  .ghost {
+    position: absolute; border-radius: 11px; background: rgba(255,255,255,.42);
+    border: 3px dashed rgba(255,255,255,.9); cursor: pointer; z-index: 2;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; font-weight: 900; color: rgba(91,75,138,.55);
+  }
+  .ghost:active { background: rgba(255,211,77,.6); }
+
+  /* 按钮区 */
+  .bar { flex: none; display: flex; gap: 9px; justify-content: center; flex-wrap: wrap; }
+  .btn {
+    border: none; cursor: pointer; border-radius: 22px;
+    font-size: 16px; font-weight: 800; padding: 11px 18px; color: #fff;
+    background: linear-gradient(#8fd6ff, #5fb0ff); box-shadow: 0 5px 0 #3d8fd6;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .btn:active { transform: translateY(4px); box-shadow: 0 1px 0 #3d8fd6; }
+  .btn.green { background: linear-gradient(#a5e394, #7ad46b); box-shadow: 0 5px 0 #57b848; }
+  .btn.orange { background: linear-gradient(#ffd97a, #ffb02e); box-shadow: 0 5px 0 #e08a12; }
+  .btn.gray { background: linear-gradient(#e3dcf5, #c7bce8); box-shadow: 0 5px 0 #a294c9; color: #5b4b8a; }
+  .btn.need-hint { animation: breathe 1.4s infinite; }
+  @keyframes breathe { 50% { transform: scale(1.06) } }
+
+  /* 覆盖层 */
+  .overlay {
+    position: fixed; inset: 0; z-index: 40; display: flex; align-items: center; justify-content: center;
+    background: rgba(90,70,140,.35); padding: 20px; animation: fade .25s;
+  }
+  @keyframes fade { from { opacity: 0 } }
+  .card {
+    background: #fffdf6; border: 8px solid #ffd34d; border-radius: 26px;
+    padding: 22px 26px; width: 100%; max-width: 400px; text-align: center;
+    box-shadow: 0 16px 40px rgba(80,60,140,.35); animation: pop .4s;
+  }
+  @keyframes pop { from { transform: scale(.75); opacity: 0 } }
+  .card h2 { margin: 0 0 6px; font-size: 26px; color: #e08a12; }
+  .card p { margin: 6px 0; font-size: 17px; font-weight: 700; color: #5b4b8a; line-height: 1.6; }
+  .card .stars { font-size: 15px; color: #6b5b95; }
+  .card .btn { margin: 12px auto 0; font-size: 20px; padding: 14px 32px; background: linear-gradient(#ffd34d, #ffb02e); box-shadow: 0 6px 0 #e08a12; }
+  .row2 { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+
+  .confetti { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 50; }
+  .confetti i { position: absolute; width: 11px; height: 16px; border-radius: 3px; animation: fall linear forwards; }
+  @keyframes fall { to { transform: translateY(105vh) rotate(720deg); opacity: .2; } }
+
+  /* 回大厅的小入口（单独打开游戏文件时也能一键回去） */
+  .homelink {
+    position: fixed; right: 8px; bottom: 6px; z-index: 60;
+    font-size: 11px; font-weight: 800; color: #6f5fa0; text-decoration: none;
+    background: rgba(255,255,255,.6); border-radius: 9px; padding: 3px 8px;
+    opacity: .6; -webkit-tap-highlight-color: transparent;
+  }
+  .homelink:active { opacity: 1; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="hud">
+    <div class="chip">第 <b id="lvNum">1</b> 关</div>
+    <div class="chip">走了 <b id="mvNum">0</b> 步</div>
+    <div class="chip green">最少 <b id="bestNum">-</b> 步</div>
+    <div class="tag grow" id="modeTag">简单模式</div>
+  </div>
+  <div class="tipbar" id="tipbar">按住小车拖着走，把 <span>红色小车</span> 开出右边的出口</div>
+  <div class="board-area"><div class="board-wrap" id="boardWrap"></div></div>
+  <div class="bar">
+    <button class="btn gray" id="btnUndo">撤销</button>
+    <button class="btn orange" id="btnHint">提示</button>
+    <button class="btn gray" id="btnReset">重来</button>
+    <button class="btn green" id="btnNext">下一关 →</button>
+  </div>
+</div>
+
+<script>
+/* ================= 核心算法（纯逻辑，可单独测试） ================= */
+const N = 6;             // 6×6 小车位
+const EXIT_ROW = 2;      // 红车所在行（0 起）
+
+const COLORS = [
+  { body:'#ff5f5f', dark:'#d94b4b' },  // 0 号：红车
+  { body:'#5fb0ff', dark:'#3d8fd6' },
+  { body:'#7ad46b', dark:'#57b848' },
+  { body:'#ffc93c', dark:'#e0a520' },
+  { body:'#c79bf0', dark:'#a678d8' },
+  { body:'#ffa63d', dark:'#e08a1a' },
+  { body:'#4ecdc4', dark:'#33aaa2' }
+];
+const rnd = n => Math.floor(Math.random() * n);
+const pick = a => a[rnd(a.length)];
+
+const clone = cars => cars.map(c => ({ id:c.id, r:c.r, c:c.c, len:c.len, dir:c.dir }));
+// 状态编码：每辆车只记"会变的那个坐标"，打包成字符串（比 join(',') 快很多）
+const keyOf = cars => {
+  let s = '';
+  for (let i = 0; i < cars.length; i++) {
+    const c = cars[i];
+    s += String.fromCharCode(c.dir === 'h' ? c.c : c.r);
+  }
+  return s;
+};
+
+function cellsOf(car) {
+  const out = [];
+  for (let i = 0; i < car.len; i++) out.push(car.dir === 'h' ? [car.r, car.c + i] : [car.r + i, car.c]);
+  return out;
+}
+function occupancy(cars, ignoreId) {
+  const g = [];
+  for (let i = 0; i < N; i++) g.push(new Array(N).fill(-1));
+  cars.forEach(car => { if (car.id !== ignoreId) cellsOf(car).forEach(([r, c]) => { g[r][c] = car.id; }); });
+  return g;
+}
+function fits(cars, car, r, c) {
+  if (r < 0 || c < 0) return false;
+  if (car.dir === 'h' && c + car.len > N) return false;
+  if (car.dir === 'v' && r + car.len > N) return false;
+  const g = occupancy(cars, car.id);
+  for (let i = 0; i < car.len; i++) {
+    const rr = car.dir === 'h' ? r : r + i;
+    const cc = car.dir === 'h' ? c + i : c;
+    if (g[rr][cc] !== -1) return false;
+  }
+  return true;
+}
+/* 一辆车能滑动的格数范围（偏移：负=向上/向左） */
+function slideRange(cars, idx) {
+  const car = cars[idx];
+  let min = 0, max = 0;
+  if (car.dir === 'h') {
+    while (fits(cars, car, car.r, car.c + min - 1)) min--;
+    while (fits(cars, car, car.r, car.c + max + 1)) max++;
+  } else {
+    while (fits(cars, car, car.r + min - 1, car.c)) min--;
+    while (fits(cars, car, car.r + max + 1, car.c)) max++;
+  }
+  return { min, max };
+}
+/* 所有走法：滑到途中任意合法位置都算 1 步 */
+function genMoves(cars) {
+  const out = [];
+  for (let i = 0; i < cars.length; i++) {
+    const car = cars[i], rg = slideRange(cars, i);
+    for (let d = rg.min; d <= rg.max; d++) {
+      if (d === 0) continue;
+      out.push({ i, d });
+    }
+  }
+  return out;
+}
+function applyMove(cars, mv) {
+  const ns = clone(cars), car = ns[mv.i];
+  if (car.dir === 'h') car.c += mv.d; else car.r += mv.d;
+  return ns;
+}
+const isWin = cars => { const red = cars[0]; return red.dir === 'h' && red.c + red.len === N; };
+
+/* 最短解：BFS，返回走法数组（不含初始状态） */
+function solve(cars) {
+  const start = clone(cars);
+  if (isWin(start)) return [];
+  const seen = new Map();
+  seen.set(keyOf(start), null);
+  let frontier = [start];
+  const stepsOf = k => { const out = []; while (seen.get(k)) { out.push(seen.get(k).mv); k = seen.get(k).from; } return out.reverse(); };
+  while (frontier.length) {
+    const next = [];
+    for (const st of frontier) {
+      const k0 = keyOf(st);
+      for (const mv of genMoves(st)) {
+        const ns = applyMove(st, mv), k = keyOf(ns);
+        if (seen.has(k)) continue;
+        seen.set(k, { from: k0, mv });
+        if (isWin(ns)) return stepsOf(k);
+        next.push(ns);
+      }
+    }
+    frontier = next;
+    if (seen.size > 60000) break;   // 保险丝
+  }
+  return null;
+}
+
+/* 随机布局：
+   block  = 要在"红车 → 右边出口"这条通道上插几辆竖车当路障（这些车是直接挡路的）
+   jam    = 其余车也更倾向于堆在红车右侧，制造连环挪车 */
+function randomLayout(nCars, redAtExit, longProb, jam, block) {
+  const redC = redAtExit ? N - 2 : rnd(Math.max(1, N - 3));
+  const cars = [{ id:0, r:EXIT_ROW, c: redC, len:2, dir:'h' }];
+  const lp = longProb === undefined ? 0.3 : longProb;
+
+  // 1) 插路障：竖车必须横跨出口行，才真的挡住红车
+  const lane = N - redC - 2;                       // 红车右边还有几列要走
+  const wantBlock = Math.min(block || 0, Math.max(0, lane));
+  for (let g = 0, placed = 0; placed < wantBlock && g < 300; g++) {
+    const len = rnd(100) < 40 ? 3 : 2;
+    const r = EXIT_ROW - rnd(len);                 // 保证覆盖出口行
+    if (r < 0 || r + len > N) continue;
+    const c = redC + 2 + rnd(Math.max(1, lane));   // 落在红车右边的通道上
+    if (c >= N) continue;
+    const car = { id: cars.length, r, c, len, dir: 'v' };
+    if (!fits(cars, car, r, c)) continue;
+    cars.push(car); placed++;
+  }
+  // 2) 其余随机填充
+  let guard = 0;
+  while (cars.length < nCars && guard++ < 500) {
+    const dir = rnd(10) < 5 ? 'h' : 'v';
+    const len = rnd(100) < lp * 100 ? 3 : 2;
+    let r = rnd(N), c = rnd(N);
+    if (jam && rnd(100) < 60) { c = 2 + rnd(N - 2); r = rnd(10) < 6 ? EXIT_ROW + rnd(2) : rnd(N); }
+    const car = { id:cars.length, r, c, len, dir };
+    if (dir === 'h' && c + len > N) continue;
+    if (dir === 'v' && r + len > N) continue;
+    if (!fits(cars, car, r, c)) continue;
+    cars.push(car);
+  }
+  return cars.length < nCars ? null : cars;
+}
+
+/* 遍历一个局面的全部可达状态（无向图，因为移动可逆），并标记哪些是通关状态 */
+function component(start, cap) {
+  const idx = new Map(), states = [], adj = [], wins = [];
+  idx.set(keyOf(start), 0); states.push(start); adj.push([]);
+  for (let h = 0; h < states.length; h++) {
+    const st = states[h];
+    if (isWin(st)) wins.push(h);
+    for (const mv of genMoves(st)) {
+      const ns = applyMove(st, mv), k = keyOf(ns);
+      let id = idx.get(k);
+      if (id === undefined) {
+        if (states.length >= cap) return null;
+        id = states.length; idx.set(k, id); states.push(ns); adj.push([]);
+      }
+      adj[h].push(id); adj[id].push(h);
+    }
+  }
+  return { states, adj, wins };
+}
+/* 多源 BFS：算出每个局面「真正」最少要走几步（到最近的通关局面） */
+function distsFromWins(comp) {
+  const dist = new Array(comp.states.length).fill(-1);
+  const q = comp.wins.slice();
+  comp.wins.forEach(w => { dist[w] = 0; });
+  for (let h = 0; h < q.length; h++) {
+    const u = q[h];
+    for (const v of comp.adj[u]) if (dist[v] === -1) { dist[v] = dist[u] + 1; q.push(v); }
+  }
+  return dist;
+}
+
+/* 生成一关：先算准每个局面的最少步数，再挑一个刚好落在目标区间的 */
+function makeLevel(cfg) {
+  const want = cfg.min + rnd(cfg.max - cfg.min + 1);
+  const longProb = cfg.cars <= 5 ? 0.22 : 0.38;
+  const jam = cfg.jam === true;
+  const cap = cfg.cap || 40000;
+  const deadline = Date.now() + (cfg.budget || 900);   // 时间预算
+  let bestCand = null;
+  for (let t = 0; t < 60 && Date.now() < deadline; t++) {
+    const base = randomLayout(cfg.cars, false, longProb, jam, cfg.block);
+    if (!base || isWin(base)) continue;
+    const comp = component(base, cap);
+    if (!comp) continue;
+    const dist = distsFromWins(comp);
+    // 在这个局面群里，挑「最难但不超过上限」的一个
+    let local = null;
+    for (let i = 0; i < dist.length; i++) {
+      const d = dist[i];
+      if (isWin(comp.states[i]) || d > cfg.max) continue;
+      if (!local || d > local.d) local = { s: comp.states[i], d };
+      if (d === want) { local = { s: comp.states[i], d }; break; }   // 正中目标，收工
+    }
+    if (local && (!bestCand || local.d > bestCand.d)) bestCand = local;
+    if (bestCand && bestCand.d >= want) break;                       // 够难了
+    if (bestCand && bestCand.d >= cfg.max) break;
+  }
+  if (bestCand && bestCand.d >= cfg.min) return { cars: bestCand.s, best: bestCand.d };
+  // 兜底：随便来一个有解的，尽量别太水
+  let fb = null;
+  for (let t = 0; t < 400 && Date.now() < deadline + 600; t++) {
+    const cars = randomLayout(cfg.cars, false, longProb, jam, cfg.block);
+    if (!cars || isWin(cars)) continue;
+    const sol = solve(cars);
+    if (sol && sol.length >= 2 && sol.length <= cfg.max) {
+      if (!fb || sol.length > fb.best) fb = { cars, best: sol.length };
+      if (fb.best >= cfg.min) break;
+    }
+  }
+  if (fb) return fb;
+  if (bestCand) return { cars: bestCand.s, best: bestCand.d };
+  return { cars: [{ id:0, r:EXIT_ROW, c:1, len:2, dir:'h' }, { id:1, r:0, c:4, len:3, dir:'v' }], best:1 };
+}
+
+/* 难度：block = 出口通道上强制插入的路障数量（决定"至少要挪几辆车"）
+         cap/budget = 搜索的状态上限与时间预算（毫秒） */
+const MODES = {
+  easy: { name:'简单模式', plan:[
+    { cars:4, min:3, max:5,  block:1, cap:20000, budget:500 },
+    { cars:5, min:4, max:7,  block:2, cap:30000, budget:700 },
+    { cars:5, min:5, max:8,  block:2, cap:30000, budget:700 },
+    { cars:6, min:6, max:9,  block:2, cap:26000, budget:650 },
+    { cars:6, min:6, max:10, block:2, cap:26000, budget:650 }
+  ]},
+  normal: { name:'挑战模式', plan:[
+    { cars:5, min:5, max:9,  block:2, jam:true, cap:26000, budget:650 },
+    { cars:6, min:7, max:11, block:2, jam:true, cap:30000, budget:700 },
+    { cars:6, min:8, max:12, block:3, jam:true, cap:24000, budget:560 },
+    { cars:7, min:8, max:13, block:3, jam:true, cap:22000, budget:520 },
+    { cars:7, min:9, max:14, block:3, jam:true, cap:22000, budget:520 }
+  ]}
+};
+function cfgOf(mode, level) {
+  const plan = MODES[mode].plan;
+  return plan[Math.min(plan.length - 1, Math.floor((level - 1) / 3))];
+}
+
+/* ================= 界面与交互 ================= */
+const $ = id => document.getElementById(id);
+const boardWrap = $('boardWrap');
+let cell = 56, boardEl = null;
+let mode = 'easy', level = 1;
+let cars = [], best = 0, moves = 0, history = [], dragging = null, selIdx = -1, won = false;
+
+/* 音效 */
+let actx = null;
+function beep(freqs, dur) {
+  try {
+    if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+    freqs.forEach((f, i) => {
+      const o = actx.createOscillator(), g = actx.createGain();
+      o.type = 'sine'; o.frequency.value = f;
+      const t = actx.currentTime + i * dur * 0.6;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.18, t + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur * 0.8);
+      o.connect(g); g.connect(actx.destination); o.start(t); o.stop(t + dur);
+    });
+  } catch (e) { /* 忽略 */ }
+}
+const SND = {
+  move: () => beep([520], 0.08),
+  no:   () => beep([260, 200], 0.14),
+  win:  () => beep([523, 659, 784, 1046], 0.18),
+  hint: () => beep([880, 1046], 0.12)
+};
+
+function computeCell() {
+  const area = document.querySelector('.board-area');
+  const availW = Math.min(area.clientWidth - 34, 400);
+  const availH = area.clientHeight - 8;
+  cell = Math.max(38, Math.floor(Math.min(availW, availH) / N));
+}
+function buildBoard() {
+  const size = cell * N;
+  boardWrap.innerHTML =
+    '<div class="board" id="board" style="width:' + size + 'px;height:' + size + 'px;' +
+      '--cell:' + cell + 'px;--exit:' + EXIT_ROW + ';' +
+      'background-size:' + cell + 'px ' + cell + 'px"></div>' +
+    '<div class="exit-mark"><div class="arrow"></div><div>出<br>口</div></div>';
+  boardEl = $('board');
+}
+function renderCars() {
+  boardEl.querySelectorAll('.car, .ghost').forEach(e => e.remove());
+  cars.forEach((car, i) => {
+    const pad = Math.round(cell * 0.07);
+    const w = (car.dir === 'h' ? car.len * cell : cell) - pad * 2;
+    const h = (car.dir === 'h' ? cell : car.len * cell) - pad * 2;
+    const el = document.createElement('div');
+    el.className = 'car ' + car.dir + (car.id === 0 ? ' red' : '');
+    el.dataset.i = i;
+    el.style.cssText =
+      'left:' + (car.c * cell + pad) + 'px;top:' + (car.r * cell + pad) + 'px;' +
+      'width:' + w + 'px;height:' + h + 'px;' +
+      '--body:' + COLORS[car.id % COLORS.length].body + ';--dark:' + COLORS[car.id % COLORS.length].dark;
+    el.innerHTML = '<div class="win"></div><div class="lamp"></div>' +
+      (car.id === 0 ? '<div class="arrowhead"></div>' : '');
+    el.addEventListener('pointerdown', e => onDown(e, i));
+    boardEl.appendChild(el);
+  });
+  if (selIdx >= 0) showGhosts(selIdx);
+}
+function showGhosts(i) {
+  const car = cars[i], rg = slideRange(cars, i), pad = Math.round(cell * 0.07);
+  for (let d = rg.min; d <= rg.max; d++) {
+    if (d === 0) continue;
+    const r = car.dir === 'h' ? car.r : car.r + d;
+    const c = car.dir === 'h' ? car.c + d : car.c;
+    const g = document.createElement('div');
+    g.className = 'ghost';
+    g.style.cssText = 'left:' + (c * cell + pad) + 'px;top:' + (r * cell + pad) + 'px;' +
+      'width:' + ((car.dir === 'h' ? car.len * cell : cell) - pad * 2) + 'px;' +
+      'height:' + ((car.dir === 'h' ? cell : car.len * cell) - pad * 2) + 'px';
+    g.textContent = '●';
+    g.onclick = () => { moveCar(i, d); };
+    boardEl.appendChild(g);
+  }
+}
+function clearSel() {
+  selIdx = -1;
+  boardEl.querySelectorAll('.ghost').forEach(e => e.remove());
+  boardEl.querySelectorAll('.car').forEach(e => e.classList.remove('sel'));
+}
+function refreshHud() {
+  $('lvNum').textContent = level;
+  $('mvNum').textContent = moves;
+  $('bestNum').textContent = best || '-';
+  $('modeTag').textContent = MODES[mode].name;
+  $('btnHint').classList.toggle('need-hint', !won && moves >= best + 4 && best > 0);
+}
+function moveCar(i, d) {
+  if (won) return;
+  const rg = slideRange(cars, i);
+  if (d < rg.min || d > rg.max || d === 0) { SND.no(); return; }
+  history.push({ cars: clone(cars), moves });
+  cars = applyMove(cars, { i, d });
+  moves++;
+  clearSel();
+  renderCars();
+  refreshHud();
+  SND.move();
+  if (isWin(cars)) setTimeout(win, 260);
+}
+
+/* 拖拽 */
+function onDown(e, i) {
+  if (won) return;
+  e.preventDefault();
+  computeCell();
+  const car = cars[i], rg = slideRange(cars, i);
+  if (rg.min === 0 && rg.max === 0) { SND.no(); }
+  dragging = { i, horiz: car.dir === 'h', rg, off: 0, x0: e.clientX, y0: e.clientY, moved: false, el: e.currentTarget };
+  e.currentTarget.classList.add('dragging');
+  clearSel();
+  selIdx = i;
+  e.currentTarget.classList.add('sel');
+  showGhosts(i);
+}
+window.addEventListener('pointermove', e => {
+  if (!dragging) return;
+  const delta = dragging.horiz ? e.clientX - dragging.x0 : e.clientY - dragging.y0;
+  let off = delta / cell;
+  off = Math.max(dragging.rg.min, Math.min(dragging.rg.max, off));
+  if (Math.abs(delta) > 6) dragging.moved = true;
+  dragging.off = off;
+  dragging.el.style.transform = dragging.horiz
+    ? 'translateX(' + (off * cell) + 'px)' : 'translateY(' + (off * cell) + 'px)';
+});
+window.addEventListener('pointerup', () => {
+  if (!dragging) return;
+  const { i, off, moved, el } = dragging;
+  el.style.transform = '';
+  el.classList.remove('dragging');
+  dragging = null;
+  const step = Math.round(off);
+  if (moved && step !== 0) moveCar(i, step);
+  else if (!moved) { /* 只是选中：保留虚影，点虚影即可移动 */ }
+});
+
+/* 按钮 */
+$('btnUndo').onclick = () => {
+  if (won || !history.length) { SND.no(); return; }
+  const h = history.pop();
+  cars = h.cars; moves = h.moves;
+  clearSel(); renderCars(); refreshHud(); SND.move();
+};
+$('btnReset').onclick = () => {
+  if (!history.length && moves === 0) return;
+  const back = history.length ? history[0].cars : cars;
+  if (history.length) { cars = clone(back); }
+  moves = 0; history = [];
+  clearSel(); renderCars(); refreshHud(); SND.no();
+};
+$('btnHint').onclick = () => {
+  if (won) return;
+  const sol = solve(cars);
+  if (!sol) { SND.no(); flashTip('这一关好像卡住了，试试"重来"吧'); return; }
+  const mv = sol[0], car = cars[mv.i];
+  const el = boardEl.querySelector('.car[data-i="' + mv.i + '"]');
+  if (el) { el.classList.remove('hint'); void el.offsetWidth; el.classList.add('hint'); }
+  // 把目标位置也闪一下
+  const pad = Math.round(cell * 0.07);
+  const r = car.dir === 'h' ? car.r : car.r + mv.d;
+  const c = car.dir === 'h' ? car.c + mv.d : car.c;
+  const ghost = document.createElement('div');
+  ghost.className = 'ghost hint';
+  ghost.style.cssText = 'left:' + (c * cell + pad) + 'px;top:' + (r * cell + pad) + 'px;' +
+    'width:' + ((car.dir === 'h' ? car.len * cell : cell) - pad * 2) + 'px;' +
+    'height:' + ((car.dir === 'h' ? cell : car.len * cell) - pad * 2) + 'px;border-color:#ffd34d';
+  ghost.textContent = '●';
+  boardEl.appendChild(ghost);
+  setTimeout(() => ghost.remove(), 1800);
+  SND.hint();
+  flashTip('先动这辆' + (car.dir === 'h' ? '横' : '竖') + '着的小车，把它挪到黄框里');
+};
+$('btnNext').onclick = () => { level++; startLevel(); };
+function flashTip(text) { $('tipbar').innerHTML = text; }
+
+function confetti() {
+  const box = document.createElement('div');
+  box.className = 'confetti';
+  const cs = ['#ffd34d', '#ff8fa3', '#7ad46b', '#6fc3f0', '#c79bf0', '#ffa63d'];
+  for (let i = 0; i < 60; i++) {
+    const p = document.createElement('i');
+    p.style.left = rnd(100) + 'vw';
+    p.style.background = cs[rnd(cs.length)];
+    p.style.animationDuration = (1.6 + Math.random() * 1.6) + 's';
+    p.style.animationDelay = (Math.random() * 0.5) + 's';
+    box.appendChild(p);
+  }
+  document.body.appendChild(box);
+  setTimeout(() => box.remove(), 4200);
+}
+
+/* 通关 */
+function win() {
+  won = true;
+  clearSel();
+  const redEl = boardEl.querySelector('.car[data-i="0"]');
+  if (redEl) {
+    redEl.style.transition = 'transform .55s ease-in';
+    redEl.style.transform = 'translateX(' + (cell * 2.2) + 'px)';
+  }
+  SND.win(); confetti();
+  const perfect = moves <= best;
+  const star = perfect ? 3 : (moves <= best + 2 ? 2 : 1);
+  setTimeout(() => {
+    const ov = document.createElement('div');
+    ov.className = 'overlay';
+    ov.innerHTML =
+      '<div class="card">' +
+        '<h2>开出去啦！</h2>' +
+        '<p>第 ' + level + ' 关完成，用了 <b style="color:#e08a12">' + moves + '</b> 步<br>' +
+        '（最少只要 ' + best + ' 步）</p>' +
+        '<p class="stars">' + '★'.repeat(star) + '☆'.repeat(3 - star) + '</p>' +
+        (perfect ? '<p style="color:#57b848">一步没多走，太厉害啦！</p>'
+                 : '<p style="color:#6b5b95">下次试试用更少的步数哦</p>') +
+        '<div class="row2">' +
+          '<button class="btn" id="ovAgain">再玩一次</button>' +
+          '<button class="btn" id="ovNext">下一关 →</button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(ov);
+    $('ovAgain').onclick = () => { ov.remove(); startLevel(); };
+    $('ovNext').onclick = () => { ov.remove(); level++; startLevel(); };
+  }, 620);
+}
+
+/* 开局 */
+function startLevel() {
+  won = false; history = []; moves = 0; selIdx = -1; dragging = null;
+  flashTip('小汽车正在排队，请等一下…');
+  setTimeout(() => {                       // 让"排队中"先显示出来，再算关卡
+    const cfg = cfgOf(mode, level);
+    const made = makeLevel(cfg);
+    cars = made.cars; best = made.best;
+    computeCell(); buildBoard(); renderCars(); refreshHud();
+    flashTip('按住小车拖着走，把 <span>红色小车</span> 开出右边的出口');
+  }, 40);
+}
+function showIntro() {
+  const ov = document.createElement('div');
+  ov.className = 'overlay';
+  ov.innerHTML =
+    '<div class="card">' +
+      '<h2>移车出库</h2>' +
+      '<p>按住小车 <b>拖着走</b>，<br>把 <b style="color:#ff5f5f">红色小车</b> 开出右边的出口就算赢</p>' +
+      '<p style="font-size:14px;color:#6b5b95;line-height:1.8">' +
+        '· 横着的车只能左右走，竖着的车只能上下走<br>' +
+        '· <b>简单模式</b> 3~10 步，<b>挑战模式</b> 5~14 步<br>' +
+        '· 有的车会堵在出口上，得先把它们挪开<br>' +
+        '· 卡住了就点「提示」或「撤销」' +
+      '</p>' +
+      '<div class="row2">' +
+        '<button class="btn" id="ivEasy">简单模式</button>' +
+        '<button class="btn" id="ivNormal">挑战模式</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(ov);
+  $('ivEasy').onclick = () => { mode = 'easy'; level = 1; ov.remove(); startLevel(); };
+  $('ivNormal').onclick = () => { mode = 'normal'; level = 1; ov.remove(); startLevel(); };
+}
+
+window.addEventListener('resize', () => {
+  if (won) return;
+  computeCell(); buildBoard(); renderCars();
+});
+showIntro();
+</script>
+
+<a class="homelink" href="%E6%B8%B8%E6%88%8F%E5%A4%A7%E5%8E%85.html" target="_top">← 游戏大厅</a>
+</body>
+</html>
