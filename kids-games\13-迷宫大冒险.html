@@ -1,0 +1,1608 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>迷宫寻宝探险家</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0; height: 100%; overflow: hidden;
+    font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+    background: #5b7a5a; color: #fff; user-select: none; -webkit-user-select: none;
+    touch-action: none; overscroll-behavior: none;
+  }
+  #app { display: flex; flex-direction: column; height: 100%; }
+  #hud {
+    flex: none; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+    padding: 6px 8px; background: rgba(20,40,25,.6); z-index: 5;
+  }
+  .hudbox {
+    display: flex; align-items: center; gap: 4px; background: rgba(255,255,255,.16);
+    border-radius: 10px; padding: 4px 8px; font-size: 13px; font-weight: 800; white-space: nowrap;
+    line-height: 1.2;
+  }
+  .hudbox.big { font-size: 14px; }
+  .hudbox .ic { font-size: 15px; line-height: 1; }
+  #hintBtn, #menuBtn, #mapBtn {
+    margin-left: auto; border: 0; cursor: pointer; font-family: inherit; font-weight: 800;
+    font-size: 12.5px; padding: 5px 10px; border-radius: 10px; background: rgba(255,255,255,.2); color: #fff;
+  }
+  #hintBtn { margin-left: 0; background: #ffb43d; color: #5b3a00; }
+  #hintBtn:active, #menuBtn:active, #mapBtn:active { transform: translateY(1px); }
+  #menuBtn { background: rgba(255,255,255,.18); }
+  #mapBtn { background: #5fb0ff; color: #123; }
+  #mapBtn.off { background: #7a8794; color: #e8eef2; }
+  #stage { flex: 1; min-height: 0; position: relative; display: flex; }
+  canvas { display: block; width: 100%; height: 100%; }
+
+  /* 方向键 */
+  #pad {
+    flex: none; display: grid; gap: 6px; justify-content: center; align-content: center;
+    grid-template-columns: repeat(3, 60px); grid-template-rows: repeat(2, 52px);
+    padding: 6px 0 8px; background: rgba(20,40,25,.4);
+  }
+  #pad button {
+    border: 0; border-radius: 14px; background: rgba(255,255,255,.92); color: #2e6b3a;
+    font-size: 22px; font-weight: 900; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 0 rgba(0,0,0,.2); touch-action: none;
+  }
+  #pad button:active { transform: translateY(3px); box-shadow: none; }
+  #pad button svg { width: 24px; height: 24px; }
+  .pad-u { grid-column: 2; grid-row: 1; }
+  .pad-l { grid-column: 1; grid-row: 2; }
+  .pad-r { grid-column: 3; grid-row: 2; }
+  .pad-d { grid-column: 2; grid-row: 2; }
+
+  .overlay { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+    background: rgba(15,30,20,.74); z-index: 20; padding: 14px; overflow-y: auto; }
+  .card {
+    background: #fffdf6; color: #4a5b3b; border-radius: 26px; padding: 20px 22px;
+    max-width: 420px; width: 100%; text-align: center; box-shadow: 0 18px 50px rgba(0,0,0,.45);
+  }
+  .card h1 { margin: 0 0 6px; font-size: 27px; color: #b3761a; }
+  .card h2 { margin: 0 0 6px; font-size: 24px; color: #2f7f4e; }
+  .stars { font-size: 32px; letter-spacing: 5px; color: #ffca28; margin: 4px 0 8px; text-shadow: 0 2px 0 rgba(0,0,0,.12); }
+  .rule { font-size: 14.5px; font-weight: 700; line-height: 1.75; color: #5d6f4e; }
+  .rule b { color: #c07816; }
+  .small { font-size: 12px; font-weight: 700; color: #93a184; margin-top: 5px; line-height: 1.6; }
+  .rows { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin: 8px 0 2px; }
+  .pill { font-size: 12.5px; font-weight: 800; border-radius: 999px; padding: 4px 11px; background: #e9f2e2; color: #3d8c4a; }
+  .pill.y { background: #fff3d6; color: #b57a10; }
+  .pill.b { background: #e4ecff; color: #3a5fd9; }
+  .lvlist { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin: 10px 0 4px; }
+  .lvitem {
+    width: 52px; height: 52px; border-radius: 14px; border: 0; cursor: pointer; font-family: inherit;
+    background: linear-gradient(180deg,#8fe07a,#3fa03c); color: #fff; font-weight: 900; font-size: 19px;
+    box-shadow: 0 4px 0 #1d6b28; display:flex; align-items:center; justify-content:center; flex-direction:column; line-height:1.05;
+  }
+  .lvitem small { font-size: 8.5px; font-weight: 800; opacity: .9; }
+  .lvitem:active { transform: translateY(2px); box-shadow: none; }
+  .lvitem.locked { background: linear-gradient(180deg,#cfd6cf,#97a397); box-shadow: 0 4px 0 #6b766b; cursor: default; }
+  .lvitem.cur { outline: 4px solid #ffca28; }
+  .bigbtn {
+    display: block; width: 100%; margin-top: 13px; padding: 14px; border: 0; border-radius: 999px;
+    background: linear-gradient(180deg, #8fe07a, #3fa03c); color: #fff; font-family: inherit;
+    font-size: 22px; font-weight: 900; box-shadow: 0 6px 0 #1d6b28; cursor: pointer;
+  }
+  .bigbtn.yellow { background: linear-gradient(180deg,#ffd34d,#f0a020); box-shadow: 0 6px 0 #b5760a; }
+  .bigbtn:active { transform: translateY(3px); box-shadow: none; }
+  .smallbtn {
+    display: block; width: 100%; margin-top: 9px; padding: 11px; border: 0; border-radius: 999px;
+    background: #eef1f6; color: #5b6a5b; font-family: inherit; font-size: 16px; font-weight: 800; cursor: pointer;
+  }
+  .homelink {
+    position: fixed; bottom: 4px; left: 50%; transform: translateX(-50%); z-index: 99;
+    color: rgba(255,255,255,.85); font-size: 13px; text-decoration: none;
+    background: rgba(0,0,0,.32); padding: 4px 14px; border-radius: 999px;
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="hud">
+    <div class="hudbox big" id="lvTxt">🏰 花园迷宫</div>
+    <div class="hudbox"><span class="ic">💎</span><span id="gemTxt">0/6</span></div>
+    <div class="hudbox"><span class="ic">🔑</span><span id="keyTxt"></span></div>
+    <div class="hudbox"><span class="ic">🧩</span><span id="pcsTxt"></span></div>
+    <div class="hudbox"><span class="ic">⏰</span><span id="tmTxt">1:30</span></div>
+    <div class="hudbox"><span id="stpTxt">0 步</span></div>
+    <button id="hintBtn">帮帮我</button>
+    <button id="mapBtn">🗺️ 地图</button>
+    <button id="menuBtn">菜单</button>
+  </div>
+  <div id="stage"><canvas id="cv"></canvas></div>
+  <div id="pad">
+    <button class="pad-u" data-d="up"><svg viewBox="0 0 24 24"><path d="M12 5 L20 17 H4 Z" fill="#2e6b3a"/></svg></button>
+    <button class="pad-l" data-d="left"><svg viewBox="0 0 24 24"><path d="M5 12 L17 4 V20 Z" fill="#2e6b3a"/></svg></button>
+    <button class="pad-r" data-d="right"><svg viewBox="0 0 24 24"><path d="M19 12 L7 4 V20 Z" fill="#2e6b3a"/></svg></button>
+    <button class="pad-d" data-d="down"><svg viewBox="0 0 24 24"><path d="M12 19 L4 7 H20 Z" fill="#2e6b3a"/></svg></button>
+  </div>
+  <div id="overlayBox"></div>
+</div>
+<a class="homelink" href="游戏大厅.html" target="_top">← 游戏大厅</a>
+
+<script>
+(function () {
+'use strict';
+function $(id) { return document.getElementById(id); }
+function clamp(v, a, b) { return v < a ? a : (v > b ? b : v); }
+function rnd(a, b) { return a + Math.random() * (b - a); }
+
+function mulberry32(seed) {
+  var a = seed >>> 0;
+  return function () {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    var t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+/* ================= 主题配色 ================= */
+var THEMES = {
+  garden: { bg: ['#bfe6a9', '#8ecf7a'], floor: '#f3e2c0', fl2: 'rgba(160,120,60,.10)',
+    wall: '#4d9e4a', wallTop: '#7ccb5a', wallLo: '#2f6b38', hi: 'rgba(255,255,255,.3)' },
+  ice: { bg: ['#d8f1fa', '#a8dcf0'], floor: '#eafafd', fl2: 'rgba(110,190,230,.26)',
+    wall: '#9fd9ee', wallTop: '#e3f7fe', wallLo: '#5da7cc', hi: 'rgba(255,255,255,.8)' },
+  pyramid: { bg: ['#4a3420', '#2b1c10'], floor: '#ecd9a8', fl2: 'rgba(150,110,50,.15)',
+    wall: '#c79a52', wallTop: '#e8cb86', wallLo: '#7a5518', hi: 'rgba(255,255,255,.25)' },
+  pirate: { bg: ['#9fd7ec', '#62a9d8'], floor: '#e8c58f', fl2: 'rgba(130,85,35,.13)',
+    wall: '#8a5a30', wallTop: '#bd8a4e', wallLo: '#57361a', hi: 'rgba(255,255,255,.22)' },
+  forest: { bg: ['#a7d79a', '#6fb46c'], floor: '#d7e6ac', fl2: 'rgba(90,140,40,.14)',
+    wall: '#6d4f92', wallTop: '#9d80c4', wallLo: '#412e5e', hi: 'rgba(255,255,255,.3)' },
+  dino: { bg: ['#c3d492', '#86ab5c'], floor: '#ead9a2', fl2: 'rgba(130,110,45,.15)',
+    wall: '#76795e', wallTop: '#a7ab86', wallLo: '#414432', hi: 'rgba(255,255,255,.2)' },
+  robot: { bg: ['#a7bcd8', '#6884a8'], floor: '#dfe8f1', fl2: 'rgba(90,120,160,.16)',
+    wall: '#7d97b8', wallTop: '#b3c5da', wallLo: '#40597a', hi: 'rgba(255,255,255,.4)' },
+  final: { bg: ['#e4c48f', '#b98a5a'], floor: '#f4e6c8', fl2: 'rgba(185,130,60,.16)',
+    wall: '#8a5a34', wallTop: '#cf9a4f', wallLo: '#5f3a1e', hi: 'rgba(255,255,255,.28)' }
+};
+
+/* ================= 音效 ================= */
+var AC = null;
+function audio() {
+  if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { AC = null; } }
+  if (AC && AC.state === 'suspended') { try { AC.resume(); } catch (e) {} }
+  return AC;
+}
+function tone(f, d, ty, v, delay) {
+  if (!AC) return;
+  try {
+    var o = AC.createOscillator(), g = AC.createGain(), t0 = AC.currentTime + (delay || 0);
+    o.type = ty || 'sine'; o.frequency.value = f;
+    g.gain.setValueAtTime(v || 0.28, t0);
+    g.gain.exponentialRampToValueAtTime(0.001, t0 + d);
+    o.connect(g); g.connect(AC.destination); o.start(t0); o.stop(t0 + d + 0.03);
+  } catch (e) {}
+}
+var sfxStep = function () { tone(520, 0.05, 'triangle', 0.13); };
+var sfxWall = function () { tone(170, 0.09, 'sine', 0.17); };
+var sfxGem = function () { [880, 1175, 1568].forEach(function (f, i) { tone(f, 0.15, 'triangle', 0.24, i * 0.05); }); };
+var sfxKey = function () { [660, 880, 1320].forEach(function (f, i) { tone(f, 0.18, 'square', 0.16, i * 0.06); }); };
+var sfxPiece = function () { tone(740, 0.12, 'triangle', 0.22); tone(1110, 0.16, 'triangle', 0.2, 0.07); };
+var sfxReveal = function () { [523, 659, 784, 1047].forEach(function (f, i) { tone(f, 0.2, 'triangle', 0.26, i * 0.08); }); };
+var sfxChest = function () { [392, 523, 659, 784, 1047].forEach(function (f, i) { tone(f, 0.22, 'triangle', 0.24, i * 0.08); }); };
+var sfxSwitch = function () { tone(900, 0.12, 'square', 0.18); tone(1350, 0.18, 'square', 0.14, 0.08); };
+var sfxDoor = function () { [300, 520].forEach(function (f, i) { tone(f, 0.14, 'sawtooth', 0.12, i * 0.1); }); };
+var sfxPortal = function () { [400, 600, 900, 1200].forEach(function (f, i) { tone(f, 0.12, 'sine', 0.2, i * 0.05); }); };
+var sfxStuck = function () { tone(140, 0.3, 'sawtooth', 0.2); tone(100, 0.35, 'sine', 0.16, 0.1); };
+var sfxTick = function () { tone(660, 0.05, 'triangle', 0.15); };
+var sfxWin = function () { [523, 659, 784, 1047, 1319, 1568].forEach(function (f, i) { tone(f, 0.26, 'triangle', 0.28, i * 0.1); }); };
+
+/* ================= 关卡（8 个主题迷宫） ================= */
+var LEVELS = [
+  { name: '花园迷宫',  theme: 'garden',  w: 5,  h: 5,  braid: .55, gems: 6,  keys: 0, chest: 0, chestNeed: 0, pieces: 0, ice: 0,   dark: 0, mwalls: 0, portals: 0, traps: 0, switches: 0, time: 90 },
+  { name: '冰晶洞窟',  theme: 'ice',     w: 6,  h: 6,  braid: .5,  gems: 7,  keys: 1, chest: 0, chestNeed: 0, pieces: 3, ice: 9,   dark: 0, mwalls: 0, portals: 0, traps: 0, switches: 0, time: 110 },
+  { name: '金字塔',    theme: 'pyramid', w: 7,  h: 7,  braid: .42, gems: 7,  keys: 1, chest: 1, chestNeed: 1, pieces: 3, ice: 0,   dark: 1, mwalls: 0, portals: 0, traps: 0, switches: 0, time: 120 },
+  { name: '海盗湾',    theme: 'pirate',  w: 7,  h: 7,  braid: .45, gems: 8,  keys: 1, chest: 1, chestNeed: 1, pieces: 3, ice: 0,   dark: 0, mwalls: 3, portals: 0, traps: 0, switches: 0, time: 120 },
+  { name: '魔法森林',  theme: 'forest',  w: 8,  h: 8,  braid: .4,  gems: 9,  keys: 1, chest: 1, chestNeed: 1, pieces: 3, ice: 0,   dark: 0, mwalls: 0, portals: 3, traps: 0, switches: 0, time: 130 },
+  { name: '恐龙谷',    theme: 'dino',    w: 8,  h: 8,  braid: .4,  gems: 9,  keys: 1, chest: 1, chestNeed: 1, pieces: 3, ice: 0,   dark: 0, mwalls: 0, portals: 0, traps: 5, switches: 0, time: 130 },
+  { name: '机器人城',  theme: 'robot',   w: 9,  h: 9,  braid: .36, gems: 10, keys: 0, chest: 1, chestNeed: 0, pieces: 3, ice: 0,   dark: 0, mwalls: 0, portals: 0, traps: 2, switches: 2, time: 150 },
+  { name: '终极迷宫',  theme: 'final',   w: 10, h: 10, braid: .38, gems: 11, keys: 1, chest: 0, chestNeed: 0, pieces: 3, ice: 6,   dark: 0, mwalls: 2, portals: 2, traps: 3, switches: 1, time: 180 }
+];
+
+/* ================= 状态 ================= */
+var cv = $('cv'), ctx = cv.getContext('2d');
+var W = 0, H = 0, DPR = 1, CS = 32, OX = 0, OY = 0;
+var level = 0, state = 'menu';           // menu | play | clear | done
+var maze = [], mw = 5, mh = 5, theme = THEMES.garden;
+var px = 0, py = 0, tx = 0, ty = 0, prevX = 0, prevY = 0;
+var moveT = 0, moving = false, face = 1, walkPhase = 0, lastDir = null;
+var steps = 0, best = 99999;
+var timeLeft = 0, timeMax = 1, timeOut = false, timeWarned = false;
+var gems = [], gemsGot = 0, totalGems = 0;
+var keyCells = [], keysGot = 0, keyTotal = 0;
+var chest = null, chestBonus = 0;         // chest = {x,y,open}
+var pieceCells = [], piecesGot = 0, totalPieces = 0, mapRevealed = false;
+var iceCells = [], mvWalls = [], portals = [], trapCells = [], switchCells = [], swDoors = [];
+var explored = [];
+var hintOn = 0, hintUsed = false, miniOn = true;
+var stuckT = 0, slidePending = null, slideT = 0;
+var levelSeed = 1, clearCount = 0, totalSteps = 0, totalStars = 0;
+var msgT = 0, msgTxt = '', msgCol = '#fff';
+var confetti = [], parts = [];
+var lastT = 0, tick = 0, roundId = 0;
+var SAVE_KEY = 'mzTreasure13';
+var save = { unlocked: 0, stars: [] };
+try { var _s = localStorage.getItem(SAVE_KEY); if (_s) { var o = JSON.parse(_s); if (o && typeof o.unlocked === 'number') save = o; if (!save.stars) save.stars = []; } } catch (e) {}
+function persist() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) {} }
+
+/* ================= 迷宫生成 ================= */
+function genMaze(seed, w, h, braid) {
+  var R = mulberry32(seed);
+  var m = [];
+  for (var y = 0; y < h; y++) {
+    m[y] = [];
+    for (var x = 0; x < w; x++) m[y][x] = { N: 1, E: 1, S: 1, W: 1, vis: 0 };
+  }
+  var stack = [[0, 0]]; m[0][0].vis = 1;
+  var dirs = [[0, -1, 'N', 'S'], [1, 0, 'E', 'W'], [0, 1, 'S', 'N'], [-1, 0, 'W', 'E']];
+  while (stack.length) {
+    var cur = stack[stack.length - 1], cx = cur[0], cy = cur[1], opts = [];
+    for (var i = 0; i < 4; i++) {
+      var d = dirs[i], nx = cx + d[0], ny = cy + d[1];
+      if (nx >= 0 && ny >= 0 && nx < w && ny < h && !m[ny][nx].vis) opts.push(i);
+    }
+    if (!opts.length) { stack.pop(); continue; }
+    var di = opts[Math.floor(R() * opts.length)], d2 = dirs[di];
+    var nx2 = cx + d2[0], ny2 = cy + d2[1];
+    m[cy][cx][d2[2]] = 0;
+    m[ny2][nx2][d2[3]] = 0;
+    m[ny2][nx2].vis = 1;
+    stack.push([nx2, ny2]);
+  }
+  var count = Math.round(w * h * braid);
+  for (var b = 0; b < count; b++) {
+    var bx = Math.floor(R() * w), by = Math.floor(R() * h);
+    var v = Math.floor(R() * 4), dd = dirs[v];
+    var nx3 = bx + dd[0], ny3 = by + dd[1];
+    if (nx3 >= 0 && ny3 >= 0 && nx3 < w && ny3 < h && m[by][bx][dd[2]]) {
+      m[by][bx][dd[2]] = 0;
+      m[ny3][nx3][dd[3]] = 0;
+    }
+  }
+  return m;
+}
+
+/* ================= BFS 寻路（含传送门边） ================= */
+function neighStatic(x, y) {
+  var out = [];
+  if (y > 0 && !maze[y][x].N) out.push([x, y - 1, 0]);
+  if (x < mw - 1 && !maze[y][x].E) out.push([x + 1, y, 0]);
+  if (y < mh - 1 && !maze[y][x].S) out.push([x, y + 1, 0]);
+  if (x > 0 && !maze[y][x].W) out.push([x - 1, y, 0]);
+  // 传送门：踩上传送格立即到伙伴格
+  for (var p = 0; p < portals.length; p++) {
+    if (portals[p].a[0] === x && portals[p].a[1] === y) { out.push([portals[p].b[0], portals[p].b[1], 1]); break; }
+    if (portals[p].b[0] === x && portals[p].b[1] === y) { out.push([portals[p].a[0], portals[p].a[1], 1]); break; }
+  }
+  return out;
+}
+function bfsStatic(sx, sy, ignorePortal) {
+  var d = [], par = [];
+  for (var y = 0; y < mh; y++) { d[y] = []; par[y] = []; for (var x = 0; x < mw; x++) { d[y][x] = -1; par[y][x] = null; } }
+  var q = [[sx, sy]]; d[sy][sx] = 0;
+  for (var qi = 0; qi < q.length; qi++) {
+    var c = q[qi], cx = c[0], cy = c[1];
+    var ns = neighStatic(cx, cy);
+    for (var i = 0; i < ns.length; i++) {
+      var nx = ns[i][0], ny = ns[i][1];
+      if (ignorePortal && ns[i][2]) continue;
+      if (d[ny][nx] < 0) {
+        d[ny][nx] = d[cy][cx] + 1;
+        par[ny][nx] = [cx, cy];
+        q.push([nx, ny]);
+      }
+    }
+  }
+  return { d: d, par: par };
+}
+function pathTo(sx, sy, gx, gy) {
+  var r = bfsStatic(sx, sy, false);
+  if (r.d[gy][gx] < 0) return null;
+  var path = [], x = gx, y = gy;
+  while (x !== sx || y !== sy) {
+    path.push([x, y]);
+    var pr = r.par[y][x];
+    if (!pr) break;
+    x = pr[0]; y = pr[1];
+  }
+  path.push([sx, sy]);
+  return path.reverse();
+}
+function mainPathCells() {
+  var s = {};
+  var p = pathTo(0, 0, mw - 1, mh - 1);
+  if (p) for (var i = 0; i < p.length; i++) s[p[i][0] + ',' + p[i][1]] = 1;
+  return s;
+}
+function dirFrom(a, b) {
+  if (b[0] === a[0] + 1) return 'right';
+  if (b[0] === a[0] - 1) return 'left';
+  if (b[1] === a[1] + 1) return 'down';
+  if (b[1] === a[1] - 1) return 'up';
+  return null;
+}
+function portalPartner(x, y) {
+  for (var p = 0; p < portals.length; p++) {
+    if (portals[p].a[0] === x && portals[p].a[1] === y) return portals[p].b;
+    if (portals[p].b[0] === x && portals[p].b[1] === y) return portals[p].a;
+  }
+  return null;
+}
+
+/* ================= 本关布置 ================= */
+function isFreeCell(x, y, occ) {
+  if (x === 0 && y === 0) return false;
+  if (x === mw - 1 && y === mh - 1) return false;
+  if (occ[x + ',' + y]) return false;
+  if (maze[y][x].N + maze[y][x].E + maze[y][x].S + maze[y][x].W === 4) return false; // 不放进死墙角
+  return true;
+}
+function randFreeCells(R, n, occ, pathSet, wantAway) {
+  var cells = [], tries = 0;
+  while (cells.length < n && tries < 400) {
+    tries++;
+    var x = Math.floor(R() * mw), y = Math.floor(R() * mh);
+    if (!isFreeCell(x, y, occ)) continue;
+    if (pathSet && pathSet[x + ',' + y]) {
+      if (wantAway) continue;                 // 想放"岔路深处"
+      // 放主线附近也可，但别放起点出口紧邻
+      if ((x === 1 && y === 0) || (x === 0 && y === 1) || (x === mw - 2 && y === mh - 1) || (x === mw - 1 && y === mh - 2)) continue;
+    }
+    if (cells.some(function (c) { return Math.abs(c[0] - x) + Math.abs(c[1] - y) < 2; })) continue;
+    cells.push([x, y]);
+    occ[x + ',' + y] = 1;
+  }
+  return cells;
+}
+function cellDist(a, b) { return Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]); }
+function setupLevel() {
+  var L = LEVELS[level];
+  mw = L.w; mh = L.h; theme = THEMES[L.theme];
+  var R = mulberry32(levelSeed);
+  maze = genMaze(levelSeed, mw, mh, L.braid);
+  var occ = {};
+  var pathSet = mainPathCells();
+  // 地图碎片（尽量散开，3 片）
+  pieceCells = []; piecesGot = 0; totalPieces = L.pieces;
+  var pc = randFreeCells(R, totalPieces, occ, pathSet, false);
+  for (var i = 0; i < pc.length; i++) pieceCells.push(pc[i]);
+  // 宝石
+  gems = []; gemsGot = 0; totalGems = L.gems;
+  var gc = randFreeCells(R, totalGems, occ, pathSet, false);
+  for (var g = 0; g < gc.length; g++) gems.push(gc[g]);
+  // 钥匙
+  keyCells = []; keysGot = 0; keyTotal = L.keys;
+  var kc = randFreeCells(R, keyTotal, occ, pathSet, true);
+  for (var k = 0; k < kc.length; k++) keyCells.push(kc[k]);
+  // 宝箱（主线后半段附近或岔路）
+  chest = null; chestBonus = 0;
+  if (L.chest) {
+    var ctry = 0;
+    while (ctry++ < 120) {
+      var cx = Math.floor(R() * mw), cy = Math.floor(R() * mh);
+      if (!isFreeCell(cx, cy, occ)) continue;
+      var ex = mw - 1, ey = mh - 1;
+      if (cellDist([cx, cy], [ex, ey]) < 2) continue;
+      if (cellDist([cx, cy], [0, 0]) < 2) continue;
+      occ[cx + ',' + cy] = 1;
+      chest = { x: cx, y: cy, open: false };
+      break;
+    }
+  }
+  // 滑冰地面
+  iceCells = [];
+  var ic = randFreeCells(R, L.ice, {}, null, false);
+  for (var i2 = 0; i2 < ic.length; i2++) iceCells.push(ic[i2]);
+  // 陷阱（别放传送/开关/宝箱附近）
+  trapCells = [];
+  var tc = randFreeCells(R, L.traps, occ, pathSet, false);
+  for (var t2 = 0; t2 < tc.length; t2++) {
+    if (chest && cellDist(tc[t2], [chest.x, chest.y]) < 2) continue;
+    trapCells.push(tc[t2]);
+  }
+  // 开关 & 机关门（选两堵内部墙做成门，踩开关开门）
+  switchCells = []; swDoors = [];
+  if (L.switches) {
+    var swCount = L.switches;
+    // 收集可选内部墙：能拆出捷径的墙（非边界）
+    var wallEdges = [];
+    for (var wy = 0; wy < mh; wy++) {
+      for (var wx = 0; wx < mw; wx++) {
+        if (wx < mw - 1 && maze[wy][wx].E) wallEdges.push([wx, wy, wx + 1, wy]);
+        if (wy < mh - 1 && maze[wy][wx].S) wallEdges.push([wx, wy, wx, wy + 1]);
+      }
+    }
+    var shuff = wallEdges.slice();
+    for (var si = shuff.length - 1; si > 0; si--) { var jj = Math.floor(R() * (si + 1)); var tmp = shuff[si]; shuff[si] = shuff[jj]; shuff[jj] = tmp; }
+    var picked = [];
+    for (var s2 = 0; s2 < shuff.length && picked.length < swCount; s2++) {
+      var e = shuff[s2];
+      var e1 = e[0] + ',' + e[1], e2 = e[2] + ',' + e[3];
+      if (occ[e1] || occ[e2]) continue;
+      var ex2 = mw - 1, ey2 = mh - 1;
+      if ((e[0] === 0 && e[1] === 0) || (e[2] === 0 && e[3] === 0)) continue;
+      if ((e[0] === ex2 && e[1] === ey2) || (e[2] === ex2 && e[3] === ey2)) continue;
+      // 别把主线通道堵成唯一路径：只选"非主线必经"墙（主线旁支捷径）
+      var onMain = pathSet[e[0] + ',' + e[1]] && pathSet[e[2] + ',' + e[3]];
+      if (onMain) continue;
+      picked.push(e);
+      occ[e1] = 1; occ[e2] = 1;
+      maze[e[1]][e[0]][e[0] === e[2] ? 'E' : 'S'] = 0;
+      maze[e[3]][e[2]][e[0] === e[2] ? 'W' : 'N'] = 0;
+      swDoors.push({ x1: e[0], y1: e[1], x2: e[2], y2: e[3], open: false });
+    }
+    // 每个门配一个开关（放在门附近可达格）
+    for (var d2 = 0; d2 < swDoors.length; d2++) {
+      var dd = swDoors[d2];
+      var tried = 0, sx = -1, sy = -1;
+      while (tried++ < 120 && sx < 0) {
+        var a = Math.floor(R() * mw), b = Math.floor(R() * mh);
+        if (!isFreeCell(a, b, occ)) continue;
+        if (cellDist([a, b], [dd.x1, dd.y1]) < 1 && cellDist([a, b], [dd.x2, dd.y2]) < 1) continue;
+        if (cellDist([a, b], [dd.x1, dd.y1]) > 6 && cellDist([a, b], [dd.x2, dd.y2]) > 6) continue;
+        if (chest && cellDist([a, b], [chest.x, chest.y]) < 1) continue;
+        occ[a + ',' + b] = 1;
+        sx = a; sy = b;
+        switchCells.push({ x: a, y: b, door: d2, pressed: false });
+      }
+    }
+  }
+  // 移动墙（定时开关的通道）
+  mvWalls = [];
+  if (L.mwalls) {
+    var mwEdges = [];
+    for (var my = 0; my < mh; my++) {
+      for (var mx = 0; mx < mw; mx++) {
+        if (mx < mw - 1 && maze[my][mx].E) mwEdges.push([mx, my, mx + 1, my]);
+        if (my < mh - 1 && maze[my][mx].S) mwEdges.push([mx, my, mx, my + 1]);
+      }
+    }
+    for (var mi = mwEdges.length - 1; mi > 0; mi--) { var mj = Math.floor(R() * (mi + 1)); var mt = mwEdges[mi]; mwEdges[mi] = mwEdges[mj]; mwEdges[mj] = mt; }
+    var put = 0;
+    for (var m2 = 0; m2 < mwEdges.length && put < L.mwalls; m2++) {
+      var e = mwEdges[m2];
+      var onM = pathSet[e[0] + ',' + e[1]] && pathSet[e[2] + ',' + e[3]];
+      if (onM) continue;
+      maze[e[1]][e[0]][e[0] === e[2] ? 'E' : 'S'] = 0;
+      maze[e[3]][e[2]][e[0] === e[2] ? 'W' : 'N'] = 0;
+      mvWalls.push({ x1: e[0], y1: e[1], x2: e[2], y2: e[3], open: false, t: Math.random() * 4 });
+      put++;
+    }
+  }
+  // 传送门（两两配对，尽量远离、远离主线）
+  portals = [];
+  if (L.portals) {
+    var pairs = L.portals;
+    for (var pi = 0; pi < pairs; pi++) {
+      var ca = null, cb = null, tries = 0;
+      while (tries++ < 300 && !cb) {
+        var ax = Math.floor(R() * mw), ay = Math.floor(R() * mh);
+        if (!isFreeCell(ax, ay, occ)) continue;
+        if (pathSet[ax + ',' + ay]) continue;
+        var bx = Math.floor(R() * mw), by = Math.floor(R() * mh);
+        if (!isFreeCell(bx, by, occ)) continue;
+        if (pathSet[bx + ',' + by]) continue;
+        if (cellDist([ax, ay], [bx, by]) < Math.max(4, Math.floor((mw + mh) / 2))) continue;
+        occ[ax + ',' + ay] = 1; occ[bx + ',' + by] = 1;
+        ca = [ax, ay]; cb = [bx, by];
+      }
+      if (ca && cb) portals.push({ a: ca, b: cb, hue: pi === 0 ? 275 : 180 });
+    }
+  }
+  // 探索记录
+  explored = [];
+  for (var ey = 0; ey < mh; ey++) { explored[ey] = []; for (var ex = 0; ex < mw; ex++) explored[ey][ex] = 0; }
+  markExplored(px, py);
+  // 步数 / 评价基准（主路+钥匙折返）
+  best = computeBestRoute();
+  if (best <= 0 || best > 9999) best = 1;
+}
+
+function computeBestRoute() {
+  // 收集全部钥匙后再出门的最短路（传送按普通格算 0 额外，快速路径）
+  var d0 = bfsStatic(0, 0, true);
+  if (keyTotal === 0) {
+    var ex = bfsStatic(mw - 1, mh - 1, true);
+    return ex.d[0][0];
+  }
+  // 近似：起点→每把钥匙的最短之一 + 钥匙→出口
+  var best2 = 99999;
+  var exArr = bfsStatic(mw - 1, mh - 1, true);
+  if (keyCells.length) {
+    var k0 = keyCells[0];
+    var dk = bfsStatic(k0[0], k0[1], true);
+    var v = d0.d[k0[1]][k0[0]] + dk.d[mw - 1][mh - 1];
+    best2 = Math.min(best2, v);
+  } else {
+    best2 = exArr.d[0][0];
+  }
+  return best2;
+}
+
+/* ================= 地图碎片 ================= */
+function markExplored(cx, cy) {
+  for (var dy = -1; dy <= 1; dy++) {
+    for (var dx = -1; dx <= 1; dx++) {
+      var x = cx + dx, y = cy + dy;
+      if (x >= 0 && y >= 0 && x < mw && y < mh && explored[y][x] === 0) explored[y][x] = 1;
+    }
+  }
+}
+function checkPieces() {
+  if (totalPieces && piecesGot >= totalPieces && !mapRevealed) {
+    mapRevealed = true;
+    sfxReveal();
+    popMsg('地图碎片集齐！全景开启', '#8ae6ff');
+    msgT = Math.max(msgT, 2.2);
+  }
+}
+
+/* ================= 开始 / 重开 ================= */
+function startLevel() {
+  var L = LEVELS[level];
+  px = 0; py = 0; tx = 0; ty = 0; prevX = 0; prevY = 0;
+  moving = false; moveT = 0; face = 1; steps = 0;
+  timeLeft = L.time; timeMax = L.time; timeOut = false; timeWarned = false;
+  stuckT = 0; slidePending = null; slideT = 0;
+  hintOn = 0; hintUsed = false; mapRevealed = false;
+  setupLevel();
+  state = 'play';
+  hideOverlay();
+  syncHud();
+  computeLayout();
+  showMsg('第 ' + (level + 1) + ' 关 · ' + L.name, '#ffe28a');
+  sfxTick();
+}
+function startFrom(n) {
+  level = clamp(n, 0, LEVELS.length - 1);
+  clearCount = 0; totalSteps = 0; totalStars = 0;
+  levelSeed = level + 1;
+  startLevel();
+}
+function retryLevel() { totalSteps -= steps; totalStars = Math.max(0, totalStars); levelSeed = level + 1 + Math.floor(Math.random() * 1000); startLevel(); }
+
+/* ================= 布局 ================= */
+function resize() {
+  var r = $('stage').getBoundingClientRect();
+  W = Math.max(1, r.width); H = Math.max(1, r.height);
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
+  cv.style.width = W + 'px'; cv.style.height = H + 'px';
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  computeLayout();
+}
+function computeLayout() {
+  CS = Math.max(22, Math.floor(Math.min((W - 12) / mw, (H - 12) / mh)));
+  OX = Math.round((W - CS * mw) / 2);
+  OY = Math.round((H - CS * mh) / 2);
+}
+
+/* ================= 移动 ================= */
+function blockedEdge(x, y, dir) {
+  // 返回 null 可走；返回字符串原因
+  if (dir === 'up' && (y <= 0 || maze[y][x].N)) return 'wall';
+  if (dir === 'down' && (y >= mh - 1 || maze[y][x].S)) return 'wall';
+  if (dir === 'left' && (x <= 0 || maze[y][x].W)) return 'wall';
+  if (dir === 'right' && (x >= mw - 1 || maze[y][x].E)) return 'wall';
+  var nx = x, ny = y;
+  if (dir === 'up') ny--;
+  else if (dir === 'down') ny++;
+  else if (dir === 'left') nx--;
+  else if (dir === 'right') nx++;
+  for (var i = 0; i < swDoors.length; i++) {
+    var d = swDoors[i];
+    if (!d.open && ((d.x1 === x && d.y1 === y && d.x2 === nx && d.y2 === ny) || (d.x2 === x && d.y2 === y && d.x1 === nx && d.y1 === ny))) {
+      return 'door';
+    }
+  }
+  for (var m = 0; m < mvWalls.length; m++) {
+    var w = mvWalls[m];
+    if (!w.open && ((w.x1 === x && w.y1 === y && w.x2 === nx && w.y2 === ny) || (w.x2 === x && w.y2 === y && w.x1 === nx && w.y1 === ny))) {
+      return 'mvwall';
+    }
+  }
+  return null;
+}
+function step(dir) {
+  if (state !== 'play' || moving || stuckT > 0) return;
+  var blk = blockedEdge(px, py, dir);
+  if (blk) {
+    if (blk === 'door') showMsg('先找到开关，门才开！', '#ffd0d0');
+    else if (blk === 'mvwall') showMsg('这堵墙在移动，等它打开', '#ffe2a8');
+    else sfxWall();
+    return;
+  }
+  prevX = px; prevY = py;
+  tx = px + (dir === 'left' ? -1 : dir === 'right' ? 1 : 0);
+  ty = py + (dir === 'up' ? -1 : dir === 'down' ? 1 : 0);
+  moving = true; moveT = 0;
+  face = dir === 'left' ? -1 : (dir === 'right' ? 1 : face);
+  lastDir = dir;
+  slidePending = null;
+  sfxStep();
+}
+function arrive() {
+  px = tx; py = ty;
+  steps++;
+  onLand(px, py, false);
+}
+function onLand(x, y, fromPortal) {
+  markExplored(x, y);
+  // 传送门
+  var pt = portalPartner(x, y);
+  if (pt && !fromPortal) {
+    sfxPortal();
+    popMsg('咻！传送啦', '#c9a2ff');
+    var oldx = px, oldy = py;
+    px = pt[0]; py = pt[1]; tx = px; ty = py;
+    steps--;                 // 传送到伙伴格视为同一步
+    onLand(px, py, true);
+    // 粒子
+    for (var i = 0; i < 14; i++) burstCell(oldx, oldy, '#c9a2ff');
+    return;
+  }
+  // 收集：碎片 / 宝石 / 钥匙
+  for (var j = pieceCells.length - 1; j >= 0; j--) {
+    if (pieceCells[j][0] === x && pieceCells[j][1] === y) {
+      pieceCells.splice(j, 1); piecesGot++;
+      sfxPiece();
+      popMsg('地图碎片 ' + piecesGot + '/' + totalPieces, '#7fd8ff');
+      checkPieces();
+      break;
+    }
+  }
+  for (var g = gems.length - 1; g >= 0; g--) {
+    if (gems[g][0] === x && gems[g][1] === y) {
+      gems.splice(g, 1); gemsGot++;
+      sfxGem();
+      popMsg('+1 💎', '#ffd0f0');
+      break;
+    }
+  }
+  for (var k = keyCells.length - 1; k >= 0; k--) {
+    if (keyCells[k][0] === x && keyCells[k][1] === y) {
+      keyCells.splice(k, 1); keysGot++;
+      sfxKey();
+      popMsg('找到钥匙！', '#ffd34d');
+      break;
+    }
+  }
+  // 开关
+  for (var s = 0; s < switchCells.length; s++) {
+    var sw = switchCells[s];
+    if (sw.x === x && sw.y === y && !sw.pressed) {
+      sw.pressed = true;
+      var dref = swDoors[sw.door];
+      if (dref && !dref.open) {
+        dref.open = true;
+        sfxSwitch(); setTimeout(sfxDoor, 180);
+        popMsg('开关启动！门开了', '#8ae68a');
+      }
+    }
+  }
+  // 宝箱
+  if (chest && !chest.open && chest.x === x && chest.y === y) {
+    var L = LEVELS[level];
+    var needSw = L.switches > 0;
+    var needKey = L.chestNeed > 0;
+    var canOpen = (needSw ? switchCells.every(function (sc) { return sc.pressed; }) : true) && (needKey ? keysGot >= L.chestNeed : true);
+    if (canOpen) {
+      chest.open = true; chestBonus = 5;
+      sfxChest();
+      popMsg('宝箱打开 +5 💎', '#ffca28');
+      burstCell(x, y, '#ffca28');
+    } else if (needKey) {
+      showMsg('宝箱锁着，需要钥匙', '#ffd0d0');
+      sfxWall();
+    } else {
+      showMsg('宝箱锁着，先启动所有开关', '#ffd0d0');
+      sfxWall();
+    }
+  }
+  // 陷阱：减速（无惩罚）
+  for (var t = 0; t < trapCells.length; t++) {
+    if (trapCells[t][0] === x && trapCells[t][1] === y) {
+      stuckT = 0.9;
+      sfxStuck();
+      showMsg('陷进泥里啦，慢慢走～', '#d8b48a');
+      break;
+    }
+  }
+  // 出口（需要全部钥匙）
+  if (x === mw - 1 && y === mh - 1) {
+    if (keysGot < keyTotal) {
+      showMsg(keysGot ? '还差 ' + (keyTotal - keysGot) + ' 把钥匙哦' : '找到钥匙，出口才会打开', '#ffb0b0');
+      sfxWall();
+      return;
+    }
+    levelClear();
+    return;
+  }
+  // 滑冰：继续滑行
+  if (lastDir && isIce(x, y) && !stuckT) {
+    slidePending = lastDir;
+    slideT = 0.06;
+  }
+  syncHud();
+}
+function isIce(x, y) {
+  for (var i = 0; i < iceCells.length; i++) if (iceCells[i][0] === x && iceCells[i][1] === y) return true;
+  return false;
+}
+
+/* ================= 移动墙计时 ================= */
+function updateMvWalls(dt) {
+  for (var i = 0; i < mvWalls.length; i++) {
+    var w = mvWalls[i];
+    w.t += dt;
+    var cyc = 4.4;
+    var phase = w.t % cyc;
+    var was = w.open;
+    w.open = phase < 2.8;
+    if (w.open !== was) { if (!w.open) sfxDoor(); }
+  }
+}
+
+/* ================= 过关 ================= */
+function gemPct() {
+  var L = LEVELS[level];
+  var total = totalGems + (L.chest ? 5 : 0);
+  var got = gemsGot + chestBonus;
+  return total ? got / total : 1;
+}
+function rateLevel() {
+  var L = LEVELS[level];
+  var pct = gemPct();
+  var star = 1;
+  if (pct >= 0.6) star = 2;
+  if (pct >= 1) {
+    star = 3;
+    if (steps > best * 2.4) star = 2;
+    if (timeOut) star = 2;
+  }
+  return star;
+}
+function levelClear() {
+  state = 'clear';
+  clearCount++;
+  totalSteps += steps;
+  var star = rateLevel();
+  totalStars += star;
+  if (save.unlocked < level + 1) save.unlocked = level + 1;
+  if (!save.stars[level] || save.stars[level] < star) save.stars[level] = star;
+  persist();
+  sfxWin();
+  burstCell(mw - 1, mh - 1, '#ffca28');
+  var L = LEVELS[level];
+  var last = level >= LEVELS.length - 1;
+  var timeTxt = timeOut ? '时间到 ⏰' : (timeLeft > 0 ? '剩余 ' + Math.ceil(timeLeft) + ' 秒' : '');
+  $('overlayBox').innerHTML =
+    '<div class="overlay"><div class="card">' +
+      '<h2>找到出口啦！</h2>' +
+      '<div class="stars">' + '★'.repeat(star) + '☆'.repeat(3 - star) + '</div>' +
+      '<div class="rule">走了 <b>' + steps + '</b> 步 · 最少约 <b>' + best + '</b> 步<br>' +
+      '💎 宝石 <b>' + gemsGot + '/' + totalGems + '</b>' + (L.chest ? (chest && chest.open ? ' · 宝箱 ✅' : ' · 宝箱 ❌') : '') +
+      (timeTxt ? '<br>' + timeTxt : '') + '</div>' +
+      (hintUsed ? '<div class="small">用了「帮帮我」，下次试试自己找路</div>' : '') +
+      (last
+        ? '<button class="bigbtn yellow" id="ovAgain">领奖状！</button>'
+        : '<button class="bigbtn" id="ovNext">下一关 ▶</button>') +
+      '<button class="smallbtn" id="ovReplay">再走一次</button>' +
+    '</div></div>';
+  var rid = ++roundId;
+  $('ovNext') && ($('ovNext').onclick = function () { if (rid !== roundId) return; level++; levelSeed = level + 1; startLevel(); });
+  $('ovAgain') && ($('ovAgain').onclick = function () { if (rid !== roundId) return; showFinal(); });
+  $('ovReplay').onclick = function () { if (rid !== roundId) return; startLevel(); };
+  syncHud();
+}
+function showFinal() {
+  state = 'done';
+  sfxWin();
+  var totalPossible = 24;
+  var s = save.stars.reduce ? save.stars.reduce(function (a, b) { return a + (b || 0); }, 0) : 0;
+  $('overlayBox').innerHTML =
+    '<div class="overlay"><div class="card">' +
+      '<h1>🏆 寻宝小勇士！</h1>' +
+      '<div class="stars">' + (s >= 20 ? '★★★' : (s >= 12 ? '★★' : '★')) + '</div>' +
+      '<div class="rule">闯过全部 <b>8</b> 座迷宫！<br>总共获得 <b>' + s + '/' + totalPossible + '</b> 颗星</div>' +
+      '<button class="bigbtn" id="ovAgain2">再玩一次</button>' +
+      '<button class="smallbtn" id="ovMenu3">回菜单</button>' +
+    '</div></div>';
+  var rid = ++roundId;
+  $('ovAgain2').onclick = function () { if (rid !== roundId) return; showMenu(); };
+  $('ovMenu3').onclick = function () { if (rid !== roundId) return; showMenu(); };
+}
+
+/* ================= 菜单 ================= */
+function lvItem(i) {
+  var unlocked = i <= save.unlocked;
+  var cur = i === save.unlocked && !(save.unlocked >= LEVELS.length);
+  var name = LEVELS[i].name;
+  var st = save.stars[i] || 0;
+  return '<button class="lvitem ' + (unlocked ? '' : 'locked') + (cur ? ' cur' : '') + '" data-lv="' + i + '">' +
+    (unlocked ? (i + 1) + '<small>' + (st ? '★'.repeat(st) : name.slice(0, 2)) + '</small>' : '🔒') + '</button>';
+}
+function showMenu() {
+  state = 'menu';
+  hideOverlay();
+  var allDone = save.unlocked >= LEVELS.length;
+  var startLv = allDone ? LEVELS.length - 1 : save.unlocked;
+  var boxes = '';
+  for (var i = 0; i < LEVELS.length; i++) boxes += lvItem(i);
+  $('overlayBox').innerHTML =
+    '<div class="overlay"><div class="card">' +
+      '<h1>🧭 迷宫寻宝探险家</h1>' +
+      '<div class="rule">穿过 <b>8</b> 座主题迷宫，收集 <b>💎 宝石 / 🔑 钥匙 / 🧩 地图碎片</b><br>找到出口，走得又快又全收集 = 更多星星！</div>' +
+      '<div class="rows">' +
+        '<span class="pill">滑冰地面</span><span class="pill y">暗室</span><span class="pill b">传送门</span>' +
+        '<span class="pill">移动墙</span><span class="pill y">陷阱</span><span class="pill b">开关门</span>' +
+      '</div>' +
+      '<div class="small">每个迷宫都有小机关 · 集齐 3 块地图碎片能看全景</div>' +
+      '<div class="lvlist">' + boxes + '</div>' +
+      (allDone
+        ? '<button class="bigbtn yellow" id="ovStart">🏆 终极迷宫</button>'
+        : '<button class="bigbtn" id="ovStart">第 ' + (startLv + 1) + ' 关出发 ' + LEVELS[startLv].name + '</button>') +
+      '<button class="smallbtn" id="ovAll">从头开始</button>' +
+    '</div></div>';
+  var rid = ++roundId;
+  $('ovStart').onclick = function () { if (rid !== roundId) return; audio(); startFrom(startLv); };
+  $('ovAll').onclick = function () { if (rid !== roundId) return; audio(); save.unlocked = 0; persist(); startFrom(0); };
+  var items = $('overlayBox').querySelectorAll('.lvitem');
+  for (var it = 0; it < items.length; it++) {
+    items[it].addEventListener('click', function () {
+      var li = parseInt(this.getAttribute('data-lv'), 10);
+      if (li > save.unlocked) return;
+      if (rid !== roundId) return;
+      audio();
+      startFrom(li);
+    });
+  }
+}
+function hideOverlay() { $('overlayBox').innerHTML = ''; }
+
+/* ================= HUD ================= */
+function syncHud() {
+  var L = LEVELS[level];
+  $('lvTxt').textContent = '迷宫' + (level + 1) + ' · ' + L.name;
+  $('gemTxt').textContent = gemsGot + '/' + totalGems;
+  $('keyTxt').textContent = keyTotal ? (keysGot + '/' + keyTotal) : '';
+  $('pcsTxt').textContent = totalPieces ? (piecesGot + '/' + totalPieces) : '';
+  $('stpTxt').textContent = steps + ' 步';
+  $('tmTxt').textContent = fmtTime(timeLeft);
+  $('mapBtn').textContent = miniOn ? '🗺️ 地图' : '地图';
+  $('mapBtn').className = miniOn ? '' : 'off';
+}
+function fmtTime(t) {
+  var s = Math.max(0, Math.ceil(t));
+  return Math.floor(s / 60) + ':' + (s % 60 < 10 ? '0' : '') + (s % 60);
+}
+function showMsg(t, c) { msgT = 1.6; msgTxt = t; msgCol = c || '#fff'; }
+function popMsg(t, c) {
+  parts.push({ x: px * CS + OX + CS / 2, y: py * CS + OY - 6, txt: t, c: c || '#fff', life: 1, max: 1 });
+}
+function burstCell(x, y, color) {
+  var cx = x * CS + OX + CS / 2, cy = y * CS + OY + CS / 2;
+  var colors = color ? [color] : ['#ff5f6d', '#ffca28', '#5fd9a0', '#5fb0ff', '#ff8fa3', '#b57ce8'];
+  for (var i = 0; i < 26; i++) {
+    var a = rnd(0, 7), sp = rnd(90, 320);
+    confetti.push({
+      x: cx, y: cy, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 110,
+      rot: rnd(0, 7), spin: rnd(-9, 9), s: rnd(5, 10), life: rnd(0.6, 1.2), max: 1.2,
+      c: colors[Math.floor(Math.random() * colors.length)]
+    });
+  }
+}
+
+/* ================= 主循环 ================= */
+function update(dt) {
+  tick++;
+  if (msgT > 0) msgT -= dt;
+  if (hintOn > 0) hintOn -= dt;
+  if (stuckT > 0) stuckT -= dt;
+  if (state === 'play') {
+    // 计时
+    if (!timeOut) {
+      timeLeft -= dt;
+      if (timeLeft <= 0) {
+        timeLeft = 0; timeOut = true;
+        showMsg('⏰ 时间到！慢慢走也能到出口', '#ffb0b0');
+      } else if (timeLeft < 15 && !timeWarned) {
+        timeWarned = true;
+        showMsg('还剩 15 秒！', '#ffb0b0');
+      }
+    }
+    // 每帧刷新倒计时显示
+    var _tv = fmtTime(timeLeft);
+    if ($('tmTxt').textContent !== _tv) $('tmTxt').textContent = _tv;
+    updateMvWalls(dt);
+    if (moving) {
+      moveT += dt / 0.15;
+      if (moveT >= 1) { moveT = 1; moving = false; arrive(); }
+      walkPhase += dt * 11;
+    } else if (slidePending && !stuckT) {
+      slideT -= dt;
+      if (slideT <= 0) {
+        var dir = slidePending; slidePending = null;
+        var blk = blockedEdge(px, py, dir);
+        if (!blk) { tx = px + (dir === 'left' ? -1 : dir === 'right' ? 1 : 0); ty = py + (dir === 'up' ? -1 : dir === 'down' ? 1 : 0); moving = true; moveT = 0; sfxStep(); }
+      }
+    }
+  }
+  for (var i = parts.length - 1; i >= 0; i--) {
+    var p = parts[i];
+    p.y -= 26 * dt; p.life -= dt;
+    if (p.life <= 0) parts.splice(i, 1);
+  }
+  for (var j = confetti.length - 1; j >= 0; j--) {
+    var cf = confetti[j];
+    cf.x += cf.vx * dt; cf.y += cf.vy * dt; cf.vy += 300 * dt; cf.rot += cf.spin * dt; cf.life -= dt;
+    if (cf.life <= 0) confetti.splice(j, 1);
+  }
+}
+function lerpP(a, b, t) { return a + (b - a) * t; }
+function playerX() { return lerpP(px, tx, moveT) * CS + OX + CS / 2; }
+function playerY() { return lerpP(py, ty, moveT) * CS + OY + CS / 2; }
+
+/* ================= 绘制 ================= */
+function roundRectPath(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+function cellVis(x, y) {
+  // 返回 0 隐藏 / 1 已探索(暗) / 2 当前可见
+  var L = LEVELS[level];
+  if (mapRevealed || !L.dark) return 2;
+  if (Math.abs(x - px) <= 2 && Math.abs(y - py) <= 2) return 2;
+  return explored[y] && explored[y][x] ? 1 : 0;
+}
+function drawFloor() {
+  var L = LEVELS[level];
+  var bg = theme.bg;
+  var g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, bg[0]); g.addColorStop(1, bg[1]);
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  // 主题装饰斜纹
+  ctx.strokeStyle = 'rgba(255,255,255,.10)'; ctx.lineWidth = 1;
+  for (var sx2 = -40; sx2 < W; sx2 += 40) { ctx.beginPath(); ctx.moveTo(sx2, 0); ctx.lineTo(sx2 + 14, H); ctx.stroke(); }
+  // 地板
+  for (var y = 0; y < mh; y++) {
+    for (var x = 0; x < mw; x++) {
+      var vis = cellVis(x, y);
+      if (vis === 0) continue;
+      var x0 = OX + x * CS, y0 = OY + y * CS;
+      ctx.save();
+      ctx.globalAlpha = vis === 1 ? 0.16 : 1;
+      ctx.fillStyle = theme.floor;
+      roundRectPath(x0 + 1, y0 + 1, CS - 2, CS - 2, 4); ctx.fill();
+      if ((x + y) % 2 === 0) {
+        ctx.fillStyle = theme.fl2;
+        roundRectPath(x0 + 2, y0 + 2, CS - 4, CS - 4, 3); ctx.fill();
+      }
+      ctx.restore();
+    }
+  }
+}
+function isEdgeBetween(x1, y1, x2, y2, ex, ey) {
+  // 判断指定格(ey=出口侧已不必) 简化：由调用方直接比较
+  return (x1 === ex && y1 === ey) || (x2 === ex && y2 === ey);
+}
+function drawWalls() {
+  var t = Math.max(4, CS * 0.17);
+  function wall(x, y, w, h, dark) {
+    ctx.save();
+    ctx.globalAlpha = dark ? 0.18 : 1;
+    ctx.fillStyle = theme.wall;
+    roundRectPath(x, y, w, h, Math.min(w, h) * 0.5); ctx.fill();
+    ctx.fillStyle = theme.wallTop;
+    roundRectPath(x, y, w, h * 0.4, Math.min(w, h) * 0.5); ctx.fill();
+    ctx.restore();
+  }
+  // 外框
+  for (var y = 0; y < mh; y++) {
+    for (var x = 0; x < mw; x++) {
+      var c = maze[y][x];
+      var vv = cellVis(x, y);
+      var dark = vv === 1;
+      if (vv === 0) continue;
+      var x0 = OX + x * CS, y0 = OY + y * CS;
+      if (c.N && y === 0) wall(x0 - 2, y0 - t / 2, CS + 4, t, dark);
+      if (c.E && x === mw - 1) wall(x0 + CS - t / 2, y0 - 2, t, CS + 4, dark);
+      if (c.S && y === mh - 1) wall(x0 - 2, y0 + CS - t / 2, CS + 4, t, dark);
+      if (c.W && x === 0) wall(x0 - t / 2, y0 - 2, t, CS + 4, dark);
+    }
+  }
+  // 内部墙（每格画 E/S，避免重复）
+  for (var y2 = 0; y2 < mh; y2++) {
+    for (var x2 = 0; x2 < mw; x2++) {
+      var c2 = maze[y2][x2];
+      var v1 = cellVis(x2, y2);
+      var x0 = OX + x2 * CS, y0 = OY + y2 * CS;
+      if (c2.E && x2 < mw - 1) {
+        var v2 = cellVis(x2 + 1, y2);
+        if (v1 || v2) wall(x0 + CS - t / 2, y0 - 2, t, CS + 4, (v1 === 1 || v2 === 1));
+      }
+      if (c2.S && y2 < mh - 1) {
+        var v3 = cellVis(x2, y2 + 1);
+        if (v1 || v3) wall(x0 - 2, y0 + CS - t / 2, CS + 4, t, (v1 === 1 || v3 === 1));
+      }
+    }
+  }
+}
+function drawFloorSpecials() {
+  // 滑冰
+  for (var i = 0; i < iceCells.length; i++) {
+    var x = iceCells[i][0], y = iceCells[i][1];
+    if (cellVis(x, y) === 0) continue;
+    var x0 = OX + x * CS + CS / 2, y0 = OY + y * CS + CS / 2;
+    ctx.save();
+    ctx.translate(x0, y0);
+    ctx.strokeStyle = 'rgba(255,255,255,.65)'; ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    for (var l = 0; l < 3; l++) {
+      var a = tick * 0.02 + l * 2.1;
+      ctx.moveTo(Math.cos(a) * CS * 0.26, Math.sin(a) * CS * 0.26);
+      ctx.lineTo(Math.cos(a) * CS * 0.34, Math.sin(a) * CS * 0.34);
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+  // 陷阱
+  for (var t = 0; t < trapCells.length; t++) {
+    var x2 = trapCells[t][0], y2 = trapCells[t][1];
+    if (cellVis(x2, y2) === 0) continue;
+    var x1 = OX + x2 * CS + CS / 2, y1 = OY + y2 * CS + CS / 2;
+    ctx.save();
+    ctx.translate(x1, y1);
+    ctx.fillStyle = 'rgba(92,64,40,.85)';
+    ctx.beginPath(); ctx.ellipse(0, 2, CS * 0.34, CS * 0.22, 0, 0, 7); ctx.fill();
+    ctx.strokeStyle = 'rgba(50,30,15,.6)'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.ellipse(0, 2, CS * 0.24, CS * 0.13, 0, 0, 7); ctx.stroke();
+    // 冒泡
+    ctx.fillStyle = 'rgba(255,255,255,.5)';
+    ctx.beginPath(); ctx.arc(-CS * 0.14, -CS * 0.12 + Math.sin(tick * 0.1) * 1.5, 1.6, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.arc(CS * 0.12, -CS * 0.06 + Math.sin(tick * 0.13 + 1) * 2, 1.2, 0, 7); ctx.fill();
+    ctx.restore();
+  }
+  // 传送门
+  for (var p = 0; p < portals.length; p++) {
+    drawPortal(portals[p].a, portals[p].hue);
+    drawPortal(portals[p].b, portals[p].hue);
+  }
+  // 开关
+  for (var s = 0; s < switchCells.length; s++) {
+    var sw = switchCells[s];
+    if (cellVis(sw.x, sw.y) === 0) continue;
+    var x3 = OX + sw.x * CS + CS / 2, y3 = OY + sw.y * CS + CS / 2;
+    ctx.save();
+    ctx.translate(x3, y3);
+    ctx.fillStyle = sw.pressed ? '#8ae68a' : '#ff9a76';
+    ctx.beginPath(); ctx.arc(0, 0, CS * 0.2, 0, 7); ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,.25)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(0, 0, CS * 0.2, 0, 7); ctx.stroke();
+    ctx.fillStyle = '#fff';
+    ctx.font = '900 ' + Math.round(CS * 0.22) + 'px sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(sw.pressed ? '✓' : '!', 0, 1);
+    ctx.textBaseline = 'alphabetic';
+    ctx.restore();
+  }
+}
+function drawPortal(cell, hue) {
+  if (cellVis(cell[0], cell[1]) === 0) return;
+  var x = OX + cell[0] * CS + CS / 2, y = OY + cell[1] * CS + CS / 2;
+  ctx.save();
+  ctx.translate(x, y);
+  var r = CS * 0.36, rr2 = r * 0.6;
+  var col = hue === 275 ? '#b06fff' : '#5fd0ff';
+  ctx.globalAlpha = 0.85;
+  ctx.strokeStyle = col; ctx.lineWidth = CS * 0.07;
+  ctx.beginPath(); ctx.ellipse(0, 0, r, r, tick * 0.04, 0, 7); ctx.stroke();
+  ctx.beginPath(); ctx.ellipse(0, 0, rr2, rr2, -tick * 0.04, 0, 7); ctx.stroke();
+  ctx.globalAlpha = 0.3;
+  ctx.fillStyle = col;
+  ctx.beginPath(); ctx.ellipse(0, 0, r * 0.72, r * 0.72, 0, 0, 7); ctx.fill();
+  ctx.restore();
+}
+function drawDoorEdge(x1, y1, x2, y2, open, kind) {
+  // 机关门 / 移动墙通道：在边上画门
+  var cx = (x1 + x2) / 2, cy = (y1 + y2) / 2;
+  var px0 = OX + cx * CS + CS / 2, py0 = OY + cy * CS + CS / 2;
+  var horiz = y1 === y2;      // 门是竖直方向的横隔（连接左右格）
+  ctx.save();
+  ctx.translate(px0, py0);
+  if (open) {
+    ctx.globalAlpha = 0.55;
+    ctx.strokeStyle = kind === 'door' ? '#8ae68a' : '#ffe28a';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([4, 4]);
+    if (horiz) { ctx.beginPath(); ctx.moveTo(0, -CS * 0.5); ctx.lineTo(0, CS * 0.5); ctx.stroke(); }
+    else { ctx.beginPath(); ctx.moveTo(-CS * 0.5, 0); ctx.lineTo(CS * 0.5, 0); ctx.stroke(); }
+    ctx.setLineDash([]);
+  } else {
+    // 门板
+    ctx.fillStyle = kind === 'door' ? '#b8c4d0' : '#d8a94f';
+    ctx.strokeStyle = 'rgba(0,0,0,.3)'; ctx.lineWidth = 2;
+    if (horiz) { roundRectPath(-CS * 0.16, -CS * 0.5, CS * 0.32, CS, 3); ctx.fill(); ctx.stroke(); }
+    else { roundRectPath(-CS * 0.5, -CS * 0.16, CS, CS * 0.32, 3); ctx.fill(); ctx.stroke(); }
+    // 锁点
+    ctx.fillStyle = kind === 'door' ? '#ffd34d' : '#ff8a5c';
+    if (horiz) { ctx.beginPath(); ctx.arc(0, 0, CS * 0.07, 0, 7); ctx.fill(); }
+    else { ctx.beginPath(); ctx.arc(0, 0, CS * 0.07, 0, 7); ctx.fill(); }
+  }
+  ctx.restore();
+}
+function drawMoveWalls() {
+  for (var i = 0; i < swDoors.length; i++) {
+    var d = swDoors[i];
+    var v1 = cellVis(d.x1, d.y1), v2 = cellVis(d.x2, d.y2);
+    if (v1 === 0 && v2 === 0) continue;
+    drawDoorEdge(d.x1, d.y1, d.x2, d.y2, d.open, 'door');
+  }
+  for (var m = 0; m < mvWalls.length; m++) {
+    var w = mvWalls[m];
+    var w1 = cellVis(w.x1, w.y1), w2 = cellVis(w.x2, w.y2);
+    if (w1 === 0 && w2 === 0) continue;
+    drawDoorEdge(w.x1, w.y1, w.x2, w.y2, w.open, 'wall');
+  }
+}
+function drawEntities() {
+  var cx, cy;
+  // 出口
+  drawExit();
+  // 钥匙
+  for (var i = 0; i < keyCells.length; i++) { cx = keyCells[i][0]; cy = keyCells[i][1]; if (cellVis(cx, cy)) drawKey(cx, cy); }
+  // 地图碎片
+  for (var q = 0; q < pieceCells.length; q++) { cx = pieceCells[q][0]; cy = pieceCells[q][1]; if (cellVis(cx, cy)) drawPiece(cx, cy); }
+  // 宝石
+  for (var g = 0; g < gems.length; g++) { cx = gems[g][0]; cy = gems[g][1]; if (cellVis(cx, cy)) drawGem(cx, cy); }
+  // 宝箱
+  if (chest && cellVis(chest.x, chest.y)) drawChest();
+}
+function drawExit() {
+  var x = OX + (mw - 1) * CS, y = OY + (mh - 1) * CS;
+  var locked = keysGot < keyTotal;
+  var vv = cellVis(mw - 1, mh - 1);
+  if (vv === 0) return;
+  ctx.save();
+  if (vv === 1) ctx.globalAlpha = 0.3;
+  // 拱门
+  ctx.fillStyle = locked ? '#b9a06a' : '#f0b429';
+  roundRectPath(x + CS * 0.08, y + CS * 0.06, CS * 0.84, CS * 0.88, 8); ctx.fill();
+  ctx.strokeStyle = 'rgba(0,0,0,.2)'; ctx.lineWidth = 2;
+  roundRectPath(x + CS * 0.08, y + CS * 0.06, CS * 0.84, CS * 0.88, 8); ctx.stroke();
+  // 门洞
+  ctx.fillStyle = 'rgba(50,40,10,.55)';
+  roundRectPath(x + CS * 0.2, y + CS * 0.18, CS * 0.6, CS * 0.66, 5); ctx.fill();
+  if (locked) {
+    ctx.fillStyle = '#8d6a3f';
+    roundRectPath(x + CS * 0.42, y + CS * 0.4, CS * 0.2, CS * 0.18, 3); ctx.fill();
+    ctx.strokeStyle = '#8d6a3f'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(x + CS * 0.52, y + CS * 0.46, CS * 0.08, Math.PI, 0); ctx.stroke();
+  } else {
+    // 内发光
+    ctx.fillStyle = 'rgba(255,240,180,.5)';
+    roundRectPath(x + CS * 0.2, y + CS * 0.18, CS * 0.6, CS * 0.66, 5); ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.font = '900 ' + Math.round(CS * 0.4) + 'px sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('✓', x + CS * 0.5, y + CS * 0.52);
+    ctx.textBaseline = 'alphabetic';
+  }
+  // 小红旗
+  ctx.strokeStyle = '#8a4a2b'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(x + CS * 0.5, y + CS * 0.12); ctx.lineTo(x + CS * 0.5, y - CS * 0.16); ctx.stroke();
+  ctx.fillStyle = '#e53935';
+  ctx.beginPath(); ctx.moveTo(x + CS * 0.5, y - CS * 0.16); ctx.lineTo(x + CS * 0.88, y - CS * 0.04); ctx.lineTo(x + CS * 0.5, y + CS * 0.08); ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+function drawKey(cx, cy) {
+  var x = OX + cx * CS + CS / 2, y = OY + cy * CS + CS / 2;
+  var s = CS * 0.4;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(Math.sin(tick * 0.06) * 0.15);
+  ctx.fillStyle = '#ffca28';
+  ctx.strokeStyle = '#b5760a'; ctx.lineWidth = 1.6;
+  ctx.beginPath(); ctx.arc(0, 0, s * 0.4, 0, 7); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#ffca28';
+  ctx.fillRect(s * 0.28, -s * 0.08, s * 0.5, s * 0.16);
+  ctx.fillRect(s * 0.64, -s * 0.08, s * 0.1, s * 0.14);
+  ctx.fillRect(s * 0.64, s * 0.16, s * 0.1, s * 0.14);
+  ctx.restore();
+}
+function drawPiece(cx, cy) {
+  var x = OX + cx * CS + CS / 2, y = OY + cy * CS + CS / 2;
+  var s = CS * 0.34;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(Math.sin(tick * 0.05 + cx) * 0.12);
+  ctx.fillStyle = '#7fd8ff';
+  ctx.strokeStyle = '#2a7fa8'; ctx.lineWidth = 1.6;
+  // 拼图块
+  roundRectPath(-s, -s, s * 2, s * 2, 3); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#e8f9ff';
+  ctx.beginPath(); ctx.arc(s * 0.45, s * 0.5, s * 0.5, 0, 7); ctx.fill();
+  ctx.strokeStyle = '#2a7fa8';
+  ctx.beginPath(); ctx.arc(s * 0.45, s * 0.5, s * 0.5, 0, 7); ctx.stroke();
+  ctx.fillStyle = '#2a7fa8';
+  ctx.font = '900 ' + Math.round(s * 1.1) + 'px sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('?', 0, -1);
+  ctx.textBaseline = 'alphabetic';
+  ctx.restore();
+}
+function drawGem(cx, cy) {
+  var x = OX + cx * CS + CS / 2, y = OY + cy * CS + CS / 2;
+  var s = CS * 0.3;
+  ctx.save();
+  ctx.translate(x, y + Math.sin(tick * 0.08 + cx * 2) * 1.5);
+  var colors = ['#ff7ba9', '#5fd0ff', '#8ae68a', '#ffca28'];
+  var col = colors[(cx * 3 + cy) % 4];
+  ctx.fillStyle = col;
+  ctx.strokeStyle = 'rgba(0,0,0,.18)'; ctx.lineWidth = 1.4;
+  ctx.beginPath();
+  ctx.moveTo(0, -s);
+  ctx.lineTo(s, 0);
+  ctx.lineTo(0, s);
+  ctx.lineTo(-s, 0);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = 'rgba(255,255,255,.75)';
+  ctx.beginPath(); ctx.moveTo(-s * 0.4, 0); ctx.lineTo(0, -s * 0.8); ctx.lineTo(s * 0.4, 0); ctx.lineTo(0, -s * 0.15); ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+function drawChest() {
+  var x = OX + chest.x * CS + CS / 2, y = OY + chest.y * CS + CS / 2;
+  var s = CS * 0.42;
+  ctx.save();
+  ctx.translate(x, y);
+  if (chest.open) {
+    ctx.rotate(-0.25);
+    ctx.fillStyle = '#c98a3f';
+    roundRectPath(-s, -s * 1.2, s * 2, s * 0.5, 3); ctx.fill();
+    ctx.restore(); ctx.save();
+    ctx.translate(x, y);
+    ctx.fillStyle = '#a06a2c';
+    ctx.strokeStyle = '#5f3a1e'; ctx.lineWidth = 2;
+    roundRectPath(-s, -s * 0.7, s * 2, s * 1.4, 4); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#ffca28';
+    ctx.font = '900 ' + Math.round(s * 0.7) + 'px sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('★', 0, 0);
+    ctx.textBaseline = 'alphabetic';
+  } else {
+    ctx.fillStyle = '#a06a2c';
+    ctx.strokeStyle = '#5f3a1e'; ctx.lineWidth = 2;
+    roundRectPath(-s, -s * 0.7, s * 2, s * 1.4, 4); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#c98a3f';
+    roundRectPath(-s, -s * 0.9, s * 2, s * 0.5, 3); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#ffd34d';
+    roundRectPath(-s * 0.22, -s * 0.18, s * 0.44, s * 0.36, 3); ctx.fill();
+  }
+  ctx.restore();
+}
+function drawGuideArrows() {
+  if (!hintOn) return;
+  var from = { x: px, y: py };
+  var route = pathTo(px, py, mw - 1, mh - 1);
+  if (!route || route.length < 2) return;
+  // 终点前需钥匙时先引导拿钥匙
+  var need = keyCells.length ? keyCells[0] : null;
+  var target = (need && keysGot < keyTotal) ? need : [mw - 1, mh - 1];
+  route = pathTo(px, py, target[0], target[1]);
+  if (!route) return;
+  ctx.save();
+  ctx.globalAlpha = clamp(hintOn, 0, 1) * 0.5;
+  ctx.strokeStyle = '#ffe28a'; ctx.lineWidth = CS * 0.15;
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.beginPath();
+  ctx.moveTo(playerX(), playerY());
+  for (var i = 1; i < route.length; i++) {
+    var jump = false;
+    var pp = portalPartner(route[i][0], route[i][1]);
+    if (pp && route[i - 1] && (pp[0] !== route[i - 1][0] || pp[1] !== route[i - 1][1])) jump = true;
+    ctx.lineTo(OX + route[i][0] * CS + CS / 2, OY + route[i][1] * CS + CS / 2);
+    if (jump && route[i + 1]) {
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(OX + route[i][0] * CS + CS / 2, OY + route[i][1] * CS + CS / 2);
+    }
+  }
+  ctx.stroke();
+  ctx.restore();
+}
+function drawPlayer() {
+  var x = playerX(), y = playerY();
+  var s = CS * 0.72;
+  var bob = moving ? Math.abs(Math.sin(walkPhase)) * CS * 0.07 : 0;
+  var L = LEVELS[level];
+  ctx.save();
+  ctx.translate(x, y - bob);
+  // 影子
+  ctx.fillStyle = 'rgba(0,0,0,.14)';
+  ctx.beginPath(); ctx.ellipse(0, s * 0.46, s * 0.3, s * 0.09, 0, 0, 7); ctx.fill();
+  // 腿
+  var legSwing = moving ? Math.sin(walkPhase) * s * 0.16 : 0;
+  ctx.strokeStyle = '#4a5f8a'; ctx.lineWidth = s * 0.12; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(-s * 0.1, s * 0.3); ctx.lineTo(-s * 0.1 + legSwing, s * 0.48); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(s * 0.1, s * 0.3); ctx.lineTo(s * 0.1 - legSwing, s * 0.48); ctx.stroke();
+  // 身体
+  ctx.fillStyle = '#ffd34d';
+  roundRectPath(-s * 0.3, -s * 0.2, s * 0.6, s * 0.55, s * 0.1); ctx.fill();
+  // 头
+  ctx.fillStyle = '#ffe0bd';
+  ctx.beginPath(); ctx.arc(0, -s * 0.42, s * 0.3, 0, 7); ctx.fill();
+  // 探险帽
+  ctx.fillStyle = '#fff';
+  ctx.beginPath(); ctx.arc(0, -s * 0.52, s * 0.32, Math.PI * 0.9, Math.PI * 2.1); ctx.fill();
+  ctx.fillStyle = '#e8c36a';
+  roundRectPath(-s * 0.36, -s * 0.56, s * 0.72, s * 0.1, 4); ctx.fill();
+  // 眼睛
+  ctx.fillStyle = '#333';
+  ctx.beginPath(); ctx.arc(s * 0.1, -s * 0.4, s * 0.045, 0, 7); ctx.fill();
+  ctx.beginPath(); ctx.arc(s * 0.26, -s * 0.4, s * 0.045, 0, 7); ctx.fill();
+  // 嘴巴（微笑）
+  ctx.strokeStyle = '#c96a55'; ctx.lineWidth = s * 0.05; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.arc(s * 0.12, -s * 0.32, s * 0.1, 0.15, Math.PI - 0.4); ctx.stroke();
+  ctx.restore();
+  // 暗室手电光
+  if (L.dark && !mapRevealed) {
+    var g = ctx.createRadialGradient(x, y, CS * 0.3, x, y, CS * 2.7);
+    g.addColorStop(0, 'rgba(255,236,170,.28)');
+    g.addColorStop(1, 'rgba(255,236,170,0)');
+    ctx.save();
+    ctx.fillStyle = g;
+    ctx.fillRect(x - CS * 3, y - CS * 3, CS * 6, CS * 6);
+    ctx.restore();
+  }
+}
+function drawMiniMap() {
+  if (!miniOn) return;
+  var pad = 8;
+  var maxW = Math.min(W * 0.3, 120);
+  var cw = Math.min(9, Math.floor(maxW / mw));
+  var mw2 = cw * mw, mh2 = cw * mh;
+  var x0 = W - mw2 - pad, y0 = pad;
+  ctx.save();
+  ctx.globalAlpha = 0.92;
+  ctx.fillStyle = 'rgba(15,30,20,.55)';
+  roundRectPath(x0 - 5, y0 - 5, mw2 + 10, mh2 + 10, 7); ctx.fill();
+  for (var y = 0; y < mh; y++) {
+    for (var x = 0; x < mw; x++) {
+      if (!explored[y][x]) continue;
+      ctx.fillStyle = theme.floor;
+      ctx.fillRect(x0 + x * cw, y0 + y * cw, cw - 1, cw - 1);
+    }
+  }
+  // 门/墙简略
+  ctx.fillStyle = theme.wallLo;
+  for (var y2 = 0; y2 < mh; y2++) {
+    for (var x2 = 0; x2 < mw; x2++) {
+      if (!explored[y2][x2]) continue;
+      var c = maze[y2][x2];
+      var xx = x0 + x2 * cw, yy = y0 + y2 * cw;
+      if (c.N && y2 === 0) ctx.fillRect(xx, yy - 1, cw, 2);
+      if (c.S && y2 === mh - 1) ctx.fillRect(xx, yy + cw - 1, cw, 2);
+      if (c.W && x2 === 0) ctx.fillRect(xx - 1, yy, 2, cw);
+      if (c.E && x2 === mw - 1) ctx.fillRect(xx + cw - 1, yy, 2, cw);
+    }
+  }
+  // 玩家
+  var pxx = x0 + px * cw + cw / 2, pyy = y0 + py * cw + cw / 2;
+  ctx.fillStyle = '#ff5f6d';
+  ctx.beginPath(); ctx.arc(pxx, pyy, Math.max(2.4, cw * 0.36), 0, 7); ctx.fill();
+  ctx.restore();
+}
+function drawMsg() {
+  if (msgT > 0) {
+    ctx.save();
+    ctx.globalAlpha = clamp(msgT / 0.4, 0, 1);
+    ctx.textAlign = 'center';
+    ctx.font = '900 ' + Math.round(clamp(W * 0.045, 16, 24)) + 'px "PingFang SC","Microsoft YaHei",sans-serif';
+    ctx.lineWidth = 6; ctx.strokeStyle = 'rgba(20,40,25,.8)';
+    ctx.strokeText(msgTxt, W / 2, H * 0.14);
+    ctx.fillStyle = msgCol; ctx.fillText(msgTxt, W / 2, H * 0.14);
+    ctx.restore();
+  }
+  for (var k = 0; k < parts.length; k++) {
+    var p = parts[k];
+    ctx.save();
+    ctx.globalAlpha = clamp(p.life / 0.5, 0, 1);
+    ctx.font = '900 ' + Math.round(clamp(W * 0.05, 18, 26)) + 'px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(20,40,25,.8)';
+    ctx.strokeText(p.txt, p.x, p.y);
+    ctx.fillStyle = p.c; ctx.fillText(p.txt, p.x, p.y);
+    ctx.restore();
+  }
+  for (var c2 = 0; c2 < confetti.length; c2++) {
+    var cf = confetti[c2];
+    ctx.save();
+    ctx.globalAlpha = clamp(cf.life / 0.6, 0, 1);
+    ctx.translate(cf.x, cf.y); ctx.rotate(cf.rot);
+    ctx.fillStyle = cf.c;
+    ctx.fillRect(-cf.s / 2, -cf.s / 3, cf.s, cf.s * 0.66);
+    ctx.restore();
+  }
+}
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+  if (state === 'menu' || state === 'clear' || state === 'done') return;
+  drawFloor();
+  drawWalls();
+  drawFloorSpecials();
+  drawMoveWalls();
+  drawEntities();
+  drawGuideArrows();
+  if (invincibleT() <= 0 || Math.floor(tick / 5) % 2 === 0) drawPlayer();
+  drawMsg();
+  drawMiniMap();
+}
+function invincibleT() { return 0; }
+
+/* ================= 输入 ================= */
+function pos(e) {
+  var r = cv.getBoundingClientRect();
+  return { x: e.clientX - r.left, y: e.clientY - r.top };
+}
+var swipeSX = 0, swipeSY = 0, swipeT0 = 0;
+cv.addEventListener('pointerdown', function (e) {
+  e.preventDefault(); audio();
+  swipeSX = pos(e).x; swipeSY = pos(e).y; swipeT0 = Date.now();
+});
+cv.addEventListener('pointerup', function (e) {
+  e.preventDefault();
+  var p = pos(e);
+  var dx = p.x - swipeSX, dy = p.y - swipeSY;
+  if (Date.now() - swipeT0 < 900 && Math.max(Math.abs(dx), Math.abs(dy)) > 20) {
+    if (Math.abs(dx) > Math.abs(dy)) step(dx > 0 ? 'right' : 'left');
+    else step(dy > 0 ? 'down' : 'up');
+  }
+});
+var padRepeat = null;
+function padPress(dir) {
+  audio();
+  if (stuckT > 0) { stuckT = 0; sfxTick(); }
+  step(dir);
+  clearInterval(padRepeat);
+  padRepeat = setInterval(function () { step(dir); }, 280);
+}
+function padRelease() { clearInterval(padRepeat); padRepeat = null; }
+$('pad').addEventListener('pointerdown', function (e) {
+  var b = e.target.closest('button');
+  if (!b) return;
+  e.preventDefault();
+  padPress(b.getAttribute('data-d'));
+});
+$('pad').addEventListener('pointerup', padRelease);
+$('pad').addEventListener('pointercancel', padRelease);
+$('pad').addEventListener('pointerleave', padRelease);
+window.addEventListener('keydown', function (e) {
+  if (state !== 'play') return;
+  var k = e.key;
+  if (k === 'ArrowUp' || k === 'w' || k === 'W') { if (stuckT > 0) stuckT = 0; step('up'); e.preventDefault(); }
+  if (k === 'ArrowDown' || k === 's' || k === 'S') { if (stuckT > 0) stuckT = 0; step('down'); e.preventDefault(); }
+  if (k === 'ArrowLeft' || k === 'a' || k === 'A') { if (stuckT > 0) stuckT = 0; step('left'); e.preventDefault(); }
+  if (k === 'ArrowRight' || k === 'd' || k === 'D') { if (stuckT > 0) stuckT = 0; step('right'); e.preventDefault(); }
+});
+$('hintBtn').onclick = function () {
+  audio(); sfxTick();
+  if (state !== 'play') return;
+  hintOn = 3.5; hintUsed = true;
+  showMsg('跟着金线走！', '#ffe28a');
+};
+$('mapBtn').onclick = function () {
+  audio(); sfxTick();
+  miniOn = !miniOn;
+  syncHud();
+};
+$('menuBtn').onclick = function () { audio(); sfxTick(); showMenu(); };
+
+/* ================= 测试钩子 ================= */
+window.__T = {
+  getState: function () {
+    return {
+      state: state, level: level, levelName: LEVELS[level].name, mw: mw, mh: mh,
+      pos: { x: px, y: py }, steps: steps, best: best,
+      gems: { got: gemsGot, total: totalGems }, keys: { got: keysGot, total: keyTotal },
+      pieces: { got: piecesGot, total: totalPieces }, mapRevealed: mapRevealed,
+      chest: chest ? { open: chest.open } : null, chestBonus: chestBonus,
+      timeLeft: timeLeft, timeOut: timeOut,
+      ice: iceCells.length, mvWalls: mvWalls.length, portals: portals.length,
+      traps: trapCells.length, switches: switchCells.length, dark: !!LEVELS[level].dark,
+      stars: save.stars ? save.stars.slice() : [], unlocked: save.unlocked,
+      gemPct: gemPct()
+    };
+  },
+  start: function (lv) { startFrom(lv === undefined ? (save.unlocked < LEVELS.length ? save.unlocked : 0) : lv); },
+  toLevel: function (n) { level = clamp(n, 0, LEVELS.length - 1); levelSeed = level + 1; startLevel(); },
+  move: function (d) { step(d); },
+  hint: function () { $('hintBtn').onclick(); },
+  toggleMap: function () { miniOn = !miniOn; },
+  solveNext: function () {
+    // 单步寻路（含传送），返回方向；若需瞬移由 autoPlay 处理
+    var goal = null;
+    if (keyCells.length && keysGot < keyTotal) goal = keyCells[0];
+    else if (chest && !chest.open) goal = [chest.x, chest.y];
+    else goal = [mw - 1, mh - 1];
+    var route = pathTo(px, py, goal[0], goal[1]);
+    if (!route || route.length < 2) return null;
+    var step2 = route[1];
+    if (step2[0] === px) return step2[1] < py ? 'up' : 'down';
+    return step2[0] < px ? 'left' : 'right';
+  },
+  autoPlay: function () {
+    var guard = 0;
+    var self = this;
+    function pickGoal() {
+      if (keyCells.length && keysGot < keyTotal) return { g: keyCells[0], t: 'key' };
+      // 先按所有没按的开关（有些宝箱需要开关）
+      for (var s = 0; s < switchCells.length; s++) if (!switchCells[s].pressed) return { g: [switchCells[s].x, switchCells[s].y], t: 'sw' };
+      if (chest && !chest.open) return { g: [chest.x, chest.y], t: 'chest' };
+      return { g: [mw - 1, mh - 1], t: 'exit' };
+    }
+    while (state === 'play' && guard++ < 4000) {
+      stuckT = 0;
+      var goal = pickGoal();
+      var route = pathTo(px, py, goal.g[0], goal.g[1]);
+      if (!route || route.length < 2) {
+        if (state === 'play') return { state: state, stuck: true };
+      }
+      var st = route[1];
+      var dx = st[0] - px, dy = st[1] - py;
+      // 传送跳变：相邻不在一步内 → 直接瞬移到伙伴格
+      if (Math.abs(dx) + Math.abs(dy) > 1) {
+        var pp = portalPartner(px, py);
+        if (pp && pp[0] === st[0] && pp[1] === st[1]) {
+          px = pp[0]; py = pp[1]; tx = px; ty = py;
+          sfxPortal();
+          onLand(px, py, true);
+          continue;
+        }
+        return { state: state, stuck: true };
+      }
+      var dir = dx === 0 ? (dy < 0 ? 'up' : 'down') : (dx < 0 ? 'left' : 'right');
+      var blk = blockedEdge(px, py, dir);
+      if (blk === 'mvwall') {
+        var waited = 0;
+        while (blk === 'mvwall' && waited++ < 600) { updateMvWalls(0.15); blk = blockedEdge(px, py, dir); }
+        if (blk) return { state: state, stuck: true };
+      } else if (blk) { return { state: state, stuck: true }; }
+      step(dir);
+      if (moving) { moving = false; moveT = 1; arrive(); }
+    }
+    return { state: state, level: level, solved: state === 'clear' || state === 'done' };
+  },
+  _dbg: function () {
+    return {
+      maze: maze.map(function (row) { return row.map(function (c) { return (c.N ? 1 : 0) + (c.E ? 2 : 0) + (c.S ? 4 : 0) + (c.W ? 8 : 0); }); }),
+      gems: gems, keys: keyCells, pieces: pieceCells, chest: chest, portals: portals,
+      mvWalls: mvWalls, swDoors: swDoors, switches: switchCells, ice: iceCells, traps: trapCells
+    };
+  }
+};
+
+/* ================= 启动 ================= */
+function loop(t) {
+  var dt = Math.min((t - lastT) / 1000 || 0.016, 0.05);
+  lastT = t;
+  update(dt);
+  draw();
+  requestAnimationFrame(loop);
+}
+window.addEventListener('resize', function () { resize(); });
+resize();
+setupLevel();       // 垫默认迷宫避免首帧空数组
+showMenu();
+requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
