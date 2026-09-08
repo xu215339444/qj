@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>24-小小厨神大作战</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{font-family:"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:linear-gradient(180deg,#fff7e0,#ffdcae);overflow:hidden;user-select:none}
+#app{max-width:760px;height:100%;margin:0 auto;display:flex;flex-direction:column;position:relative;overflow:hidden}
+.scr{flex:1;display:flex;flex-direction:column;padding:12px;overflow:hidden;position:relative}
+/* ---------- 通用 ---------- */
+.btn{display:inline-block;border:none;cursor:pointer;font-family:inherit;background:linear-gradient(180deg,#ffb84d,#ff8a1e);color:#fff;font-size:22px;font-weight:800;padding:14px 30px;border-radius:50px;box-shadow:0 4px 0 #c96a08,0 8px 16px rgba(200,120,20,.35);letter-spacing:2px;text-align:center}
+.btn:active{transform:translateY(3px);box-shadow:0 1px 0 #c96a08}
+.btn.green{background:linear-gradient(180deg,#7ed957,#3faf3f);box-shadow:0 4px 0 #277d27,0 8px 16px rgba(60,160,60,.3)}
+.btn.blue{background:linear-gradient(180deg,#6ec6ff,#2f9de0);box-shadow:0 4px 0 #1f6da8,0 8px 16px rgba(40,140,210,.3)}
+.btn.small{font-size:16px;padding:8px 18px}
+.toprow{display:flex;align-items:center;gap:10px;padding:6px 4px 10px}
+.iconbtn{width:46px;height:46px;border-radius:14px;border:2px solid #e6a94e;background:#fff;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex:none}
+.iconbtn:active{transform:scale(.92)}
+.title{font-size:34px;font-weight:900;color:#8a4b0e;text-align:center;letter-spacing:2px}
+@keyframes pop{0%{transform:scale(.2);opacity:0}70%{transform:scale(1.15)}100%{transform:scale(1);opacity:1}}
+@keyframes rise{0%{transform:translateY(8px) scale(.5);opacity:0}30%{opacity:1}100%{transform:translateY(-60px) scale(1.4);opacity:0}}
+@keyframes floaty{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+@keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-7px)}40%,80%{transform:translateX(7px)}}
+@keyframes coinup{0%{transform:translateY(0);opacity:0}15%{opacity:1}100%{transform:translateY(-46px);opacity:0}}
+@keyframes spinIn{0%{transform:scale(0) rotate(-30deg)}80%{transform:scale(1.15)}100%{transform:scale(1) rotate(0)}}
+/* ---------- 菜单屏 ---------- */
+.menu-center{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px}
+.chef-big{font-size:86px;animation:floaty 2.4s ease-in-out infinite}
+.menu-sub{font-size:17px;color:#8a5a1f;text-align:center;line-height:1.9;background:#fff8e6;border:2px dashed #e6b25e;border-radius:18px;padding:12px 18px;max-width:480px}
+.stat-row{display:flex;gap:14px;justify-content:center}
+.stat-pill{background:#fff;border:2px solid #f0c987;border-radius:50px;padding:8px 16px;font-size:17px;color:#7a4a10;font-weight:700}
+/* ---------- 地图屏 ---------- */
+.lvl-grid{flex:1;display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;align-content:start;overflow:auto;padding:4px}
+.lvlcard{background:#fff;border-radius:20px;border:3px solid #f0c987;padding:14px 10px;text-align:center;cursor:pointer;position:relative}
+.lvlcard.locked{filter:grayscale(1);opacity:.55;cursor:not-allowed}
+.lvlcard:active{transform:scale(.96)}
+.lvlcard .no{font-size:13px;color:#c98f3c;font-weight:700}
+.lvlcard .lem{font-size:44px;line-height:1.2}
+.lvlcard .lnm{font-size:17px;color:#7a4a10;font-weight:800;margin-top:2px}
+.lvlcard .lstars{font-size:15px;letter-spacing:2px}
+.lvlcard .lk{position:absolute;top:8px;right:10px;font-size:18px}
+/* ---------- 游玩屏 ---------- */
+.phasebar{display:flex;align-items:center;justify-content:space-between;background:#fff;border:2px solid #f0c987;border-radius:16px;padding:6px 14px;font-size:15px;color:#7a4a10;font-weight:700}
+.guestrow{display:flex;align-items:center;gap:12px;padding:8px 2px 4px;min-height:120px}
+.gface{width:84px;height:84px;border-radius:50%;background:linear-gradient(180deg,#ffe9c4,#ffd9a0);border:3px solid #e6a94e;display:flex;align-items:center;justify-content:center;font-size:52px;flex:none;box-shadow:0 4px 10px rgba(200,140,60,.3)}
+.bubble{flex:1;background:#fff;border-radius:22px;border:3px solid #7ec8ff;padding:12px 14px;box-shadow:0 4px 12px rgba(80,150,220,.2);min-width:0}
+.bubble .bhead{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:16px;color:#2b6cb0;font-weight:800;margin-bottom:8px}
+.chips{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.chip{width:52px;height:52px;border-radius:14px;background:#fff3d6;border:2px solid #f0c987;display:flex;align-items:center;justify-content:center;font-size:30px;overflow:hidden}
+.chip svg{width:32px;height:32px}
+.chip .arrow{font-size:18px;color:#f0a020;border:none;background:none;flex:none}
+.bubble .bseq{display:flex;flex-direction:column;gap:6px}
+.remind{display:flex;align-items:center;justify-content:center;gap:8px;height:52px;color:#c9822a;font-weight:800;font-size:18px}
+.remind small{font-size:14px;font-weight:600;color:#d99a50}
+.orderbtn{border:none;cursor:pointer;background:linear-gradient(180deg,#fff,#ffe9c4);border:2px solid #f0a020;color:#a5640a;font-size:16px;font-weight:800;border-radius:40px;padding:9px 20px;display:inline-flex;gap:6px;align-items:center;justify-content:center}
+.orderbtn:active{transform:scale(.95)}
+.timerbar{height:12px;background:#f3d9a8;border-radius:20px;overflow:hidden;margin:2px 2px 10px;border:2px solid #e6c080}
+.tfill{height:100%;background:linear-gradient(90deg,#ffd34d,#ff7a1e);border-radius:20px;width:100%;transition:width .2s linear}
+.tfill.low{background:linear-gradient(90deg,#ff8a7a,#ff3d3d)}
+.bench{background:linear-gradient(180deg,#fff2da,#ffe1b0);border:4px solid #d8a45a;border-radius:24px;min-height:150px;position:relative;display:flex;align-items:center;justify-content:center;padding:14px;overflow:hidden;box-shadow:inset 0 -10px 0 rgba(190,120,40,.18)}
+.bench .stepnote{position:absolute;top:8px;left:0;right:0;text-align:center;font-size:14px;color:#a8762f;font-weight:700;letter-spacing:1px}
+.stack{display:flex;gap:4px;align-items:flex-end;flex-wrap:wrap;justify-content:center}
+.stack .sd{width:58px;height:58px;border-radius:16px;background:#fff;border:2px solid #7ec8ff;display:flex;align-items:center;justify-content:center;font-size:36px;overflow:hidden;animation:pop .25s ease-out;box-shadow:0 3px 8px rgba(120,170,220,.35)}
+.stack .sd svg{width:40px;height:40px}
+.bench .smoke{position:absolute;font-size:64px;animation:rise .9s ease-out forwards;opacity:0;pointer-events:none}
+.bench .donebig{font-size:96px;animation:spinIn .5s ease-out}
+.fxpop{position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;align-items:center;gap:4px;pointer-events:none;z-index:5}
+.fxpop .big{font-size:30px;font-weight:900;color:#3f8f2f;background:#fff;padding:6px 18px;border-radius:40px;border:3px solid #7ed35a;box-shadow:0 6px 16px rgba(60,160,60,.3);animation:pop .25s ease-out}
+.fxpop .big.red{color:#c9482f;border-color:#f08a5a}
+.fxpop .coins{font-size:22px;font-weight:900;color:#e8a012;background:#fff;border-radius:30px;border:2px solid #ffcf5e;padding:2px 12px}
+.bench .smoky{position:absolute;inset:0;background:rgba(120,110,100,.12);border-radius:20px;display:flex;align-items:center;justify-content:center;font-size:56px}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:12px 2px 4px}
+.ing{border:none;cursor:pointer;background:#fff;border-radius:18px;border:3px solid #f0c987;padding:8px 4px;display:flex;flex-direction:column;align-items:center;gap:2px;font-family:inherit;box-shadow:0 3px 0 #d9ab5e}
+.ing:active{transform:translateY(2px)}
+.ing .iic{font-size:34px;height:44px;display:flex;align-items:center;justify-content:center}
+.ing .iic svg{width:38px;height:38px}
+.ing .itx{font-size:15px;font-weight:800;color:#7a4a10}
+.hud{display:flex;align-items:center;justify-content:space-between;background:#fff;border:2px solid #f0c987;border-radius:16px;padding:8px 14px;font-size:17px;color:#7a4a10;font-weight:800;margin-top:auto}
+.hud .hitem{display:flex;align-items:center;gap:6px}
+/* ---------- 结算屏 ---------- */
+.clear-wrap{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center}
+.star-line{font-size:52px;letter-spacing:8px}
+.detail-card{background:#fff;border-radius:20px;border:2px solid #f0c987;padding:12px 24px;font-size:17px;color:#6b4a15;line-height:2;min-width:300px}
+.detail-card b{color:#e8970c}
+.btns-row{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
+/* ---------- 转场 ---------- */
+.fade-in{animation:pop .3s ease-out}
+@keyframes bounces{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+.final-emoji{font-size:120px;animation:bounces 1s ease-in-out infinite}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+(function(){
+'use strict';
+/* ================= 工具 ================= */
+var $=function(id){return document.getElementById(id);};
+function goHome(){try{ if(window.parent&&window.parent.goHome){ window.parent.goHome(); return; } }catch(e){} location.href='游戏大厅.html'; }
+function shuffle(a){for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=a[i];a[i]=a[j];a[j]=t;}return a;}
+function load(k,d){try{var v=localStorage.getItem(k);return v===null?d:JSON.parse(v);}catch(e){return d;}}
+function save(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
+/* ================= 图标（SVG 自绘，规避高危 emoji） ================= */
+var IC={
+  lid:'<svg viewBox="0 0 48 48"><circle cx="24" cy="26" r="19" fill="#ff9800"/><circle cx="24" cy="26" r="13" fill="#ffc26b"/><circle cx="24" cy="14" r="6" fill="#e65100"/><rect x="3" y="42" width="42" height="5" rx="2.5" fill="#e65100"/></svg>',
+  cone:'<svg viewBox="0 0 48 48"><path d="M15 6 L33 6 L29.5 38 Q24 45 18.5 38 Z" fill="#eab568"/><path d="M20 12 L28 12 M19 19 L29 19 M17.5 26 L30.5 26 M19 33 L29 33" stroke="#c98a3f" stroke-width="2"/></svg>',
+  scoop:'<svg viewBox="0 0 48 48"><circle cx="24" cy="18" r="13" fill="#ff9ec4"/><circle cx="24" cy="18" r="8" fill="#ffc2da"/><circle cx="24" cy="36" r="11" fill="#ff8ab0"/></svg>',
+  dough:'<svg viewBox="0 0 48 48"><ellipse cx="24" cy="26" rx="20" ry="14" fill="#f7cf7a"/><ellipse cx="24" cy="24" rx="15" ry="9" fill="#ffe3a3"/><circle cx="16" cy="24" r="1.6" fill="#d89a3a"/><circle cx="24" cy="21" r="1.6" fill="#d89a3a"/><circle cx="32" cy="24" r="1.6" fill="#d89a3a"/></svg>',
+  cake:'<svg viewBox="0 0 48 48"><rect x="8" y="26" width="32" height="16" rx="4" fill="#f6c36e"/><rect x="8" y="26" width="32" height="7" rx="3.5" fill="#ffd98a"/><rect x="12" y="12" width="24" height="16" rx="4" fill="#f6a44e"/><rect x="12" y="12" width="24" height="6" rx="3" fill="#ffbe70"/></svg>',
+  cream:'<svg viewBox="0 0 48 48"><path d="M24 46 Q14 40 18 30 Q21 23 27 26 Q33 29 30 38 Q29 44 24 46 Z" fill="#fff"/><path d="M24 26 Q20 20 25 17 Q30 20 26 25 Z" fill="#fff8e0"/><path d="M19 40 Q14 36 17 31 Q20 34 19 40 Z" fill="#fff"/><path d="M29 41 Q34 36 31 31 Q28 34 29 41 Z" fill="#fff"/></svg>',
+  plate:'<svg viewBox="0 0 48 48"><ellipse cx="24" cy="30" rx="21" ry="12" fill="#fff"/><ellipse cx="24" cy="28" rx="17" ry="9" fill="#f4f9ff"/><ellipse cx="24" cy="28" rx="6" ry="3" fill="#d8ecff"/></svg>'
+};
+/* ================= 菜品定义 ================= */
+var LEVELS=[
+  {n:1,name:'果汁站',emoji:'🍹',orders:5,
+   steps:[{t:'杯子',ic:'🥛'},{t:'果汁',ic:'🧃'},{t:'盖子',ic:IC.lid}],done:'🍹',
+   tip:'先放杯子，再倒果汁，最后盖上盖子～'},
+  {n:2,name:'三明治店',emoji:'🥪',orders:5,
+   steps:[{t:'面包',ic:'🍞'},{t:'生菜',ic:'🥬'},{t:'火腿',ic:'🥓'},{t:'面包',ic:'🍞'}],done:'🥪',
+   tip:'面包夹生菜和火腿，上下都要面包哦'},
+  {n:3,name:'汉堡王座',emoji:'🍔',orders:5,
+   steps:[{t:'面包',ic:'🍞'},{t:'肉饼',ic:'🥩'},{t:'芝士',ic:'🧀'},{t:'生菜',ic:'🥬'},{t:'面包',ic:'🍞'}],done:'🍔',
+   tip:'面包→肉饼→芝士→生菜→再盖一片面包'},
+  {n:4,name:'披萨屋',emoji:'🍕',orders:5,
+   steps:[{t:'面饼',ic:IC.dough},{t:'番茄酱',ic:'🍅'},{t:'芝士',ic:'🧀'},{t:'香肠',ic:'🌭'},{t:'烤炉',ic:'🔥'}],done:'🍕',
+   tip:'摊开面饼，抹上番茄酱，撒芝士和香肠，送进烤炉'},
+  {n:5,name:'冰淇淋车',emoji:'🍦',orders:4,
+   steps:[{t:'蛋筒',ic:IC.cone},{t:'冰淇淋球',ic:IC.scoop},{t:'巧克力酱',ic:'🍫'},{t:'樱桃',ic:'🍒'}],done:'🍦',
+   tip:'脆蛋筒打底，放上冰淇淋球，淋巧克力酱，顶颗樱桃'},
+  {n:6,name:'蛋糕坊',emoji:'🎂',orders:4,
+   steps:[{t:'蛋糕胚',ic:IC.cake},{t:'奶油',ic:IC.cream},{t:'草莓',ic:'🍓'},{t:'蜡烛',ic:'🕯️'},{t:'托盘',ic:IC.plate}],done:'🎂',
+   tip:'蛋糕胚上抹奶油，放草莓，插蜡烛，端上托盘'}
+];
+var DECOYS=[{t:'鸡蛋',ic:'🥚'},{t:'苹果',ic:'🍎'},{t:'香蕉',ic:'🍌'},{t:'胡萝卜',ic:'🥕'},{t:'玉米',ic:'🌽'},{t:'薯条',ic:'🍟'},{t:'糖果',ic:'🍬'},{t:'橙子',ic:'🍊'},{t:'番茄',ic:'🍅'},{t:'饼干',ic:'🍪'},{t:'洋葱',ic:'🧅'}];
+var GUESTS=['👧','🧒','👦','👩','🧔','👵','👨‍🦱','👩‍🦰'];
+var TOTAL=0,LV=0,OI=0,PH='menu';
+var MADE=[],STEPS=[],GRID=[],RECALL=0,TIMER=0,TMAX=0,STREAK=0,W=0,TO=0,REC0=0;
+var GUEST='🧒',BUBT=0,PHASET='order',FXID=0,SILENT=false,CLR=false;
+var UNLOCK=load('cookUnlock',0),STARS=load('cookStars',[]),COINS=load('cookCoins',0);
+/* ================= 音效 ================= */
+var AC=null;
+function ac(){ if(AC)return AC; try{ var C=window.AudioContext||window.webkitAudioContext; if(C)AC=new C(); }catch(e){} return AC; }
+function tone(f,to,dur,type,vol){ var a=ac(); if(!a||SILENT)return; try{ var o=a.createOscillator(),g=a.createGain(); o.type=type||'sine'; o.frequency.value=f; o.connect(g); g.connect(a.destination); var t=a.currentTime+to; g.gain.setValueAtTime(vol||0.12,t); g.gain.exponentialRampToValueAtTime(0.001,t+dur); o.start(t); o.stop(t+dur+0.03); }catch(e){} }
+function sTap(){ tone(320,0,.05,'triangle',.14); }
+function sOk(){ tone(660,0,.09,'sine',.16); tone(990,.08,.15,'sine',.14); }
+function sBad(){ tone(230,0,.16,'sine',.12); tone(180,.07,.2,'sine',.1); }
+function sCoin(){ tone(1318,0,.06,'square',.05); tone(1760,.06,.14,'square',.05); }
+function sDone(){ tone(660,0,.08,'sine',.14); tone(990,.08,.1,'sine',.14); tone(1320,.18,.18,'triangle',.16); }
+function sTick(){ tone(880,0,.05,'triangle',.06); }
+/* ================= 存档 ================= */
+function unlockNow(){ UNLOCK=Math.max(UNLOCK,LV+1); save('cookUnlock',UNLOCK); }
+function addCoin(n){ COINS+=n; save('cookCoins',COINS); }
+function saveStar(){ STARS[LV]=Math.max(STARS[LV]||0,CLR_STAR); save('cookStars',STARS); }
+var CLR_STAR=1;
+/* ================= 渲染入口 ================= */
+function render(){
+  if(PH==='menu')renderMenu(); else if(PH==='map')renderMap(); else if(PH==='play')drawPlay();
+  else if(PH==='clear')renderClear(); else if(PH==='final')renderFinal();
+}
+function ensureLoop(){ if(!RAF){ LAST=0; RAF=requestAnimationFrame(tick); } }
+/* ---------- 菜单 ---------- */
+function renderMenu(){
+  var done=STARS.length;
+  $('app').innerHTML='<div class="scr fade-in">'
+   +'<div class="toprow"><button class="iconbtn" id="btnHome" style="font-size:20px">🏠</button><div class="title" style="font-size:26px">小小厨神大作战</div><button class="iconbtn" id="btnMute">'+(SILENT?'🔇':'🔊')+'</button></div>'
+   +'<div class="menu-center">'
+   +'<div class="chef-big">👨‍🍳</div>'
+   +'<div class="title">小小厨神大作战</div>'
+   +'<div class="menu-sub">客人来到柜台点菜，你要<b>按正确顺序</b>放食材！<br>先看一遍订单 → 记住步骤 → 按顺序点击食材<br>放错顺序食物会冒烟重做，不扣生命，慢慢来～</div>'
+   +'<div class="stat-row"><div class="stat-pill">💰 '+COINS+'</div><div class="stat-pill">🌟 已通关 '+done+'/6</div></div>'
+   +'<button class="btn" id="btnStart">👩‍🍳 开始做菜</button>'
+   +'</div></div>';
+  bindHome();
+  $('btnMute').onclick=function(){ SILENT=!SILENT; this.textContent=SILENT?'🔇':'🔊'; };
+  $('btnStart').onclick=startGame;
+}
+function startGame(){ PH='map'; render(); }
+/* ---------- 地图 ---------- */
+function renderMap(){
+  var h='<div class="scr fade-in"><div class="toprow"><button class="iconbtn" id="btnHome" style="font-size:20px">🏠</button><div class="title" style="font-size:26px">选关卡</div><div class="stat-pill" style="font-size:16px;padding:6px 14px">💰 '+COINS+'</div></div><div class="lvl-grid">';
+  for(var i=0;i<LEVELS.length;i++){
+    var L=LEVELS[i]; var locked=i>UNLOCK;
+    var sts=''; if(STARS[i]){ var s=''; for(var k=0;k<3;k++)s+=(k<STARS[i])?'⭐':'<span style="opacity:.25">⭐</span>'; sts='<div class="lstars">'+s+'</div>'; }
+    h+='<div class="lvlcard'+(locked?' locked':'')+'" data-lv="'+i+'">'
+      +(locked?'<div class="lk">🔒</div>':'')
+      +'<div class="no">第 '+L.n+' 关</div><div class="lem">'+L.emoji+'</div><div class="lnm">'+L.name+'</div>'+sts
+      +'<div style="font-size:13px;color:#b98a4c;margin-top:3px">'+L.steps.length+' 步 · '+L.orders+' 单</div>'
+      +'</div>';
+  }
+  h+='</div><div style="text-align:center;padding:6px 0 14px">'
+    +'<button class="btn green small" id="btnAgain" style="display:'+(UNLOCK>=6?'inline-block':'none')+'">🔄 全部重玩</button>'
+    +'</div></div>';
+  $('app').innerHTML=h;
+  bindHome();
+  var cards=$('app').querySelectorAll('.lvlcard');
+  for(var j=0;j<cards.length;j++)(function(card,i){ card.onclick=function(){ if(i>UNLOCK){ return; } beginLevel(i); }; })(cards[j],j);
+  var ag=$('btnAgain'); if(ag)ag.onclick=function(){ if(!confirm('确定清空进度从头玩吗？'))return; UNLOCK=0;STARS=[];COINS=0;save('cookUnlock',0);save('cookStars',[]);save('cookCoins',0);renderMap(); };
+}
+/* ---------- 关卡开始 ---------- */
+function beginLevel(li){
+  LV=li; OI=0; TOTAL=0; MADE=[]; STREAK=0; W=0; TO=0; W_lap=0;
+  PH='play'; PHASET='order'; STEPS=LEVELS[LV].steps;
+  ensureLoop(); render(); nextOrder();
+}
+function recipeArr(){ var out=[],seen={}; for(var i=0;i<STEPS.length;i++){ if(!seen[STEPS[i].t]){ seen[STEPS[i].t]=1; out.push(STEPS[i]); } } return out; }
+function nextOrder(){
+  if(OI>=LEVELS[LV].orders){ levelClear(); return; }
+  MADE=[]; RECALL=0; REC0=0;
+  GUEST=GUESTS[Math.floor(Math.random()*GUESTS.length)];
+  PHASET='order';
+  TMAX=TIMER=STEPS.length*5+8;
+  // 食材池：本关用到的（去重）+ 干扰补齐 6 格，打乱
+  var pool=recipeArr(); var need=6-pool.length; var dec=shuffle(DECOYS.slice()).filter(function(d){ return pool.every(function(p){return p.t!==d.t;}); });
+  for(var i=0;i<need;i++)pool.push(dec[i]);
+  GRID=shuffle(pool);
+  BUBT=4.2;
+  if(window.__TEST__&&window.__T&&window.__T.onNewOrder)window.__T.onNewOrder();
+  drawPlay();
+}
+function curStepName(){ return STEPS[MADE.length].t; }
+function orderNo(){ return OI+1; }
+/* ================= 游玩渲染 ================= */
+var BUBPH=1; // 1 展示配方  0 折叠
+function drawPlay(){
+  var L=LEVELS[LV];
+  var h='<div class="scr fade-in">'
+   +'<div class="toprow"><button class="iconbtn" id="btnHome" style="font-size:20px">🏠</button>'
+   +'<div class="title" style="font-size:22px">第'+L.n+'关 · '+L.name+' '+L.emoji+'</div>'
+   +'<button class="iconbtn" id="btnMute">'+(SILENT?'🔇':'🔊')+'</button></div>'
+   +'<div class="guestrow">'
+   +'<div class="gface" id="gface">'+GUEST+'</div>'
+   +'<div class="bubble" id="bubble"></div>'
+   +'</div>'
+   +'<div class="timerbar"><div class="tfill" id="tfill"></div></div>'
+   +'<div class="bench" id="bench">'
+   +'<div class="stepnote" id="stepnote"></div>'
+   +'<div class="stack" id="stack"></div>'
+   +'<div id="fx"></div>'
+   +'</div>'
+   +'<div class="grid" id="grid"></div>'
+   +'<div class="hud">'
+   +'<div class="hitem">💰<span id="hCoin">'+COINS+'</span></div>'
+   +'<div class="hitem" id="hStreak"></div>'
+   +'<div class="hitem">📋 第 <span id="hOrd">'+(OI+1)+'</span>/'+L.orders+'</div>'
+   +'</div></div>';
+  $('app').innerHTML=h;
+  bindHome();
+  $('btnMute').onclick=function(){ SILENT=!SILENT; this.textContent=SILENT?'🔇':'🔊'; };
+  drawOrderUI();
+  drawGrid();
+  drawStack();
+  $('hStreak').textContent=STREAK>=3?('🧑‍🍳连击×'+STREAK):'';
+}
+function drawOrderUI(){
+  var b=$('bubble'); if(!b)return;
+  var L=LEVELS[LV];
+  if(BUBPH===1){
+    var chips='';
+    for(var i=0;i<STEPS.length;i++){
+      if(i>0)chips+='<span class="chip arrow">➡️</span>';
+      chips+='<span class="chip">'+STEPS[i].ic+'</span>';
+    }
+    var sec=Math.max(0,BUBT).toFixed(1);
+    b.innerHTML='<div class="bhead"><span>📋 '+L.name+'的订单</span><span style="font-size:13px;color:#f0a020">⏳ '+Math.ceil(sec)+'s 后收起</span></div>'
+      +'<div class="chips">'+chips+'</div>';
+  }else{
+    b.innerHTML='<div class="remind"><small>订单先收起来啦 · 已放 '+MADE.length+' / '+STEPS.length+' 步</small></div>'
+      +'<div style="text-align:center"><button class="orderbtn" id="btnView">🤔 忘啦，看订单</button></div>';
+    var v=$('btnView'); if(v)v.onclick=viewOrder;
+  }
+}
+function viewOrder(){ if(PHASET!=='order')return; RECALL++; BUBPH=1; BUBT=1.9; sTick(); drawOrderUI(); }
+function drawGrid(){
+  var g=$('grid'); if(!g)return; var h='';
+  for(var i=0;i<GRID.length;i++){
+    h+='<button class="ing" data-t="'+GRID[i].t+'"><span class="iic">'+GRID[i].ic+'</span><span class="itx">'+GRID[i].t+'</span></button>';
+  }
+  g.innerHTML=h;
+  var bs=g.querySelectorAll('.ing');
+  for(var j=0;j<bs.length;j++)(function(btn,it){ btn.onclick=function(){ onIng(it.t); }; })(bs[j],GRID[j]);
+}
+function drawStack(){
+  var L=LEVELS[LV];
+  var sn=$('stepnote'),st=$('stack'); if(!sn||!st)return;
+  var pct=Math.round(MADE.length/STEPS.length*100);
+  if(MADE.length>=STEPS.length){
+    sn.textContent='✅ 完成！';
+    st.innerHTML='<div class="donebig">'+L.done+'</div>';
+  }else{
+    sn.textContent='制作中… 第 '+(MADE.length+1)+' / '+STEPS.length+' 步（'+pct+'%）';
+    var h='';
+    for(var i=0;i<MADE.length;i++)h+='<span class="sd">'+MADE[i].ic+'</span>';
+    st.innerHTML=h;
+  }
+}
+/* ---------- 点击食材 ---------- */
+function onIng(t){
+  if(PHASET!=='order')return;
+  sTap();
+  var need=curStepName();
+  if(t===need){ putOk(); }
+  else{ putBad(t); }
+}
+function putOk(){
+  var L=LEVELS[LV];
+  MADE.push(L.steps[MADE.length]);
+  sOk();
+  drawStack();
+  if(MADE.length>=STEPS.length){ orderWin(); }
+}
+function orderWin(){
+  var L=LEVELS[LV];
+  sDone();
+  var wrongThis=W_lap; W_lap=0;
+  var tb=Math.min(6,Math.floor(TIMER/3));
+  var tip=RECALL===0?6:(RECALL===1?3:0);
+  var sb=(STREAK>=2)?6:0; // 连续第3单起有加成（完成前 streak>=2 意味着此单是第3单+）
+  STREAK++;
+  var gain=Math.max(0,10+tb+tip+sb-wrongThis*3);
+  addCoin(gain); TOTAL+=gain;
+  $('hCoin').textContent=COINS;
+  $('hStreak').textContent=STREAK>=3?('🧑‍🍳连击×'+STREAK):'';
+  // 台面成品 + 金币飘字
+  var rows=[];
+  rows.push('🍽️ +10 基本');
+  if(tb>0)rows.push('⏱️ 准时 +'+tb);
+  if(tip>0)rows.push((RECALL===0?'🧠 记忆满分':'🙂 小费')+' +'+tip);
+  if(sb>0)rows.push('🧑‍🍳 连击 +'+sb);
+  if(wrongThis>0)rows.push('😅 放错 '+wrongThis+' 次 -'+wrongThis*3);
+  var fx=$('fx');
+  fx.innerHTML='<div class="fxpop"><div class="big">🎉 '+GUEST+' 满意！</div><div class="coins">💰 +'+gain+'</div>'
+    +rows.map(function(r){return '<div style="font-size:14px;color:#8a6a2a;background:rgba(255,255,255,.85);border-radius:12px;padding:1px 10px">'+r+'</div>';}).join('')
+    +'</div>';
+  $('gface').style.animation='none';
+  PHASET='win';
+  FXID=setTimeout(function(){ PHASET='order'; OI++; nextOrder(); },1500);
+}
+var W_lap=0;
+function putBad(t){
+  W_lap++; W++;
+  sBad();
+  STREAK=0; $('hStreak').textContent='';
+  MADE=[];
+  drawStack();
+  var bench=$('bench');
+  bench.style.animation='none'; void bench.offsetWidth; bench.style.animation='shake .4s ease';
+  var fx=$('fx');
+  fx.innerHTML='<div class="fxpop"><div class="big red">💨 顺序错啦～</div><div style="font-size:15px;color:#8a5a20;background:#fff;border-radius:12px;padding:3px 12px">从第一步重新做，不扣生命哦</div></div>'
+    +'<div class="smoke" style="left:30%;top:30%">💨</div><div class="smoke" style="left:60%;top:20%;animation-delay:.15s">💨</div>';
+  PHASET='bad';
+  setTimeout(function(){ if(PHASET==='bad'){ PHASET='order'; fx.innerHTML=''; bench.style.animation=''; } },1000);
+}
+/* ---------- 帧循环（计时 + 气泡） ---------- */
+var RAF=null,LAST=0;
+function tick(ts){
+  var dt=Math.min(0.1,(ts-(LAST||ts))/1000); LAST=ts;
+  if(PH==='play'){
+    if(PHASET==='order'){
+      if(BUBPH===1){ BUBT-=dt; if(BUBT<=0){ BUBPH=0; drawOrderUI(); } }
+      TIMER-=dt;
+      var tf=$('tfill');
+      if(tf){
+        var pct=TIMER/TMAX*100; tf.style.width=Math.max(0,pct)+'%';
+        tf.className='tfill'+(pct<25?' low':'');
+      }
+      if(TIMER<=0){ timeoutOrder(); }
+    }
+  }
+  if(PH==='play'||PH==='menu'||PH==='map')RAF=requestAnimationFrame(tick);
+}
+function stopLoop(){ if(RAF){cancelAnimationFrame(RAF);RAF=null;} }
+function timeoutOrder(){
+  if(PHASET!=='order')return;
+  PHASET='to'; TO++; STREAK=0;
+  sBad();
+  var fx=$('fx');
+  fx.innerHTML='<div class="fxpop"><div class="big red">😢 '+GUEST+' 等太久走了…</div><div style="font-size:14px;color:#8a5a20;background:#fff;border-radius:12px;padding:2px 12px">下一单加油！</div></div>';
+  if($('hStreak'))$('hStreak').textContent='';
+  FXID=setTimeout(function(){ PHASET='order'; OI++; nextOrder(); },1400);
+}
+/* ---------- 关末结算 ---------- */
+function levelClear(){
+  PH='clear';
+  var err=W+TO;
+  CLR_STAR=(err===0)?3:(err<=2?2:1);
+  saveStar(); unlockNow();
+  stopLoop();
+  renderClear();
+}
+function renderClear(){
+  var L=LEVELS[LV];
+  var s=''; for(var k=0;k<3;k++)s+=(k<CLR_STAR)?'⭐':'<span style="opacity:.25">⭐</span>';
+  var coinsNow=TOTAL;
+  var h='<div class="scr fade-in"><div class="toprow"><button class="iconbtn" id="btnHome" style="font-size:20px">🏠</button><div class="title" style="font-size:24px">'+L.emoji+' '+L.name+'</div><div style="flex:1"></div></div>'
+   +'<div class="clear-wrap">'
+   +'<div class="final-emoji" style="font-size:80px;animation-duration:1.6s">'+(CLR_STAR===3?'🏆':'🎉')+'</div>'
+   +'<div class="title" style="font-size:30px">通关啦！</div>'
+   +'<div class="star-line">'+s+'</div>'
+   +'<div class="detail-card">'
+   +'<div>📋 完成订单：'+L.orders+' 单</div>'
+   +'<div>😅 放错重做：'+W+' 次</div>'
+   +'<div>😢 客人等走：'+TO+' 单</div>'
+   +'<div>💰 本关赚得：<b>'+coinsNow+'</b> 金币</div>'
+   +'</div>'
+   +'<div class="btns-row">'
+   +'<button class="btn green" id="btnNext">'+(LV+1<LEVELS.length?'下一关 ➡️':'🏆 终极祝贺')+'</button>'
+   +'<button class="btn small blue" id="btnRetry">🔄 再玩一次</button>'
+   +'<button class="btn small" id="btnMap">🗺️ 关卡地图</button>'
+   +'</div></div></div>';
+  $('app').innerHTML=h;
+  bindHome();
+  $('btnNext').onclick=function(){ if(LV+1<LEVELS.length){ beginLevel(LV+1); } else { PH='final'; render(); } };
+  $('btnRetry').onclick=function(){ beginLevel(LV); };
+  $('btnMap').onclick=function(){ PH='map'; render(); };
+}
+/* ---------- 最终屏 ---------- */
+function renderFinal(){
+  var totalStar=0; for(var i=0;i<STARS.length;i++)totalStar+=STARS[i];
+  $('app').innerHTML='<div class="scr fade-in"><div class="toprow"><button class="iconbtn" id="btnHome" style="font-size:20px">🏠</button><div class="title" style="font-size:24px">小小厨神大作战</div><div style="flex:1"></div></div>'
+   +'<div class="clear-wrap">'
+   +'<div class="final-emoji">👨‍🍳</div>'
+   +'<div class="title" style="font-size:32px">恭喜！你已是小小厨神！</div>'
+   +'<div style="font-size:18px;color:#8a5a1f">6 道菜全部完成，客人都为你点赞～</div>'
+   +'<div class="detail-card">'
+   +'<div>⭐ 累计星星：'+totalStar+' / 18</div>'
+   +'<div>💰 全部金币：'+COINS+'</div>'
+   +'<div style="font-size:15px;color:#b08a4a">每关最多 3 星：一次都不放错、客人不跑才有哦</div>'
+   +'</div>'
+   +'<div class="btns-row"><button class="btn green" id="btnRe">🔄 重玩全部</button><button class="btn small blue" id="btnMap2">🗺️ 关卡地图</button></div>'
+   +'</div></div>';
+  bindHome();
+  $('btnRe').onclick=function(){ UNLOCK=0;STARS=[];COINS=0;save('cookUnlock',0);save('cookStars',[]);save('cookCoins',0); PH='map'; render(); };
+  $('btnMap2').onclick=function(){ PH='map'; render(); };
+}
+function bindHome(){ var b=$('btnHome'); if(b)b.onclick=goHome; }
+/* ================= 启动 ================= */
+function boot(){
+  render();
+  RAF=requestAnimationFrame(tick);
+}
+if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',boot); }else{ boot(); }
+/* ================= 测试钩子 ================= */
+if(window.__TEST__){
+  window.__T={
+    getState:function(){ return {screen:PH,level:LV,orders:LEVELS[LV]?LEVELS[LV].orders:0,orderIdx:OI,made:MADE.map(function(m){return m.t;}),recipe:STEPS.map(function(m){return m.t;}),grid:GRID.map(function(m){return m.t;}),coins:COINS,total:TOTAL,streak:STREAK,wrong:W,timeouts:TO,recall:RECALL,timer:Math.max(0,TIMER),bubble:BUBPH,phase:PHASET,unlock:UNLOCK,stars:STARS,guest:GUEST}; },
+    startGame:function(){ startGame(); },
+    pickLevel:function(i){ if(i<=UNLOCK)beginLevel(i); },
+    nextLevel:function(){ if(LV+1<LEVELS.length){ beginLevel(LV+1); } },
+    retry:function(){ beginLevel(LV); },
+    pick:function(t){ onIng(t); },
+    view:function(){ viewOrder(); },
+    toMap:function(){ PH='map'; render(); },
+    coinTick:function(n){ addCoin(n); }
+  };
+}
+})();
+</script>
+</body>
+</html>
