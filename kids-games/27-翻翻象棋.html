@@ -133,7 +133,7 @@
     <div class="lvi"><div class="duo"><span class="mc r">仕</span><span class="mc b">士</span></div><b>2</b></div>
     <div class="lvi"><div class="duo"><span class="mc r">兵</span><span class="mc b">卒</span></div><b>1</b></div>
   </div>
-  <div id="lvn">数字大的吃小的 · <b>兵/卒</b>能吃掉<b>帅/将</b> · 同级相遇一起没</div>
+  <div id="lvn">数字大的吃小的 · <b>兵/卒</b>能吃掉<b>帅/将</b> · <b>帅/将</b>不吃<b>兵/卒</b> · 同级相遇一起没</div>
 </div>
 <div id="wrap"><canvas id="cv"></canvas></div>
 
@@ -152,7 +152,7 @@
 /* =====================================================================
    27 翻翻象棋 · 儿童对战版（横向棋盘）
    8列×4行=32格；32颗象棋背面朝上；翻棋归属=棋子颜色方；
-   等级：帅将7>车6>马5>炮4>相象3>仕士2>兵卒1；大吃小、兵吃帅(反转)、同级同归；
+   等级：帅将7>车6>马5>炮4>相象3>仕士2>兵卒1；大吃小、兵吃帅(反转)、帅将不吃兵卒、同级同归；
    先吃掉对方 帅/将 即胜；走棋限上下左右相邻1格。
    ===================================================================== */
 /* ---------------- 常量 ---------------- */
@@ -172,6 +172,7 @@ var mode='menu';          // ai|2p|tuto
 var diff=1;               // 0简单 1普通 2困难
 var tuto=0;               // 新手引导步骤计数
 var turn=0,sel=-1;
+var pside=RED;            // 玩家执子颜色（ai/tuto 单人模式用；红方永远先手）
 var win=-1;               // -1 无/平局
 var autoBoth=false;       // 测试钩子：双 AI
 var mvCount=0,flipCount=0;
@@ -475,15 +476,56 @@ function loop(ts){
 }
 
 /* ================= 棋局数据 ================= */
+function shuffleArr(a){for(var i=a.length-1;i>0;i--){var j=(Math.random()*(i+1))|0;var t=a[i];a[i]=a[j];a[j]=t}return a}
 function buildDeck(){
-  var deck=[];
-  RED_SET.forEach(function(s){for(var i=0;i<s[1];i++)deck.push({t:s[0],side:RED})});
-  BLK_SET.forEach(function(s){for(var i=0;i<s[1];i++)deck.push({t:s[0],side:BLK})});
-  /* Fisher-Yates 洗牌 */
-  for(var i=deck.length-1;i>0;i--){var j=(Math.random()*(i+1))|0;var tmp=deck[i];deck[i]=deck[j];deck[j]=tmp}
-  cells=[];
+  var redQ=[],blkQ=[];
+  RED_SET.forEach(function(s){for(var i=0;i<s[1];i++)redQ.push({t:s[0],side:RED})});
+  BLK_SET.forEach(function(s){for(var i=0;i<s[1];i++)blkQ.push({t:s[0],side:BLK})});
+  shuffleArr(redQ);shuffleArr(blkQ);
+  /* 颜色铺位（避免翻开后同色成片，观感更随机分散）：
+     ① 按 2x2 区块铺色，每块恰 2红2黑；
+     ② 拒绝采样直至同时满足：
+        - 无任何 2x2 滑动窗口全同色
+        - 每行同色连续 ≤3（8 格一行最多 3 连）
+        - 每列同色连续 ≤2（4 格一列最多 2 连） */
+  var sideP=[],attempt=0,ok=false;
+  while(!ok&&attempt<120){
+    attempt++;sideP=[];
+    for(var bR=0;bR<ROWS/2;bR++){
+      for(var bC=0;bC<COLS/2;bC++){
+        var perm=shuffleArr([0,1,2,3]);
+        for(var q=0;q<4;q++){
+          var r=bR*2+((q/2)|0),c=bC*2+(q%2);
+          sideP[r*COLS+c]=perm[q]<2?RED:BLK;
+        }
+      }
+    }
+    ok=true;
+    outer:
+    for(var r0=0;r0<ROWS-1;r0++)for(var c0=0;c0<COLS-1;c0++){
+      var s0=sideP[r0*COLS+c0];
+      if(sideP[r0*COLS+c0+1]===s0&&sideP[(r0+1)*COLS+c0]===s0&&sideP[(r0+1)*COLS+c0+1]===s0){ok=false;break outer}
+    }
+    if(!ok)continue;
+    for(var r1=0;r1<ROWS&&ok;r1++){
+      var run=1;
+      for(var c1=1;c1<COLS;c1++){
+        if(sideP[r1*COLS+c1]===sideP[r1*COLS+c1-1]){run++;if(run>3){ok=false;break}}
+        else run=1;
+      }
+    }
+    if(!ok)continue;
+    for(var c2=0;c2<COLS&&ok;c2++){
+      var run2=1;
+      for(var r2=1;r2<ROWS;r2++){
+        if(sideP[r2*COLS+c2]===sideP[(r2-1)*COLS+c2]){run2++;if(run2>2){ok=false;break}}
+        else run2=1;
+      }
+    }
+  }
+  cells=[];var ri=0,bi=0;
   for(var k=0;k<N;k++){
-    var pc=deck[k];
+    var pc=sideP[k]===RED?redQ[ri++]:blkQ[bi++];
     cells.push({t:pc.t,side:pc.side,face:false,alive:true,king:(pc.t==='帅'||pc.t==='将')});
   }
 }
@@ -492,11 +534,13 @@ function countFace(side){var n=0;for(var i=0;i<N;i++)if(cells[i].alive&&cells[i]
 function anyFaceDown(){for(var i=0;i<N;i++)if(cells[i].alive&&!cells[i].face)return true;return false}
 function kingIdx(side){for(var i=0;i<N;i++)if(cells[i].alive&&cells[i].king&&cells[i].side===side)return i;return -1}
 
-/* 吃子判定：A(主动) 能否吃 B(被动) */
+/* 吃子判定：A(主动) 能否吃 B(被动)
+   翻棋铁律：帅/将 不能主动吃 兵/卒（小兵能擒王，大王不屑/不能吃小兵）；
+             兵/卒 可以吃 帅/将（唯一反转）；其余按等级 大的吃小的 */
 function canEat(tA,tB){
   var lA=TYPE_LV[tA],lB=TYPE_LV[tB];
+  if((tA==='帅'||tA==='将')&&(tB==='兵'||tB==='卒'))return false;
   if(lA>lB)return true;
-  /* 兵/卒 吃 帅/将（唯一反转） */
   if((tA==='兵'||tA==='卒')&&(tB==='帅'||tB==='将'))return true;
   return false;
 }
@@ -551,7 +595,10 @@ function doFlip(i){
   flips.push({i:i,t:0});
   SND.flip();
   burst(cellXY(i).x+S/2,cellXY(i).y+S/2,'rgba(255,240,180,.9)',6,2);
-  var ownTxt=pc.side===turn?'你的':'对方的';
+  var ownTxt;
+  if(mode==='2p')ownTxt=pc.side===turn?'你的':'对方的';
+  else if(pc.side===pside)ownTxt='你的';
+  else ownTxt='电脑的';
   tip('翻开「'+PIECE_NM[pc.t]+'」！'+ownTxt+'棋子','翻开的棋子归'+SIDE_NM[pc.side]+'使用');
   return true;
 }
@@ -575,7 +622,7 @@ function doMove(from,to){
   }else if(lA===lB){
     eatPiece(pc,op,from,to,true);return true;
   }
-  tip('吃不动「'+PIECE_NM[pc.t]+'」不能吃「'+PIECE_NM[op.t]+'」','大头吃小头，兵兵才能吃大帅');
+  tip('吃不动「'+PIECE_NM[pc.t]+'」不能吃「'+PIECE_NM[op.t]+'」','大头吃小头，小兵能擒大帅，帅将不吃小兵');
   SND.deny();
   return false;
 }
@@ -647,7 +694,8 @@ function afterTurn(){
 function humanTurn(){return (turn===0&&!autoBoth)||(turn===1&&!autoBoth&&mode==='2p')||(mode==='tuto'&&turn===1)||(mode==='tuto') }
 function needAI(){
   if(st!=='play'||autoBoth)return false;
-  if(mode==='ai'||mode==='tuto')return turn===1;
+  /* 单人模式：轮到的不是玩家执子色 = AI 走 */
+  if(mode==='ai'||mode==='tuto')return turn!==pside;
   return false;
 }
 function scheduleAI(){
@@ -727,8 +775,7 @@ function aiPick(side,diffLv){
   var bestEat=null,bestEatScore=-1e9;
   for(var e=0;e<moves.length;e++){
     var mo=moves[e],opT=cells[mo.to].t;
-    var lA=TYPE_LV[cells[mo.from].t],lB=TYPE_LV[opT];
-    var eatable=(lA>lB)||((cells[mo.from].t==='兵'||cells[mo.from].t==='卒')&&(opT==='帅'||opT==='将'));
+    var eatable=canEat(cells[mo.from].t,opT);
     if(!eatable)continue;
     if(diffLv===0&&Math.random()<.25)continue;   /* 简单：常犯傻 */
     var sc=TYPE_VAL[opT]*10-TYPE_VAL[cells[mo.from].t];
@@ -801,13 +848,13 @@ function tutoStep(){
   var step=turn===0?(flipCount+mvCount):-1;
   if(step===0)bubble('👶 <b>第1步：翻棋</b><br>点一颗<b>背面朝上</b>的棋子翻开，看看里面是什么棋！',5000);
   else if(step===1)bubble('👶 <b>第2步：认识棋子</b><br>红色棋子是你的，黑色棋子归电脑。<br>点击你翻开的棋子，再点相邻格子走棋。',5500);
-  else if(step===2)bubble('👶 <b>第3步：吃子口诀</b><br><b>大头吃小头</b>（车吃马、马吃兵…）<br><b>小兵吃大帅</b>！一样的对撞就一起消失。',6000);
+  else if(step===2)bubble('👶 <b>第3步：吃子口诀</b><br><b>大头吃小头</b>（车吃马、马吃兵…）<br><b>小兵吃大帅</b>！但<b>帅将不能吃小兵</b>，同级对撞一起消失。',6000);
 }
 
 /* ================= 点击交互 ================= */
 function tapAt(i){
   if(st!=='play')return;
-  if(needAI()&&turn===1)return;              /* AI 回合忽略点击 */
+  if(needAI())return;              /* AI 回合忽略点击 */
   if(i<0||i>=N)return;
   var pc=cells[i];
   var isAdj=function(j){var a=false;neighbors(sel).forEach(function(n){if(n===j)a=true});return a};
@@ -841,7 +888,7 @@ function tapAt(i){
         var f1=sel;sel=-1;
         if(doMove(f1,i))afterTurn();
       }else{
-        tip('吃不动！「'+PIECE_NM[spc.t]+'」打不过「'+PIECE_NM[pc.t]+'」','大头吃小头，小兵可以吃大帅');
+        tip('吃不动！「'+PIECE_NM[spc.t]+'」打不过「'+PIECE_NM[pc.t]+'」','大头吃小头，小兵吃大帅，帅将不吃兵');
         SND.deny();
       }
       return;
@@ -860,9 +907,11 @@ function tapHandler(ev){
 }
 
 /* ================= 游戏流程控制 ================= */
-function startGame(m,d){
+function startGame(m,d,ps){
   audio();
-  mode=m;diff=d||1;tuto=0;win=-1;mvCount=0;flipCount=0;sel=-1;frame=0;
+  mode=m;diff=d||1;
+  pside=(mode==='2p')?RED:((typeof ps==='number')?ps:RED);
+  tuto=0;win=-1;mvCount=0;flipCount=0;sel=-1;frame=0;
   buildDeck();
   st='play';
   flips.length=0;fx.length=0;floats.length=0;confetti.length=0;
@@ -873,7 +922,7 @@ function startGame(m,d){
   $('menuBtn').style.display='inline-block';
   $('newBtn').style.display='inline-block';
   var t1='游戏开始！先翻一颗背面棋子';
-  var t2='点背面棋子翻开，翻到红棋归你、黑棋归电脑';
+  var t2='点背面棋子翻开，翻到'+SIDE_NM[pside]+'棋归你、'+SIDE_NM[1-pside]+'棋归电脑';
   if(mode==='2p'){t1='双人对战开始！红方先手翻棋';t2='翻到红棋归红方，黑棋归黑方，轮流翻棋或走棋'}
   tip(t1,t2);
   bgmStart();
@@ -890,16 +939,15 @@ function gameOver(w){
     endPanel(-1);
     return;
   }
-  var isRed=w===RED;
   if(w===turn){} /* 吃帅者是走棋方=turn */
   updateHUD();
-  /* 玩家是否胜利：单人/tuto 玩家=红 */
-  var playerWon=(mode!=='2p')?isRed:(w>=0);
+  /* 玩家是否胜利：单人/tuto 按玩家所选颜色判定 */
+  var playerWon=(mode!=='2p')?(w===pside):(w>=0);
   if(w===-2){SND.tie()}
   else if(playerWon){SND.win();addConfetti()}
   else SND.lose();
   shakeT=22;flashT=.6;
-  tip((mode==='2p'?SIDE_NM[w]+'获胜！':'你'+((mode!=='2p')&&w===RED?'赢':'输')+'了！'),'吃掉对方的帅/将即获胜，再来一局吧');
+  tip((mode==='2p'?SIDE_NM[w]+'获胜！':'你'+(w===pside?'赢':'输')+'了！'),'吃掉对方的帅/将即获胜，再来一局吧');
   setTimeout(function(){endPanel(w)},900);
 }
 function endPanel(w){
@@ -907,14 +955,14 @@ function endPanel(w){
   var txt='';
   if(w===-1)txt='平局！';
   else if(mode==='2p')txt=SIDE_NM[w]+'获胜！';
-  else txt=(w===RED)?'🎉 你赢了！':'😢 电脑赢了';
+  else txt=(w===pside)?'🎉 你赢了！':'😢 电脑赢了';
   var html='<div id="winCup">'+cup+'</div>'+
     '<div id="winTxt">'+txt+'</div>'+
     '<div id="winSub">先吃掉对方帅/将的一方获胜</div>'+
     '<button class="btn gold" id="bReplay">🔄 再来一局</button>'+
     '<button class="btn gray" id="bMenu">☰ 返回菜单</button>';
   ovlShow(html);
-  $('bReplay').onclick=function(){startGame(mode,diff)};
+  $('bReplay').onclick=function(){startGame(mode,diff,pside)};
   $('bMenu').onclick=function(){menuPanel()};
 }
 
@@ -951,44 +999,58 @@ function ruleBox(){
   '<span style="background:#a1887f;color:#fff;border-radius:6px;padding:1px 6px">相象3</span>'+
   '<span style="background:#bcaaa4;color:#3a3a3a;border-radius:6px;padding:1px 6px">仕士2</span>'+
   '<span style="background:#ef9a9a;color:#5a0000;border-radius:6px;padding:1px 6px">兵卒1</span></div>'+
-  '<div class="lv">💡 大头吃小头 · 小兵吃大帅 · 一样大的对撞一起消失（同归于尽）</div></div>';
+  '<div class="lv">💡 大头吃小头 · 小兵吃大帅 · <b>帅/将不吃兵/卒</b> · 一样大的对撞一起消失（同归于尽）</div></div>';
 }
 function menuPanel(){
   st='menu';mode='menu';bgmStop();win=-1;
   ovlShow(
     '<h1>🐘 翻翻象棋</h1><div class="sub">儿童对战版 · 8×4 翻棋记忆棋</div>'+
     ruleBox()+
-    '<button class="btn green" id="bAi"><span class="em">🤖 和电脑对战 · 选难度</span>单人挑战</button>'+
+    '<button class="btn green" id="bAi"><span class="em">🤖 和电脑对战 · 先选红/黑 再选难度</span>单人挑战</button>'+
     '<button class="btn red" id="b2p"><span class="em">👨‍👩‍👧‍👦 两人同屏轮流翻棋走棋</span>双人对战</button>'+
     '<button class="btn gold" id="bTuto"><span class="em">👶 前 3 回合有引导提示</span>新手教学</button>'+
     '<div class="row2"><button class="btn blue miniBtn" id="bRule">📜 规则</button>'+
     '<button class="btn gray miniBtn" id="bHome">← 大厅</button></div>'
   );
-  $('bAi').onclick=function(){diffPanel()};
-  $('b2p').onclick=function(){audio();SND.start();startGame('2p',0)};
-  $('bTuto').onclick=function(){audio();SND.start();startGame('tuto',0)};
+  $('bAi').onclick=function(){audio();SND.start();colorPanel()};
+  $('b2p').onclick=function(){audio();SND.start();startGame('2p',0,RED)};
+  $('bTuto').onclick=function(){audio();SND.start();startGame('tuto',0,RED)};
   $('bRule').onclick=function(){showRule()};
   $('bHome').onclick=function(){goHome()};
   tip('欢迎来到翻翻象棋！','选一种玩法开始，目标是吃掉对方的帅/将');
 }
-function diffPanel(){
+function colorPanel(){
   ovlShow(
-    '<h1>🤖 对战电脑</h1><div class="sub">你执红棋 · 电脑执黑棋 · 红方先手</div>'+
+    '<h1>🎨 选你的颜色</h1><div class="sub">红方永远先手</div>'+
+    '<div class="row2">'+
+    '<button class="btn red" id="cRed"><span class="em">🔴 你执红棋 · 你先走</span>我执红棋</button>'+
+    '<button class="btn gray" id="cBlk"><span class="em">⚫ 你执黑棋 · 电脑(红)先走</span>我执黑棋</button>'+
+    '</div>'+
+    '<button class="btn gray miniBtn" id="cBack">← 返回</button>'
+  );
+  $('cRed').onclick=function(){pside=RED;SND.start();diffPanel()};
+  $('cBlk').onclick=function(){pside=BLK;SND.start();diffPanel()};
+  $('cBack').onclick=function(){menuPanel()};
+}
+function diffPanel(){
+  var meN=pside===RED?'红棋':'黑棋',aiN=pside===RED?'黑棋':'红棋';
+  ovlShow(
+    '<h1>🤖 对战电脑</h1><div class="sub">你执'+meN+' · 电脑执'+aiN+' · '+(pside===RED?'你先手':'电脑先手')+'</div>'+
     '<div class="pibtn" id="d0"><span class="em">😊 电脑会随机翻棋，偶尔犯小错 · 适合 5-6 岁</span>🌟 简单</div>'+
     '<div class="pibtn" id="d1"><span class="em">😎 电脑知道吃能吃的、会保护帅 · 适合 6-7 岁</span>🔥 普通</div>'+
     '<div class="pibtn" id="d2"><span class="em">🤓 电脑会记棋、用最小的代价吃子 · 适合 7-8 岁</span>💎 困难</div>'+
     '<button class="btn gray miniBtn" id="dBack">← 返回</button>'
   );
   [0,1,2].forEach(function(dv){
-    $('d'+dv).onclick=function(){audio();SND.start();startGame('ai',dv)};
+    $('d'+dv).onclick=function(){audio();SND.start();startGame('ai',dv,pside)};
   });
-  $('dBack').onclick=function(){menuPanel()};
+  $('dBack').onclick=function(){colorPanel()};
 }
 function showRule(){
   ovlShow('<h1>📜 游戏规则</h1><div class="sub">翻翻象棋 · 儿童对战版</div>'+
     ruleBox()+
     '<div class="rule">🎯 <b>回合</b>：轮到谁就二选一——<br>① 翻一颗背面棋子（翻开就归该颜色一方）；<br>② 选自己已翻开的棋，走上下左右相邻 1 格。<br><br>'+
-    '⚔️ <b>吃子</b>：走到对方棋子上，按等级大的吃小的；<br>兵/卒可以吃帅/将（唯一反转！）；<br>同等级相遇 → 两颗一起消失。<br><br>'+
+    '⚔️ <b>吃子</b>：走到对方棋子上，按等级大的吃小的；<br>兵/卒可以吃帅/将（唯一反转！）；<br><b>帅/将不可以主动吃兵/卒</b>；<br>同等级相遇 → 两颗一起消失。<br><br>'+
     '👑 <b>胜利</b>：先吃掉对方的帅/将就立刻赢！</div>'+
     '<button class="btn green" id="bRuleOk">👍 明白了</button>');
   $('bRuleOk').onclick=function(){menuPanel()};
@@ -1002,7 +1064,7 @@ function init(){
   cv.addEventListener('pointerdown',tapHandler);
   cv.addEventListener('touchstart',function(e){if(e.touches.length>1)e.preventDefault()},{passive:false});
   $('homeBtn').onclick=function(){goHome()};
-  $('newBtn').onclick=function(){startGame(mode,diff)};
+  $('newBtn').onclick=function(){startGame(mode,diff,pside)};
   $('menuBtn').onclick=function(){menuPanel()};
   $('sndBtn').onclick=function(){
     audio();
@@ -1035,6 +1097,7 @@ window.__T={
   var kind=m[1];
   setTimeout(function(){
     if(kind==='diff'){diffPanel()}
+    else if(kind==='color'){colorPanel()}
     else if(kind==='play'){
       startGame('ai',1);
       for(var k=0;k<18;k++)doFlip(k);
