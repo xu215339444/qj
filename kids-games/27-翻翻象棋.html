@@ -150,13 +150,13 @@
 (function(){
 'use strict';
 /* =====================================================================
-   27 翻翻象棋 · 儿童对战版
-   4列×8行=32格；32颗象棋背面朝上；翻棋归属=棋子颜色方；
+   27 翻翻象棋 · 儿童对战版（横向棋盘）
+   8列×4行=32格；32颗象棋背面朝上；翻棋归属=棋子颜色方；
    等级：帅将7>车6>马5>炮4>相象3>仕士2>兵卒1；大吃小、兵吃帅(反转)、同级同归；
    先吃掉对方 帅/将 即胜；走棋限上下左右相邻1格。
    ===================================================================== */
 /* ---------------- 常量 ---------------- */
-var RED=0,BLK=1,COLS=4,ROWS=8,N=32;
+var RED=0,BLK=1,COLS=8,ROWS=4,N=32;
 var TYPE_LV={帅:7,将:7,车:6,马:5,炮:4,相:3,象:3,仕:2,士:2,兵:1,卒:1};
 var TYPE_VAL={帅:1000,将:1000,车:90,马:45,炮:42,相:24,象:24,仕:16,士:16,兵:10,卒:10};
 var RED_SET=[['帅',1],['仕',2],['相',2],['车',2],['马',2],['炮',2],['兵',5]];
@@ -750,8 +750,9 @@ function aiPick(side,diffLv){
     if(diffLv===0)return {kind:'flip',i:flips[(Math.random()*flips.length)|0]};
     var myRows=[];
     flipPickPool.forEach(function(fi){
-      var r=(fi/COLS)|0;
-      var home=(side===RED)?(r>=6):(r<=1);
+      /* 横向棋盘：红方区域在右 2 列，黑方区域在左 2 列 */
+      var c=fi%COLS;
+      var home=(side===RED)?(c>=6):(c<=1);
       if(home)myRows.push(fi);
     });
     var pool2=myRows.length?myRows:flipPickPool;
@@ -955,7 +956,7 @@ function ruleBox(){
 function menuPanel(){
   st='menu';mode='menu';bgmStop();win=-1;
   ovlShow(
-    '<h1>🐘 翻翻象棋</h1><div class="sub">儿童对战版 · 4×8 翻棋记忆棋</div>'+
+    '<h1>🐘 翻翻象棋</h1><div class="sub">儿童对战版 · 8×4 翻棋记忆棋</div>'+
     ruleBox()+
     '<button class="btn green" id="bAi"><span class="em">🤖 和电脑对战 · 选难度</span>单人挑战</button>'+
     '<button class="btn red" id="b2p"><span class="em">👨‍👩‍👧‍👦 两人同屏轮流翻棋走棋</span>双人对战</button>'+
