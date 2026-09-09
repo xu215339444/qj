@@ -240,10 +240,13 @@ const MODES=[
 /* ★ 儿童友好难度：简单=反应慢+追不准+常发呆，最适合小朋友；err 大=接球对不准会漏接(球落地自己炸) */
 /* 4 向跑动玩法下 err = 跑位误差(像素)：太大电脑就总追不上自己地盘的炸弹 → 玩家躺赢 */
 const DIFFS=[
- {id:'easy',n:'简单',react:.65,err:78,mistake:.30,delay:1.2,stare:.30},
- {id:'norm',n:'普通',react:.3,err:38,mistake:.16,delay:.8,stare:.08},
- {id:'hard',n:'困难',react:.12,err:12,mistake:.05,delay:.5,stare:0}
+ {id:'easy',n:'简单',react:.65,err:78,mistake:.30,delay:1.2,stare:.30,assist:1},
+ {id:'norm',n:'普通',react:.3,err:38,mistake:.16,delay:.8,stare:.08,assist:0},
+ {id:'hard',n:'困难',react:.12,err:12,mistake:.05,delay:.5,stare:0,assist:0}
 ];
+/* ★ assist：只有简单档给真人玩家开「自动跑位辅助」（自动捡弹/迎球/躲火柱/回位）；
+   普通/困难全靠玩家自己 W/A/S/D 或触屏跑动，辅助完全不接管。
+   双人对战（双方都是真人）不受难度影响，维持原有辅助。 */
 
 /* ============ 画布/布局 ============ */
 const cv=document.getElementById('cv');let cx=cv.getContext('2d');
@@ -1465,8 +1468,8 @@ function update(){
         p.manT=10;p.assist=0;
       }else if(p.manT>0)p.manT--;
     }
-    /* ★ 自动接球辅助：没在手动操作时接管位置，手机零操作也能接住球 */
-    P.forEach(pp=>{if(pp&&pp.alive&&!pp.ai&&pp.manT<=0)humanAssist(pp)});
+    /* ★ 自动接球辅助：只在简单档（或双人对战）且没在手动操作时接管位置 */
+    P.forEach(pp=>{if(pp&&pp.alive&&!pp.ai&&pp.manT<=0&&(mode.id!=='ai'||diff.assist))humanAssist(pp)});
     if(mode.id==='timed'){timeLeft-=1/60;
       if(timeLeft<=0){timeLeft=0;timedEnd();return}}
     movePlayer(P[0]);movePlayer(P[1]);
@@ -1603,7 +1606,7 @@ function modePanel(){
   });
   html+='</div><div id="diffWrap" style="display:none"><h2>AI 难度</h2><div class="diffRow">';
   DIFFS.forEach((d,i)=>{html+='<div class="card'+(diff===d?' sel':'')+'" data-d="'+i+'"><div class="nm">'+d.n+'</div></div>'});
-  html+='</div><p class="hint">简单 = 电脑反应慢还会发呆，最适合小朋友</p></div>';
+  html+='</div><p class="hint">简单 = 电脑反应慢还会发呆，且会自动帮你跑位捡弹，最适合小朋友<br>普通/困难 = 不会自动跑位，捡弹迎球全靠自己操作</p></div>';
   html+='<button class="bigbtn" id="mNext">下一步：选角色 →</button>'+
         '<button class="bigbtn tny sec" id="mBack">← 返回</button>';
   showPanel(html);
