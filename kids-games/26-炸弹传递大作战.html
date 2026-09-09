@@ -238,10 +238,11 @@ const MODES=[
  {id:'ai',     n:'单人 vs AI',d:'挑战电脑，选难度',ic:'🤖'}
 ];
 /* ★ 儿童友好难度：简单=反应慢+追不准+常发呆，最适合小朋友；err 大=接球对不准会漏接(球落地自己炸) */
+/* 4 向跑动玩法下 err = 跑位误差(像素)：太大电脑就总追不上自己地盘的炸弹 → 玩家躺赢 */
 const DIFFS=[
- {id:'easy',n:'简单',react:.65,err:150,mistake:.55,delay:1.2,stare:.3},
- {id:'norm',n:'普通',react:.3,err:80,mistake:.32,delay:.8,stare:.06},
- {id:'hard',n:'困难',react:.12,err:26,mistake:.06,delay:.5,stare:0}
+ {id:'easy',n:'简单',react:.65,err:78,mistake:.30,delay:1.2,stare:.30},
+ {id:'norm',n:'普通',react:.3,err:38,mistake:.16,delay:.8,stare:.08},
+ {id:'hard',n:'困难',react:.12,err:12,mistake:.05,delay:.5,stare:0}
 ];
 
 /* ============ 画布/布局 ============ */
@@ -262,12 +263,24 @@ function layout(){
   const cw=W,ch=availH;
   const groundY=ch*0.94, topY=ch*0.12;
   const charH=portrait?clamp(ch*0.26,76,132):clamp(ch*0.30,96,168);
+  const topY2=topY+charH*0.9, botY=groundY-charH*0.55;
   LAY={W,W2:W/2,ch,portrait,groundY,topY,midX:W/2,
     c1:clamp(W*0.17,86,190), c2:Math.max(80,W-W*0.17-W*0.06),
     charH, bombD:clamp(Math.min(W,ch)*0.21,64,128),
     catchR:clamp(charH*0.5+46,86,150),
-    topY2:topY+charH*0.9, botY:groundY-charH*0.55};
+    topY2, botY,
+    /* ★ 4 向玩法：整个「球场」是一块矩形地面，两名玩家可以左右+前后自由跑动。
+       前 = 画面下方（近，画得大），后 = 画面上方（远，画得小）。 */
+    fL:Math.round(W*0.06), fR:Math.round(W-W*0.06),
+    fTop:topY2, fBot:botY,
+    fMidY:(topY2+botY)/2};
   if(LAY.botY<LAY.topY2+10)LAY.botY=LAY.topY2+90;
+}
+/* 纵深：0=最远(上) → 1=最近(下) */
+function depthOf(yy){return clamp((yy-LAY.fTop)/Math.max(1,LAY.fBot-LAY.fTop),0,1)}
+function depthScale(yy){return 0.60+0.44*depthOf(yy)}
+function clamp2D(p,x,y){
+  return[clamp(x,LAY.fL,LAY.fR),clamp(y,LAY.fTop,LAY.fBot)];
 }
 function rsize(){layout();}
 window.addEventListener('resize',rsize);
@@ -400,13 +413,14 @@ function chDraw(c,opt){
 /* ============ 玩家实体 ============ */
 function mkP(side){
   const c=chars[side];
+  const sxy=side===0?LAY.c1:LAY.c2, sy0=LAY.fMidY;
   return{side,ch:c,id:c.id,
-    cy:LAY.groundY-80,cyTarget:LAY.groundY-80,vy:0,
+    cy:sy0,cyTarget:sy0,vy:0,
     /* ★ y = 角色头顶 y（飘字基准）。此前 mkP 从未定义 y，所有 floatTxt(p.x,p.y-60,...) 的 y 都是 NaN，
        canvas 对 NaN 坐标静默跳过不绘制 —— 实测 36598 次 fillText 中 3259 次是 NaN：
        「炸弹来了！」「⏰ 快扔！」「💥 -1 心」「+1 分」「防护罩抵挡！」等提示全部一个都看不见。 */
-    y:LAY.groundY-80-LAY.charH*.5,
-    face:side===0?1:-1,x:side===0?LAY.c1:LAY.c2,
+    y:sy0-LAY.charH*.5,
+    face:side===0?1:-1,x:sxy,xTarget:sxy,
     hearts:3,score:0,alive:true,state:'idle',stateT:0,
     invuln:0,frozen:0,shield:0,shieldItem:0,shieldInt:0,shoes:0,magnet:0,board:0,
     items:[],slide:0,hop:0,hopCd:0,manT:0,
@@ -430,8 +444,24 @@ function newBomb(kind,holder,side){
     state:holder?'held':'rest', t:0,dur:.8, sx:0,sy:0,tx:0,ty:0,arc:120,
     x:0,y:0,restT:0,backTo:null,spawnP:rnd(.35,.65),threw:0};
   if(o.state==='held'){const h=o.holder;o.x=h.x;o.y=h.cy-LAY.charH*.5-LAY.bombD*.5-6}
-  else{o.x=LAY.midX;o.y=LAY.groundY-LAY.bombD}
+  else{const L0=pickLanding(side!==undefined?side:0,null);o.x=L0[0];o.y=L0[1]}
   return o;
+}
+/* ★ 4 向玩法核心：扔出去不是"精准送到对方手里"，而是飞向对方半场的随机落点 —— 对方必须跑过去捡。
+   x：落在对方半场内（留 6% 边距，不贴边）；
+   y：在场地纵深里随机（留出上下边界，别落在最边上）；
+   且要离对方现在的位置有 minDist 距离，否则球一落地就到脚下，"跑去捡"的乐趣就没了。 */
+function pickLanding(targetSide,avoidP,minDist){
+  const half=(targetSide===0)?[LAY.fL+LAY.W*.04,LAY.midX-LAY.W*.05]:[LAY.midX+LAY.W*.05,LAY.fR-LAY.W*.04];
+  const yLo=LAY.fTop+LAY.charH*.25, yHi=LAY.fBot-LAY.charH*.10;
+  const md=minDist||LAY.charH*1.15;
+  let bx=0,by=0;
+  for(let i=0;i<12;i++){
+    bx=rnd(half[0],half[1]);by=rnd(yLo,yHi);
+    if(!avoidP)break;
+    if(Math.hypot(bx-avoidP.x,by-avoidP.cy)>=md)break;
+  }
+  return[clamp(bx,LAY.fL,LAY.fR),clamp(by,LAY.fTop,LAY.fBot)];
 }
 function throwBomb(p){
   const b=p.hold;if(!b||b.holder!==p)return;
@@ -441,25 +471,36 @@ function throwBomb(p){
   p.face=faceOf(p);
   const other=P[1-p.side];
   /* ★ 速度倍率越大 = 飞得越快 = 用时越短，必须"除"而不是"乘"。
-     此前写成 0.8*spMul：加速炸弹(fspd1.5)飞 1.20s 全场最慢、慢速炸弹(0.65)只飞 0.52s 全场最快 —— 完全反了。
-     另：不再让 timeStop 参与（原 *0.001 会让炸弹一帧内瞬移到对方脸上）。 */
+     此前写成 0.8*spMul：加速炸弹(fspd1.5)飞 1.20s 全场最慢、慢速炸弹(0.65)只飞 0.52s 全场最快 —— 完全反了。 */
   const spMul=b.d.fspd*(arena.id==='space'?1.18:1);
   b.state='fly';b.holder=null;b.threw=p.side;
-  b.side=other.side;   // 飞向谁，就威胁谁半场
+  b.side=other.side;   // 飞向谁的半场，就威胁谁
   b.dur=clamp(0.8/(spMul||1),.22,1.8);
   b.sx=p.x+p.face*LAY.bombD*.4;b.sy=p.cy-LAY.bombD*.2;
-  b.tx=other.x-other.face*LAY.bombD*.4;
-  b.ty=other.cy;
+  let L2;
+  if(b.k==='homing'){L2=[other.x,other.cy]}       /* 追踪弹：就是瞄着人飞 */
+  else{L2=pickLanding(other.side,other)}
+  b.tx=L2[0];b.ty=L2[1];
+  b.landMark=1;                                    /* 落地时画一个提示光圈 */
   b.t=0;
-  b.arc=Math.max(90,Math.abs(other.cy-p.cy)+LAY.bombD*1.1+Math.abs(p.x-other.x)*.22);
+  b.arc=Math.max(90,LAY.charH*.9+Math.abs(p.x-other.x)*.2);
   p.hold=null;p.state='throw';p.stateT=14;p.throwCd=14;
   SND.throw();
+  floatTxt(p.x,p.y-LAY.bombD-20,'扔出去啦！','#ffe082');
 }
 function restBomb(b,atP){
   b.state='rest';b.holder=null;
-  b.x=atP?atP.x:clamp(b.x,40,LAY.W-40);b.y=LAY.groundY-LAY.bombD*.5;
+  /* ★ 落在随机点上：保留 tx/ty（不是像以前那样强行拉回中间脚下） */
+  b.x=clamp(isFinite(b.tx)?b.tx:b.x,LAY.fL,LAY.fR);
+  b.y=clamp(isFinite(b.ty)?b.ty:b.y,LAY.fTop,LAY.fBot);
   b.side=atP?atP.side:b.side;
   b.restT=0;
+  /* 落地提示：一圈扩散的光环 + 地面小光点，让小朋友一眼看到"球在那儿" */
+  floatTxt(b.x,b.y-LAY.bombD*.7,'💣 掉这儿了！','#ff8a65');
+  for(let i=0;i<12;i++){
+    const a=i/12*TAU;
+    parts.push({x:b.x,y:b.y,vx:Math.cos(a)*2.2,vy:Math.sin(a)*1.1,g:.03,t:26,c:'#ffcc80',r:4});
+  }
 }
 function explodeBomb(b){
   b.gone=1;   /* ★ 爆炸即标记移除（修复无限复活爆炸：updateBombs 帧末 filter 依赖 gone；此前只 removeBomb 不设 gone，各分支 out.push 会把已爆炸弹加回 → 非致命爆炸(金弹/护盾/冰/云台)每帧重爆，卡死+狂响） */
@@ -498,8 +539,8 @@ function explodeBomb(b){
 function removeBomb(b){const i=bombs.indexOf(b);if(i>=0)bombs.splice(i,1)}
 function miniTo(p){ /* 分裂小炸弹追向玩家 */
   const m={k:'mini',mini:1,state:'mini',holder:null,side:p.side, t:0,dur:1,
-    sx:LAY.midX,sy:LAY.groundY-LAY.bombD*.5,tx:p.x,ty:p.cy,
-    x:LAY.midX,y:LAY.groundY-LAY.bombD*.5,arc:60,spd:0};
+    sx:LAY.midX,sy:LAY.fMidY,tx:p.x,ty:p.cy,
+    x:LAY.midX,y:LAY.fMidY,arc:60,spd:0};
   m.spd=Math.hypot(p.x-m.x,p.cy-m.y)/1.05;
   bombs.push(m);
 }
@@ -543,7 +584,7 @@ function goldFX(x,y){for(let i=0;i<16;i++){const a=rnd(0,TAU);parts.push({x,y,vx
 function iceBoomFX(x,y){for(let i=0;i<18;i++){const a=rnd(0,TAU),v=rnd(2,6);
   parts.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,g:.18,t:irnd(20,40),c:'#b3e5fc',r:rnd(2,4.5)})}}
 function floatTxt(x,y,s,c){parts.push({x,y,txt:s,c,t:70,vy:-1.1})}
-function smokeScreen(sec){smokes.push({t:sec*60,x:LAY.midX,y:LAY.groundY-90,r:260})}
+function smokeScreen(sec){smokes.push({t:sec*60,x:LAY.midX,y:LAY.fMidY,r:280})}
 
 /* ============ 引信/报警 ============ */
 let lastAlarm=0;
@@ -567,44 +608,50 @@ function fuseTick(b){
 /* ================= 绘制：场地 ================= */
 /* ================= 场地：左右对阵竞技场（清爽底 + 半场分色 + 站台） ================= */
 function drawArena(){
-  const a2=LAY, gy=a2.groundY;
+  const a2=LAY;
   const id=(arena&&arena.id)||'grass';
   /* 场地主色表（浅色调，纸面清爽，让彩色角色最醒目） */
   const PAL={
-    grass:{top:'#dff2e2',floor:'#bfe3ad',side0:'rgba(255,150,90,.07)',side1:'rgba(90,150,255,.07)'},
-    ice:{top:'#e3f4fb',floor:'#bfe0ef',side0:'rgba(255,150,90,.06)',side1:'rgba(90,150,255,.06)'},
-    volcano:{top:'#fbe8dc',floor:'#e7b692',side0:'rgba(255,120,80,.08)',side1:'rgba(90,150,255,.06)'},
-    space:{top:'#e6e8f6',floor:'#b9bfdd',side0:'rgba(255,140,90,.06)',side1:'rgba(120,140,255,.08)'},
-    palace:{top:'#fdf1d8',floor:'#e6cd97',side0:'rgba(255,170,90,.08)',side1:'rgba(90,150,255,.05)'},
-    arena:{top:'#edf0f6',floor:'#c3cbd9',side0:'rgba(255,140,90,.06)',side1:'rgba(90,150,255,.07)'}
-  }[id]||{top:'#eaf7ec',floor:'#bfe3ad',side0:'rgba(255,150,90,.07)',side1:'rgba(90,150,255,.07)'};
-  /* 上半背景：顶部带主色 → 向下变白（清爽） */
-  const g=cx.createLinearGradient(0,0,0,gy);
+    grass:{top:'#dff2e2',floor:'#cbe9b4',floor2:'#a9dc8e',side0:'rgba(255,150,90,.10)',side1:'rgba(90,150,255,.10)'},
+    ice:{top:'#e3f4fb',floor:'#d3ecf8',floor2:'#a9d6ea',side0:'rgba(255,150,90,.09)',side1:'rgba(90,150,255,.09)'},
+    volcano:{top:'#fbe8dc',floor:'#efc6a4',floor2:'#dda07a',side0:'rgba(255,120,80,.11)',side1:'rgba(90,150,255,.09)'},
+    space:{top:'#e6e8f6',floor:'#cdd2e8',floor2:'#a9b0d2',side0:'rgba(255,140,90,.10)',side1:'rgba(120,140,255,.11)'},
+    palace:{top:'#fdf1d8',floor:'#f0daaa',floor2:'#dfc185',side0:'rgba(255,170,90,.11)',side1:'rgba(90,150,255,.08)'},
+    arena:{top:'#edf0f6',floor:'#d2d9e5',floor2:'#b3bccd',side0:'rgba(255,140,90,.10)',side1:'rgba(90,150,255,.10)'}
+  }[id]||{top:'#eaf7ec',floor:'#cbe9b4',floor2:'#a9dc8e',side0:'rgba(255,150,90,.10)',side1:'rgba(90,150,255,.10)'};
+  const fT=LAY.fTop-LAY.charH*.42, fB=LAY.ch;
+  /* 天空：顶部主色 → 向下变白 */
+  const g=cx.createLinearGradient(0,0,0,fT+20);
   g.addColorStop(0,PAL.top);g.addColorStop(1,'#ffffff');
-  cx.fillStyle=g;cx.fillRect(0,0,a2.W,a2.ch);
-  /* 地面 */
-  const gg=cx.createLinearGradient(0,gy,0,a2.ch);
-  gg.addColorStop(0,PAL.floor);gg.addColorStop(1,'#ffffff');
-  cx.fillStyle=gg;cx.fillRect(0,gy,a2.W,a2.ch-gy);
-  /* 左右半场淡色（对立感） */
-  cx.fillStyle=PAL.side0;cx.fillRect(0,a2.topY-30,a2.midX,gy-(a2.topY-30));
-  cx.fillStyle=PAL.side1;cx.fillRect(a2.midX,a2.topY-30,a2.W-a2.midX,gy-(a2.topY-30));
-  /* 玩家站台（脚下半透明椭圆，暖=红方 / 冷=蓝方，明确"站在这里对战"） */
+  cx.fillStyle=g;cx.fillRect(0,0,a2.W,fT+20);
+  /* 地面：远端浅 → 近端深（纵深渐变，跑起来有"远近"参照） */
+  const gg=cx.createLinearGradient(0,fT,0,fB);
+  gg.addColorStop(0,'#ffffff');gg.addColorStop(.22,PAL.floor);gg.addColorStop(1,PAL.floor2);
+  cx.fillStyle=gg;cx.fillRect(0,fT,a2.W,fB-fT);
+  /* 左右半场淡色（对立感：左橙=玩家1 / 右蓝=玩家2） */
+  cx.fillStyle=PAL.side0;cx.fillRect(0,fT,a2.midX,fB-fT);
+  cx.fillStyle=PAL.side1;cx.fillRect(a2.midX,fT,a2.W-a2.midX,fB-fT);
+  /* 透视横线：间距由密到疏，给出"越往下越近"的参照 */
+  cx.strokeStyle='rgba(0,0,0,.055)';cx.lineWidth=2;
+  let ry=fT+8,gap=11;
+  while(ry<fB){cx.beginPath();cx.moveTo(0,ry);cx.lineTo(a2.W,ry);cx.stroke();ry+=gap;gap*=1.62}
+  /* 场地外框（明确"能跑的范围"） */
+  cx.strokeStyle='rgba(0,0,0,.16)';cx.lineWidth=3;
+  cx.strokeRect(a2.fL-10,fT+2,a2.fR-a2.fL+20,fB-fT-4);
+  /* 远端的场地边界线 */
+  cx.strokeStyle='rgba(0,0,0,.2)';cx.lineWidth=2;
+  cx.beginPath();cx.moveTo(0,fT);cx.lineTo(a2.W,fT);cx.stroke();
+  /* 中场分隔：竖虚线（炸弹越过这里才算扔到对方半场） */
+  cx.strokeStyle='rgba(0,0,0,.24)';cx.lineWidth=2;cx.setLineDash([9,10]);
+  cx.beginPath();cx.moveTo(a2.midX,fT);cx.lineTo(a2.midX,fB);cx.stroke();cx.setLineDash([]);
+  /* 各自半场的起位圈（开局站位，也是"B 计划：炸不到就回来"的视觉锚点） */
   cx.save();
-  cx.fillStyle='rgba(255,120,80,.16)';cx.strokeStyle='rgba(255,120,80,.4)';cx.lineWidth=2;
-  cx.beginPath();cx.ellipse(a2.c1,gy+14,104,30,0,0,TAU);cx.fill();cx.stroke();
-  cx.fillStyle='rgba(80,150,255,.16)';cx.strokeStyle='rgba(80,150,255,.4)';cx.lineWidth=2;
-  cx.beginPath();cx.ellipse(a2.c2,gy+14,104,30,0,0,TAU);cx.fill();cx.stroke();
-  /* 台面上端一根细地线 */
-  cx.strokeStyle='rgba(0,0,0,.25)';cx.lineWidth=2;
-  cx.beginPath();cx.moveTo(0,gy);cx.lineTo(a2.W,gy);cx.stroke();
+  cx.lineWidth=2.5;
+  cx.fillStyle='rgba(255,120,80,.13)';cx.strokeStyle='rgba(255,120,80,.45)';
+  cx.beginPath();cx.ellipse(a2.c1,LAY.fMidY+LAY.charH*.3,a2.charH*.62,a2.charH*.24,0,0,TAU);cx.fill();cx.stroke();
+  cx.fillStyle='rgba(80,150,255,.13)';cx.strokeStyle='rgba(80,150,255,.45)';
+  cx.beginPath();cx.ellipse(a2.c2,LAY.fMidY+LAY.charH*.3,a2.charH*.62,a2.charH*.24,0,0,TAU);cx.fill();cx.stroke();
   cx.restore();
-  /* 中场分隔：竖虚线 + 中央小圆环（"对峙中线"，炸弹要越过这里才算传过去） */
-  cx.strokeStyle='rgba(0,0,0,.22)';cx.lineWidth=2;cx.setLineDash([8,9]);
-  cx.beginPath();cx.moveTo(a2.midX,a2.topY-26);cx.lineTo(a2.midX,gy);cx.stroke();cx.setLineDash([]);
-  /* 中线脚下小三角标记 */
-  cx.fillStyle='rgba(0,0,0,.3)';
-  cx.beginPath();cx.moveTo(a2.midX-8,gy+20);cx.lineTo(a2.midX+8,gy+20);cx.lineTo(a2.midX,gy+29);cx.closePath();cx.fill();
 }
 function drawCloud(){
   if(!(arena.id==='palace'&&cloud))return;
@@ -686,18 +733,23 @@ function drawDrop(it){
 /* 火柱 */
 function drawPillars(){
   pillars.forEach(pl=>{
-    if(pl.w>0){ /* 预警 */
-      cx.strokeStyle='rgba(255,140,60,'+(pl.w<20?pl.w/20*0.8:.5)+')';cx.lineWidth=6;
-      cx.setLineDash([4,6]);cx.beginPath();cx.moveTo(pl.x,LAY.groundY);cx.lineTo(pl.x,LAY.groundY-pl.h*0.6);cx.stroke();cx.setLineDash([]);
+    if(pl.w>0){ /* 预警：地面上画一个危险圈，跑开就安全 */
+      const pr=(1-pl.w/32);
+      cx.strokeStyle='rgba(255,140,60,'+(.35+pr*.45)+')';cx.lineWidth=5;
+      cx.setLineDash([5,6]);
+      cx.beginPath();cx.ellipse(pl.x,pl.y,34,15,0,0,TAU);cx.stroke();
+      cx.setLineDash([]);
+      cx.fillStyle='rgba(255,140,60,'+(.10+pr*.18)+')';
+      cx.beginPath();cx.ellipse(pl.x,pl.y,34,15,0,0,TAU);cx.fill();
     }else{ /* 喷发 */
       const p=1+pl.p/26;
       cx.fillStyle='rgba(255,60,20,.85)';
-      cx.beginPath();cx.moveTo(pl.x-16,LAY.groundY);cx.quadraticCurveTo(pl.x-18,LAY.groundY-pl.h*.5,pl.x,LAY.groundY-pl.h*p);cx.quadraticCurveTo(pl.x+18,LAY.groundY-pl.h*.5,pl.x+16,LAY.groundY);cx.closePath();cx.fill();
+      cx.beginPath();cx.moveTo(pl.x-16,pl.y);cx.quadraticCurveTo(pl.x-18,pl.y-pl.h*.5,pl.x,pl.y-pl.h*p);cx.quadraticCurveTo(pl.x+18,pl.y-pl.h*.5,pl.x+16,pl.y);cx.closePath();cx.fill();
       cx.fillStyle='rgba(255,220,100,.95)';
-      cx.beginPath();cx.moveTo(pl.x-8,LAY.groundY);cx.quadraticCurveTo(pl.x-9,LAY.groundY-pl.h*.4,pl.x,LAY.groundY-pl.h*.85*p);cx.quadraticCurveTo(pl.x+9,LAY.groundY-pl.h*.4,pl.x+8,LAY.groundY);cx.closePath();cx.fill();
+      cx.beginPath();cx.moveTo(pl.x-8,pl.y);cx.quadraticCurveTo(pl.x-9,pl.y-pl.h*.4,pl.x,pl.y-pl.h*.85*p);cx.quadraticCurveTo(pl.x+9,pl.y-pl.h*.4,pl.x+8,pl.y);cx.closePath();cx.fill();
       cx.fillStyle='rgba(255,180,60,.7)';
-      cx.beginPath();cx.arc(pl.x,LAY.groundY-pl.h*.9*p,10,0,TAU);cx.fill();
-      if(frame%3===0)parts.push({x:pl.x+rnd(-6,6),y:LAY.groundY-30,vx:rnd(-1,1),vy:rnd(-3,-1),g:-.02,t:irnd(20,40),c:Math.random()<.5?'#ff8a3c':'#ffd166',r:rnd(3,7)});
+      cx.beginPath();cx.arc(pl.x,pl.y-pl.h*.9*p,10,0,TAU);cx.fill();
+      if(frame%3===0)parts.push({x:pl.x+rnd(-6,6),y:pl.y,vx:rnd(-1,1),vy:rnd(-3,-1),g:-.02,t:irnd(20,40),c:Math.random()<.5?'#ff8a3c':'#ffd166',r:rnd(3,7)});
     }
   });
 }
@@ -805,51 +857,72 @@ function pBounds(p){
   return[a,b];
 }
 function clampY2(p,y){const bb=pBounds(p);return clamp(y,bb[0],bb[1])}
-/* ★ 自动接球辅助：玩家没有手动输入(没按方向键/没在屏幕上滑动)时，
-   角色自动站到炸弹落点/回站台 —— 手机上只需点“扔”按钮，不用再上下移动对准。
-   想自己控制时按住 W/S 或 ↑/↓（触屏上下滑）会临时接管，松开后恢复自动。 */
+/* 自家半场上离我最近的一颗"躺在地上的炸弹"（4 向玩法：跑过去才能捡） */
+function nearestRest(p){
+  let best=null,bd=1e9;
+  bombs.forEach(b=>{
+    if(b.gone||b.state!=='rest'||b.side!==p.side)return;
+    const d=Math.hypot(b.x-p.x,b.y-p.cy);
+    if(d<bd){bd=d;best=b}
+  });
+  return best;
+}
+function homeX(p){return p.side===0?LAY.c1:LAY.c2}
+function homeY(){return LAY.fMidY+LAY.charH*.3}
+function fleeFrom(p,wx,wy,len){
+  let dx=p.x-wx,dy=p.cy-wy;
+  if(Math.abs(dx)<1&&Math.abs(dy)<1)dx=p.side===0?-1:1;
+  const L=Math.hypot(dx,dy)||1;
+  p.xTarget=clamp(p.x+dx/L*len,LAY.fL,LAY.fR);
+  p.cyTarget=clampY2(p,p.cy+dy/L*len);
+}
+/* ★ 4 向玩法下的"不操作也能玩"辅助：
+   - 自家地上躺着炸弹 → 自动跑过去捡
+   - 炸弹正飞向自己 → 自动跑向它的落点等着
+   - 火山火柱预警 → 自动跑开
+   - 空手没事 → 回自己半场的起位圈
+   玩家一旦按方向键 / 点屏幕，manT 会临时接管几帧，松开后交还自动。 */
 function humanAssist(p){
   if(!p||!p.alive)return;
   if(p.frozen>0||p.state==='x'){p.assist=0;return}
-  if(p.hold){ /* 手里有球：回地面站台，稳稳拿住等按“扔” */
-    const bbase=LAY.groundY-LAY.charH*.5;
-    p.cyTarget=clampY2(p,bbase);p.assist=0;
-    return;
+  if(p.hold){p.assist=0;return}
+  const rest=nearestRest(p);
+  if(rest){p.xTarget=rest.x;p.cyTarget=rest.y;p.assist=1;return}
+  const inc=bombs.find(b=>!b.gone&&b.state==='fly'&&b.side===p.side&&isFinite(b.tx)&&isFinite(b.ty));
+  if(inc){p.xTarget=inc.tx;p.cyTarget=inc.ty;p.assist=1;return}
+  if(arena.eff==='volcano'){
+    const warn=pillars.find(pl=>pl.w>0&&Math.hypot(pl.x-p.x,pl.y-p.cy)<62);
+    if(warn){fleeFrom(p,warn.x,warn.y,LAY.charH*1.6);p.assist=1;return}
   }
-  const inc=bombs.find(b=>!b.gone&&b.state==='fly'&&b.side===p.side&&!b.caught);
-  if(inc){ /* 球飞过来了：自动站到接球点（并临时提速，否则从场底冲到场顶来不及 → 明明是"自动接球"却老漏接） */
-    p.cyTarget=clampY2(p,inc.ty);p.assist=1;
-    return;
-  }
-  const rs=bombs.find(b=>!b.gone&&b.state==='rest'&&b.side===p.side);
-  if(rs&&Math.abs(rs.x-p.x)<LAY.bombD*2.2){ /* 掉在脚下的球自动捡起 */
-    p.cyTarget=clampY2(p,rs.y-LAY.charH*.35);p.assist=1;
-    return;
-  }
-  if(arena.eff==='volcano'){ /* 火山火柱来了自动抬升躲开 */
-    const warn=pillars.find(pl=>pl.w>0&&Math.abs(pl.x-p.x)<30);
-    if(warn){p.cyTarget=clampY2(p,p.cy-LAY.charH*.9);p.assist=1;return}
-  }
-  /* 空闲：回地面站台 */
-  const base=LAY.groundY-LAY.charH*.5;
-  p.cyTarget=clampY2(p,base);p.assist=0;
+  if(arena.eff==='ice'){p.assist=0;return}   /* 冰面：由惯性滑行，别自动贴到球上 */
+  p.xTarget=homeX(p);p.cyTarget=homeY();p.assist=0;
 }
 function movePlayer(p){
   if(!p.alive)return;
-  if(p.frozen>0){p.cyTarget=p.cy;return}
-  if(p.state==='x'&&p.stateT>0){p.cyTarget=p.cy;return}
+  if(p.frozen>0){p.cyTarget=p.cy;p.xTarget=p.x;return}
+  if(p.state==='x'&&p.stateT>0){p.cyTarget=p.cy;p.xTarget=p.x;return}
   if(p.ai)aiThink(p);
   const dt=1/60;
-  /* 自动接球冲刺：辅助生效时提速，保证从场底也能赶到落点 */
-  const mvMax=(p.shoes>0?560:310)*(p.ch.spdMul||1)*(arena.id==='space'?1.18:1)*((p.assist&&!p.ai)?1.9:1);
-  const want=p.cyTarget-p.cy;
-  let step=clamp(want,-mvMax*dt,mvMax*dt);
-  p.cy+=step;
-  if(arena.eff==='ice'){
-    p.slide=clamp((p.slide||0)*.93+(Math.abs(want)<1?step:0),-26,26);
-    p.cy+=p.slide;
+  /* 自动接球冲刺：辅助生效时提速，保证从场地远端也能跑到落点 */
+  const mvMax=(p.shoes>0?560:310)*(p.ch.spdMul||1)*(arena.id==='space'?1.18:1)*((p.assist&&!p.ai)?1.55:1);
+  /* ★ 4 向移动：先算总位移向量再归一化 —— 斜着跑不会比直着跑快 */
+  const dxw=p.xTarget-p.x, dyw=p.cyTarget-p.cy;
+  const dist=Math.hypot(dxw,dyw);
+  if(dist>.6){
+    const step=Math.min(dist,mvMax*dt);
+    const nx=dxw/dist*step, ny=dyw/dist*step;
+    p.x+=nx;p.cy+=ny;
+    if(arena.eff==='ice'){
+      p.slide=clamp((p.slide||0)*.93+(Math.abs(dyw)<1?ny:0),-26,26);
+      p.slideX=clamp((p.slideX||0)*.93+(Math.abs(dxw)<1?nx:0),-26,26);
+      p.cy+=p.slide;p.x+=p.slideX;
+    }
   }
-  p.cy=clampY2(p,p.cy);
+  const b2=clamp2D(p,p.x,p.cy);
+  p.x=b2[0];p.cy=b2[1];
+  if(!isFinite(p.xTarget))p.xTarget=p.x;
+  p.xTarget=clamp(p.xTarget,LAY.fL,LAY.fR);
+  if(!isFinite(p.cyTarget))p.cyTarget=p.cy;
 }
 function updatePose(p){
   if(!isFinite(p.x))p.x=(p.side===0?LAY.c1:LAY.c2);
@@ -874,12 +947,14 @@ function updatePose(p){
 }
 function sendBack(b,to){
   b.state='fly';b.holder=null;b.side=to.side;b.hitCloud=0;
-  b.sx=b.x;b.sy=b.y;b.tx=to.x-to.face*(LAY.bombD*.45);b.ty=to.cy;
-  /* 同上：反弹/云台弹回也用"除"，快弹回得快 */
+  b.sx=b.x;b.sy=b.y;
+  /* 同上：被打回去也是飞向对方半场的随机点 */
+  const L9=pickLanding(to.side,to);
+  b.tx=L9[0];b.ty=L9[1];
   const spMul2=(b.d?b.d.fspd:1)*(arena.id==='space'?1.18:1);
   b.dur=clamp(.6/(spMul2||1),.22,1.4);
-  b.arc=Math.max(70,Math.abs(to.cy-b.sy)+LAY.bombD*.9+Math.abs(b.sx-to.x)*.2);
-  b.t=0;b.threw=to.side;
+  b.arc=Math.max(70,LAY.charH*.9+Math.abs(b.sx-b.tx)*.2);
+  b.t=0;
 }
 function updateBombs(){
   const out=[];
@@ -924,12 +999,14 @@ function updateBombs(){
           if(sender&&sender.ch&&sender.ch.ghost){ /* 幽灵穿过 */ }
           else{b.hitCloud=1;b.state='cloud';b.t=0;b.cloudT=80;b.x=cloud.x;b.y=cloud.y;SND.dodge();floatTxt(b.x,b.y-cloud.h,'云台挡住！','#ffe082')}
         }
-        /* 接球判定 */
+        /* 接球判定（4 向玩法）：判定圈收到"球真的砸到身上"这么小 ——
+           以前 catchZone 有 112px，球飞过来老远就被自动接住，"跑去草地上捡"的玩法直接被削没了。
+           现在只有球擦过身体才算好运气接到，绝大多数情况会落在地上，得自己跑过去。 */
         const catchable=!tar.dead&&tar.frozen<=0&&tar.state!=='x'&&e>0.15;
         if(catchable&&b.state==='fly'){
-          const cx2=tar.x-tar.face*(LAY.bombD*.45),cy2=tar.cy-LAY.bombD*.1;
+          const cx2=tar.x,cy2=tar.cy-LAY.charH*.25;
           const d2=Math.hypot(b.x-cx2,b.y-cy2);
-          const catchZone=tar.magnet>0?LAY.W*.6:LAY.catchR;
+          const catchZone=tar.magnet>0?LAY.W*.6:LAY.bombD*.55;
           if(d2<catchZone){
             if(tar.board>0&&b.threw!==tar.side){ /* 反弹板 */
               tar.board=0;SND.item();floatTxt(tar.x,tar.y-60,'反弹板！','#8ef');
@@ -939,12 +1016,19 @@ function updateBombs(){
             }else{doCatch(b,tar)}
           }
         }
-        /* 到点未接住 */
+        /* 到点没人碰到 → 落在那个随机点上（谁的地盘谁负责捡） */
         if(b.state==='fly'&&e>=1&&!b.caught){
           const bd=BOMBS[b.k];
-          if(bd&&bd.rebound){ /* 反弹炸弹：弹回扔出方 */
-            SND.throw();floatTxt(b.x,b.y-40,'弹回去了！','#e4c8ff');
-            sendBack(b,P[1-b.side]);
+          if(bd&&bd.rebound&&(b.rebN||0)<2){ /* 弹簧炸弹：落地还会自己弹回扔的那一边 */
+            b.rebN=(b.rebN||0)+1;
+            SND.throw();floatTxt(b.x,b.y-LAY.bombD*.6,'↩️ 弹回去了！','#e4c8ff');
+            const back=P[b.threw]||P[1-b.side];
+            const L3=pickLanding(back.side,back);
+            b.state='fly';b.sx=b.x;b.sy=b.y;b.tx=L3[0];b.ty=L3[1];b.t=0;
+            b.side=back.side;b.hitCloud=0;
+            b.dur=clamp(.6/((b.d?b.d.fspd:1)||1),.22,1.4);
+            b.arc=Math.max(70,LAY.charH*.8+Math.abs(b.tx-b.sx)*.2);
+            out.push(b);return;
           }else{
             restBomb(b,tar);
           }
@@ -962,8 +1046,11 @@ function updateBombs(){
       const sideP=P[b.side];
       if(b.gone)return;
       if(sideP&&sideP.alive&&sideP.frozen<=0){
+        /* ★ 拾取半径必须是"踩上去"的量级。原来用 charH*.8(≈105px)，球一落地离着一米就自动进兜，
+           "跑过去捡"完全没体现 —— 收紧到约一个身位：脚真的踩到球才捡起。 */
+        const grabR=LAY.bombD*.5+LAY.charH*.16;
         const d3=Math.hypot(b.x-sideP.x,b.y-(sideP.cy));
-        if(d3<LAY.charH*.8)doCatch(b,sideP,true);
+        if(d3<grabR)doCatch(b,sideP,true);
       }
       out.push(b);return;
     }
@@ -1000,23 +1087,22 @@ function updatePillars(){
   pillars.forEach(pl=>{
     if(pl.w>0)pl.w--;
     else{pl.p++; /* 火柱命中检测 */
-      const topYcol=LAY.groundY-pl.h*(1+pl.p/26);
-      P.forEach(p=>{if(p.alive&&Math.abs(p.x-pl.x)<24&&p.cy>topYcol&&p.invuln<=0&&p.state!=='x'){
-        p.state='x';p.stateT=30;p.cy=clampY2(p,LAY.topY2+LAY.charH);SND.boom();boomFX(pl.x,LAY.groundY-30);
+      const topYcol=pl.y-pl.h*(1+pl.p/26);
+      P.forEach(p=>{if(p.alive&&Math.hypot(p.x-pl.x,p.cy-pl.y)<30&&p.cy>topYcol&&p.invuln<=0&&p.state!=='x'){
+        p.state='x';p.stateT=30;p.cy=clampY2(p,LAY.topY2+LAY.charH);SND.boom();boomFX(pl.x,pl.y);
         floatTxt(p.x,p.y-56,'被火柱弹飞！','#ff8a3c')}});
     }});
   if(pillarT>0)pillarT--;
   else if(pillars.filter(pl=>pl.w>0).length===0){
     pillarT=irnd(110,190);
-    const cols=[LAY.c1,LAY.midX,LAY.c2];
-    const x=cols[irnd(0,2)];
-    pillars.push({x,w:32,h:LAY.charH*rnd(1.5,2.6),p:0});
+    /* 4 向玩法：火柱在场地上任意位置冒出来，靠跑动躲开 */
+    pillars.push({x:rnd(LAY.fL+24,LAY.fR-24),y:rnd(LAY.fTop+LAY.charH*.5,LAY.fBot),w:32,h:LAY.charH*rnd(1.5,2.6),p:0});
   }
 }
 /* ================= 道具 ================= */
 function spawnDrop(){
   if(items.length>=2)return;
-  items.push({x:LAY.midX+rnd(-30,30),y:-24,vy:2.4,i:irnd(0,ITEMS.length-1),landed:false,ry:LAY.groundY-30});
+  items.push({x:rnd(LAY.fL+20,LAY.fR-20),y:-24,vy:2.4,i:irnd(0,ITEMS.length-1),landed:false,ry:rnd(LAY.fTop+LAY.charH*.3,LAY.fBot)});
 }
 function updateItems(){
   if(itemTimer>0)itemTimer--;
@@ -1042,7 +1128,7 @@ function useItem(side,idx){
   if(it.id==='shield'){p.shieldInt=Math.min(2,(p.shieldInt||0)+1);floatTxt(p.x,p.y-60,'防护罩 +1','#4fc3f7')}
   else if(it.id==='shoes'){p.shoes=300;floatTxt(p.x,p.y-60,'加速 5 秒！','#ffd166')}
   else if(it.id==='magnet'){p.magnet=420;floatTxt(p.x,p.y-60,'磁铁就位！','#9cf')}
-  else if(it.id==='clock'){timeStop=180;floatTxt(LAY.midX,LAY.groundY-160,'⏱ 时间暂停 3 秒','#7fd4ff')}
+  else if(it.id==='clock'){timeStop=180;floatTxt(LAY.midX,LAY.fTop+30,'⏱ 时间暂停 3 秒','#7fd4ff')}
   else if(it.id==='board'){p.board=420;floatTxt(p.x,p.y-60,'反弹板就位！','#8ef')}
   else if(it.id==='swap'){
     const q=P[1-side];
@@ -1072,29 +1158,52 @@ function aiThink(p){
       const maxWait=Math.max(8,Math.round((fr-SAFE)*60));   /* 别捂过头：到点必须出手 */
       if(wait>maxWait)wait=maxWait;
       p.think=wait;
+      /* 手持时也会慢慢挪两步（站着不动太呆，也给对手制造"我要扔哪边"的悬念） */
+      p.xTarget=clamp(p.x+rnd(-110,110),LAY.fL,LAY.fR);
+      p.cyTarget=clampY2(p,p.cy+rnd(-50,50));
     }else if(p.think<=8&&p.throwCd<=0){
       throwBomb(p);p.think=0;
     }
     return;
   }
+  /* 电脑也会愣神（不是每帧都重算目标，否则一动不动像卡顿） */
+  if(p.stareT>0){p.stareT--;return}
+  if(Math.random()<d.stare*.02){p.stareT=irnd(18,46);return}
   /* 躲避火柱预警 */
   if(arena.eff==='volcano'){
-    const warn=pillars.find(pl=>pl.w>0&&Math.abs(pl.x-p.x)<30);
-    if(warn){p.cyTarget=clampY2(p,p.cy+(p.cy>LAY.ch*.5?-1:1)*LAY.charH);return}
+    const warn=pillars.find(pl=>pl.w>0&&Math.hypot(pl.x-p.x,pl.y-p.cy)<58);
+    if(warn){fleeFrom(p,warn.x,warn.y,LAY.charH*1.7);return}
   }
-  const inc=bombs.find(b=>b.state==='fly'&&b.side===p.side&&!b.caught);
+  /* ① 自家地上有炸弹 → 跑过去捡 */
+  const rest=nearestRest(p);
+  if(rest){
+    if(Math.random()<d.mistake*.16){ /* 偶尔判断失误跑偏 */
+      p.xTarget=clamp(rest.x+rnd(-d.err,d.err)*1.8,LAY.fL,LAY.fR);
+      p.cyTarget=clampY2(p,rest.y+rnd(-d.err,d.err)*1.1);
+      return;
+    }
+    /* 越接近目标瞄得越准（k 衰减），保证最终一定捡得到，不会傻站在旁边 */
+    const dist=Math.hypot(rest.x-p.x,rest.y-p.cy);
+    const k=Math.min(1,dist/300);
+    p.xTarget=clamp(rest.x+rnd(-1,1)*d.err*k,LAY.fL,LAY.fR);
+    p.cyTarget=clampY2(p,rest.y+rnd(-1,1)*d.err*.6*k);
+    return;
+  }
+  /* ② 炸弹正飞向自己 → 跑向它的落点 */
+  const inc=bombs.find(b=>b.state==='fly'&&b.side===p.side&&isFinite(b.tx)&&isFinite(b.ty));
   if(inc){
-    if(Math.random()<d.stare){ /* 简单 AI 偶尔愣神不追 → 接不住，球落地自己那边炸 */
-      return;
-    }
-    if(Math.random()<d.mistake){ /* 偶尔失误乱跑 */
-      p.cyTarget=clampY2(p,LAY.groundY-60+rnd(-40,40));
-      return;
-    }
-    p.cyTarget=clampY2(p,inc.ty+Math.sin(frame*.04+p.side*3)*d.err);
-  }else if(Math.random()<.006){
-    p.cyTarget=rnd(LAY.topY2+40,LAY.botY-40);
+    /* ★ 不许"预知未来"：球飞到一半才反应过来往落点跑。
+       否则电脑总能提前站在落点上，球一着地就被它捡走 —— 小朋友看着像作弊，也丢了"两个人比谁跑得快"的乐趣。 */
+    const prog=(inc.dur>0)?(inc.t/inc.dur):0;
+    if(prog<(.48+d.mistake))return;
+    const dist=Math.hypot(inc.tx-p.x,inc.ty-p.cy);
+    const k=Math.min(1,dist/320);
+    p.xTarget=clamp(inc.tx+rnd(-1,1)*d.err*k,LAY.fL,LAY.fR);
+    p.cyTarget=clampY2(p,inc.ty+rnd(-1,1)*d.err*.6*k);
+    return;
   }
+  /* ③ 空闲：回自己半场的起位圈 */
+  p.xTarget=homeX(p);p.cyTarget=homeY();
 }
 /* ================= 生成/结束 ================= */
 let spawnT=0,spawnK=null;
@@ -1137,13 +1246,16 @@ function startMatch(){
   if(mode.id==='ai'){P[1].ai=diff||DIFFS[1];P[1].ch=chars[1];P[1].id=chars[1].id}
   if(P[0].ch.panda)P[0].shieldInt=1;
   if(P[1].ch.panda)P[1].shieldInt=1;
-  P[0].cy=clampY2(P[0],LAY.botY-30);P[0].cyTarget=P[0].cy;
-  P[1].cy=clampY2(P[1],LAY.botY-30);P[1].cyTarget=P[1].cy;
-  P[0].x=LAY.c1;P[1].x=LAY.c2;
+  /* ★ 开局站位：各自半场的起位圈上（4 向玩法里可以自由跑动，这是"回家"的锚点） */
+  P[0].cy=LAY.fMidY+LAY.charH*.3;P[0].cyTarget=P[0].cy;
+  P[1].cy=P[0].cy;P[1].cyTarget=P[0].cy;
+  P[0].x=LAY.c1;P[0].xTarget=LAY.c1;
+  P[1].x=LAY.c2;P[1].xTarget=LAY.c2;
+  P[0].hold=null;P[1].hold=null;P[0].assist=0;P[1].assist=0;
   bombs=[];items=[];parts=[];smokes=[];pillars=[];cloud=null;
   score=[0,0];itemTimer=300;spawnT=20;timeStop=0;flashT=0;shakeT=0;
   timeLeft=mode.id==='timed'?60:0;
-  if(arena.id==='palace'){cloud={x:LAY.midX,y:LAY.groundY-LAY.charH*1.25,w:LAY.charH*1.7,h:LAY.charH*.5}}
+  setCloud();
   st='play';overT=0;
   $('ctrl').classList.add('show');
   layout();
@@ -1191,7 +1303,8 @@ function drawPlayer(p){
   if(!p||!p.alive||!p.ch)return;
   if(!isFinite(p.x)||!isFinite(p.cy))return;  /* NaN 防御：AI 决策出错时不画 */
   p.face=faceOf(p);
-  const s=LAY.charH/124;
+  /* ★ 2.5D：越靠下（近）画得越大，跑起来有纵深参照 */
+  const s=(LAY.charH/124)*depthScale(p.cy);
   const feet=p.cy+LAY.charH*.5;
   let mood='idle',pose='idle',throwP=0,black=false,frozen=p.frozen>0;
   if(p.state==='x'&&p.stateT>0){mood='x';black=p.stateT>16}
@@ -1239,32 +1352,63 @@ function drawScene(){
   if(st==='play'||st==='pick'||st==='title'||st==='over'){drawSmokes();}
   items.forEach(d=>drawDrop(d));
   if(st==='play')drawPillars();
-  if(P[0])drawPlayer(P[0]);
-  if(P[1])drawPlayer(P[1]);
-  /* ★ 传递路径（炸弹在飞时画弧形虚线 + 箭头 —— 草图风格的"传递方向"） */
+  /* ★ 2.5D 绘制顺序：地上的炸弹和玩家按纵深排序混排（近的盖住远的），空中的炸弹画最上层 */
+  const dlist=[];
+  bombs.forEach(b=>{if(b.state==='rest'||b.state==='held')dlist.push({y:(b.state==='held'&&b.holder)?b.holder.cy:b.y,b})});
+  [P[0],P[1]].forEach(p=>{if(p&&p.alive)dlist.push({y:p.cy,p})});
+  dlist.sort((a,b)=>a.y-b.y);
+  dlist.forEach(o=>{o.p?drawPlayer(o.p):drawOneBomb(o.b)});
+  bombs.forEach(b=>{if(b.state!=='rest'&&b.state!=='held')drawOneBomb(b)});
+  /* ★ 传递路径 + 落点预测圈（告诉小朋友"球会掉在这儿"，好提前跑过去） */
   if(st==='play'){
     bombs.forEach(b=>{
-      if(b.state==='fly'&&isFinite(b.sx)&&isFinite(b.sy)&&isFinite(b.x)&&isFinite(b.y)){
-        const sx=b.sx,sy=b.sy,ex=b.x,ey=b.y;
+      if(b.state==='fly'&&isFinite(b.sx)&&isFinite(b.sy)&&isFinite(b.tx)&&isFinite(b.ty)){
+        const sx=b.sx,sy=b.sy,ex=b.tx,ey=b.ty;
         const mx=(sx+ex)/2, my=Math.min(sy,ey)-Math.max(50,Math.abs(ex-sx)*.35);
-        cx.strokeStyle='#888';cx.lineWidth=2.5;cx.setLineDash([6,5]);
+        cx.strokeStyle='rgba(120,120,120,.55)';cx.lineWidth=2.5;cx.setLineDash([6,5]);
         cx.beginPath();cx.moveTo(sx,sy);cx.quadraticCurveTo(mx,my,ex,ey);cx.stroke();cx.setLineDash([]);
         /* 箭头：终点位置沿曲线切线方向 */
         const dx=ex-mx, dy=ey-my, ang=Math.atan2(dy,dx);
         cx.save();cx.translate(ex,ey);cx.rotate(ang);
-        cx.fillStyle='#888';
+        cx.fillStyle='rgba(120,120,120,.6)';
         cx.beginPath();cx.moveTo(0,0);cx.lineTo(-11,-6);cx.lineTo(-11,6);cx.closePath();cx.fill();
         cx.restore();
+        /* 落点标记 */
+        cx.strokeStyle='rgba(255,90,60,.5)';cx.lineWidth=3;cx.setLineDash([5,5]);
+        cx.beginPath();cx.ellipse(ex,ey,LAY.bombD*.58,LAY.bombD*.23,0,0,TAU);cx.stroke();cx.setLineDash([]);
       }
     });
   }
   /* 炸弹（mini 缩小） */
-  bombs.forEach(b=>{
+function drawOneBomb(b){
+  if(b.state==='held'){
+    /* 抱在头顶：跟随持有人所在纵深的缩放 */
+    const hRef=b.holder;
+    const ds=hRef?depthScale(hRef.cy):depthScale(b.y);
+    cx.save();cx.translate(b.x,b.y);cx.scale(ds,ds);cx.translate(-b.x,-b.y);
+    drawBombVis(b);cx.restore();
+    return;
+  }
+  if(b.state==='rest'){
+    /* 躺在地上的炸弹：椭圆影子 + 脉动红圈 + 纵深缩放 —— 一眼看到"球在那儿，快跑去捡" */
+    const ds=depthScale(b.y);
     cx.save();
-    if(b.mini){cx.translate(b.x,b.y);cx.scale(.5,.5);cx.translate(-b.x,-b.y)}
+    cx.fillStyle='rgba(0,0,0,.15)';
+    cx.beginPath();cx.ellipse(b.x,b.y+LAY.bombD*.30*ds,LAY.bombD*.44*ds,LAY.bombD*.17*ds,0,0,TAU);cx.fill();
+    const pulse=.42+Math.sin(frame*.13)*.28;
+    cx.strokeStyle='rgba(255,90,60,'+pulse.toFixed(2)+')';cx.lineWidth=3.5;
+    cx.beginPath();cx.ellipse(b.x,b.y+LAY.bombD*.30*ds,LAY.bombD*.66*ds,LAY.bombD*.26*ds,0,0,TAU);cx.stroke();
+    cx.translate(b.x,b.y);cx.scale(ds,ds);cx.translate(-b.x,-b.y);
     drawBombVis(b);
     cx.restore();
-  });
+    return;
+  }
+  /* 空中飞行/小弹 */
+  cx.save();
+  if(b.mini){cx.translate(b.x,b.y);cx.scale(.5,.5);cx.translate(-b.x,-b.y)}
+  drawBombVis(b);
+  cx.restore();
+}
   /* 粒子/文字 */
   parts.forEach(pt=>{
     if(pt.txt){cx.globalAlpha=clamp(pt.t/40,0,1);cx.font='900 15px Arial';cx.fillStyle=pt.c||'#fff';
@@ -1294,7 +1438,9 @@ function update(){
     /* ★ NaN/未定义自愈：上一轮 AI/道具偶发把玩家坐标写坏后，画面整局空、炸弹也看不见 —— 顶端复位 */
     for(const pp of P){
       if(!isFinite(pp.x))pp.x=(pp.side===0?LAY.c1:LAY.c2);
-      if(!isFinite(pp.cy)){pp.cy=LAY.botY-30;pp.cyTarget=pp.cy;pp.hold=null;pp.state='idle';pp.stateT=0}
+      if(!isFinite(pp.xTarget))pp.xTarget=pp.x;
+      else pp.xTarget=clamp(pp.xTarget,LAY.fL,LAY.fR);
+      if(!isFinite(pp.cy)){pp.cy=LAY.fMidY;pp.cyTarget=pp.cy;pp.hold=null;pp.state='idle';pp.stateT=0}
       if(!isFinite(pp.cyTarget))pp.cyTarget=pp.cy;
     }
     /* 先消费键盘瞬发键 */
@@ -1305,13 +1451,20 @@ function update(){
     if(edge.u0&&P[0].ch&&P[0].ch.hop&&!P[0].hold&&P[0].hopCd<=0){P[0].hop=14;P[0].hopCd=80;P[0].cyTarget=P[0].cy-40;SND.dodge()}
     if(edge.u1&&P[1].ch&&P[1].ch.hop&&!P[1].hold&&P[1].hopCd<=0){P[1].hop=14;P[1].hopCd=80;P[1].cyTarget=P[1].cy-40;SND.dodge()}
     edge.t0=edge.t1=edge.i0=edge.i1=edge.u0=edge.u1=false;
-    /* ★ 手动持续方向键（先于自动辅助生效：长按 W/S 或 ↑/↓ 可自由微调站位） */
-    if(P[0]&&!P[0].ai){const m0=keys.u0||keys.d0;
-      if(keys.u0)P[0].cyTarget-=4.6;if(keys.d0)P[0].cyTarget+=4.6;
-      if(m0){P[0].cyTarget=clampY2(P[0],P[0].cyTarget);P[0].manT=8}else if(P[0].manT>0)P[0].manT--}
-    if(P[1]&&!P[1].ai){const m1=keys.u1||keys.d1;
-      if(keys.u1)P[1].cyTarget-=4.6;if(keys.d1)P[1].cyTarget+=4.6;
-      if(m1){P[1].cyTarget=clampY2(P[1],P[1].cyTarget);P[1].manT=8}else if(P[1].manT>0)P[1].manT--}
+    /* ★ 4 向手动移动：按住方向键/WSAD 时接管，松开后一小会儿交还自动跑位 */
+    const MOVE_STEP=9.5;
+    for(const s of[0,1]){
+      const p=P[s];if(!p||p.ai)continue;
+      let mx=0,my=0;
+      if(keys['l'+s])mx-=1;if(keys['r'+s])mx+=1;
+      if(keys['u'+s])my-=1;if(keys['d'+s])my+=1;
+      if(mx||my){
+        const L=Math.hypot(mx,my)||1;
+        p.xTarget=clamp(p.x+mx/L*MOVE_STEP,LAY.fL,LAY.fR);
+        p.cyTarget=clampY2(p,p.cy+my/L*MOVE_STEP);
+        p.manT=10;p.assist=0;
+      }else if(p.manT>0)p.manT--;
+    }
     /* ★ 自动接球辅助：没在手动操作时接管位置，手机零操作也能接住球 */
     P.forEach(pp=>{if(pp&&pp.alive&&!pp.ai&&pp.manT<=0)humanAssist(pp)});
     if(mode.id==='timed'){timeLeft-=1/60;
@@ -1335,7 +1488,10 @@ function loop(){try{update()}catch(e){console.warn('[26] update err:',e.message)
   requestAnimationFrame(loop)}
 
 /* ================= 输入 ================= */
-const keys={u0:0,d0:0,u1:0,d1:0};
+/* ★ 4 向玩法键位：P1 = WASD 移动 + 空格扔 + F 道具（Shift 左 = 跳跃）；
+   P2 = ↑↓←→ 移动 + L 扔 + K 道具（Shift 右 = 跳跃）。
+   注意：A/D 以前是"扔/道具"，现在改成左右移动了，帮助面板同步更新。 */
+const keys={u0:0,d0:0,l0:0,r0:0,u1:0,d1:0,l1:0,r1:0};
 const edge={t0:0,t1:0,i0:0,i1:0,u0:0,u1:0};
 let ptrId=[null,null];
 function bindInput(){
@@ -1343,32 +1499,40 @@ function bindInput(){
     audio();
     const c=e.code;
     if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(c))e.preventDefault();
-    if(c==='KeyW'){keys.u0=1;if(!e.repeat&&!keys.d0)edge.u0=1}
+    if(c==='KeyW')keys.u0=1;
     else if(c==='KeyS')keys.d0=1;
-    else if(c==='KeyA'&&!e.repeat)edge.t0=1;
-    else if(c==='KeyD'&&!e.repeat)edge.i0=1;
-    else if(c==='ArrowUp'){keys.u1=1;if(!e.repeat&&!keys.d1)edge.u1=1}
+    else if(c==='KeyA')keys.l0=1;
+    else if(c==='KeyD')keys.r0=1;
+    else if(c==='Space'&&!e.repeat)edge.t0=1;
+    else if(c==='KeyF'&&!e.repeat)edge.i0=1;
+    else if(c==='ShiftLeft'&&!e.repeat)edge.u0=1;
+    else if(c==='ArrowUp')keys.u1=1;
     else if(c==='ArrowDown')keys.d1=1;
+    else if(c==='ArrowLeft')keys.l1=1;
+    else if(c==='ArrowRight')keys.r1=1;
     else if(c==='KeyL'&&!e.repeat)edge.t1=1;
     else if(c==='KeyK'&&!e.repeat)edge.i1=1;
+    else if(c==='ShiftRight'&&!e.repeat)edge.u1=1;
     else if(c==='KeyP'||c==='Escape'){if(st==='play')togglePause()}
   });
   document.addEventListener('keyup',e=>{
     const c=e.code;
     if(c==='KeyW')keys.u0=0;else if(c==='KeyS')keys.d0=0;
+    else if(c==='KeyA')keys.l0=0;else if(c==='KeyD')keys.r0=0;
     else if(c==='ArrowUp')keys.u1=0;else if(c==='ArrowDown')keys.d1=0;
+    else if(c==='ArrowLeft')keys.l1=0;else if(c==='ArrowRight')keys.r1=0;
   });
-  /* 触屏/鼠标：半屏上下滑动控制 */
+  /* 触屏/鼠标：在屏幕对应半场点一下（或按住拖动），角色就跑向手指位置 */
   cv.addEventListener('pointerdown',e=>{
     audio();
     if(st!=='play'||paused)return;
     cv.setPointerCapture&&cv.setPointerCapture(e.pointerId);
     let s=e.clientX<W/2?0:1;
     if(P[s]&&P[s].ai)s=0;
-    if(ptrId[s]===null){ptrId[s]=e.pointerId;dragTo(s,e.clientY)}
+    if(ptrId[s]===null){ptrId[s]=e.pointerId;dragTo(s,e.clientX,e.clientY)}
   });
   cv.addEventListener('pointermove',e=>{
-    for(const s of[0,1])if(ptrId[s]===e.pointerId)dragTo(s,e.clientY);
+    for(const s of[0,1])if(ptrId[s]===e.pointerId)dragTo(s,e.clientX,e.clientY);
   });
   const rel=e=>{for(const s of[0,1])if(ptrId[s]===e.pointerId)ptrId[s]=null};
   cv.addEventListener('pointerup',rel);
@@ -1383,12 +1547,15 @@ function bindInput(){
   document.addEventListener('pointerdown',unlock,{once:true});
   document.addEventListener('keydown',unlock,{once:true});
 }
-function dragTo(s,y){
+/* ★ 点哪走哪：手指/鼠标点到场地哪个位置，角色就往那儿跑（手机上最好操作） */
+function dragTo(s,cx_,cy_){
   const p=P[s];if(!p)return;
   const rect=cv.getBoundingClientRect();
-  const yy=y-rect.top;
-  p.manT=10;   /* 手指拖动 = 手动接管，自动接球辅助暂停 */
-  p.cyTarget=clampY2(p,yy);
+  const tx=cx_-rect.left, ty=cy_-rect.top;
+  const b2=clamp2D(p,tx,ty);
+  p.xTarget=b2[0];p.cyTarget=b2[1];
+  p.manT=12;   /* 手动接管：自动跑位暂停一会儿，松开手指几帧后恢复 */
+  p.assist=0;
 }
 function goLobby(){
   try{if(window.parent&&window.parent.goHome){window.parent.goHome();return}}catch(e){}
@@ -1410,20 +1577,21 @@ function togglePause(){
 }
 /* ================= 界面 ================= */
 function helpPanel(){
-  showPanel('<h1>📖 玩法</h1><p><b>目标</b>：接住对方扔来的炸弹并扔回去！引信烧完时炸弹在谁手里/谁半场，谁就被炸掉 1 颗红心。</p>'+
-    '<p>🎮 <b>接球是自动的</b>——炸弹飞过来角色会自己站到落点接住，你只要盯住头上冒烟的炸弹，快炸时按“扔”丢回去！</p>'+
-    '<p>🎮 P1：A 扔炸弹 · D 道具<br>🎮 P2：L 扔炸弹 · K 道具<br>（想自己挪位置可按住 W/S 或 ↑/↓）</p>'+
-    '<p>📱 手机：不用上下滑动！接球自动，只点底部两个大按钮“扔炸弹”即可，点道具图标使用。</p>'+
-    '<p class="tip">炸弹种类：黑球普通 · 蓝冰晶冻人 · 黄球分裂 · 礼物盒加分 · 火焰极快 · 绿壳超慢 · 紫弹簧会弹回 · 橙翅膀追踪 · 灰烟球放烟 · 金星双加分</p>'+
+  showPanel('<h1>📖 玩法</h1><p><b>怎么玩</b>：炸弹会随机掉在<b>你这一边的地上</b>（地上有红圈一闪一闪的就是它）！<b>跑过去踩到它就自动捡起来</b>，趁引信没烧完赶紧按“扔”丢回对方半场。</p>'+
+    '<p>🚶 <b>能上下左右随便跑</b>：不再只是站着接球了。对手也一样要跑去捡——比谁跑得快！</p>'+
+    '<p>💡 不想自己跑也没关系：<b>不操作的时候角色会自己跑去捡球</b>，你只要盯住头上的炸弹、快炸时按“扔”就行。</p>'+
+    '<p>🎮 <b>P1</b>：W A S D 跑动 · 空格 扔炸弹 · F 道具<br>🎮 <b>P2</b>：↑ ↓ ← → 跑动 · L 扔炸弹 · K 道具</p>'+
+    '<p>📱 <b>手机</b>：手指点/按住场地哪个位置，角色就跑向那儿；点底部大按钮“扔炸弹”把它丢回去。</p>'+
+    '<p class="tip">炸弹种类：黑球普通 · 蓝冰晶冻人 · 黄球分裂 · 礼物盒加分 · 火焰极快 · 绿壳超慢 · 紫弹簧会弹回来 · 橙翅膀追踪 · 灰烟球放烟 · 金星双加分</p>'+
     '<button class="bigbtn" id="hb">👍 知道了</button>');
   $('hb').onclick=()=>{hidePanel()};
 }
 function titlePanel(){
   st='title';hidePanel();$('ctrl').classList.remove('show');$('pauseBtn').style.display='none';
-  showPanel('<h1>💣 炸弹传递大作战</h1><p style="margin-top:2px">FC 风格双人对战！接住炸弹赶紧扔回去～</p>'+
+  showPanel('<h1>💣 炸弹传递大作战</h1><p style="margin-top:2px">FC 风格双人对战！炸弹随机落地 · 跑过去捡起来扔回去～</p>'+
     '<button class="bigbtn" id="bPlay">🎮 开始对战</button>'+
     '<button class="bigbtn sec tny" id="bHelp" style="width:70%">📖 玩法说明</button>'+
-    '<p class="hint">接球自动完成 · 快炸时按“扔”丢回去 · 支持键盘与手机触屏</p>');
+    '<p class="hint">能上下左右跑动 · 炸弹随机落点 · 跑到球上就自动捡起 · 支持键盘与手机触屏</p>');
   $('bPlay').onclick=()=>modePanel();
   $('bHelp').onclick=()=>helpPanel();
 }
@@ -1536,7 +1704,7 @@ window.__T={
 /* ================= 启动 ================= */
 let sel0=0,sel1=1;
 function setCloud(){
-  cloud=(arena.id==='palace')?{x:LAY.midX,y:LAY.groundY-LAY.charH*1.25,w:LAY.charH*1.7,h:LAY.charH*.5}:null;
+  cloud=(arena.id==='palace')?{x:LAY.midX,y:LAY.fMidY-LAY.charH*.72,w:LAY.charH*1.7,h:LAY.charH*.5}:null;
 }
 function init(){
   layout();TOUCH=isTouch();
