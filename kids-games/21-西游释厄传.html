@@ -204,8 +204,14 @@ let state = 'title', score = 0, lives = 5, fabao = 1, stageIdx = 0;
 let camX = 0, camLock = false, foes = [], items = [], fx = [], boss = null;
 let banner = '', bannerT = 0, clearT = -1, shakeT = 0, flashA = 0, gtime = 0;
 let P = null;
+/* ★ 出招统一入口：combo 0→1→2 循环，窗口 60 帧（1 秒）内连按即可三连击 */
+function startSwing(p) {
+  p.combo = p.comboT > 0 ? (p.combo + 1) % 3 : 0;
+  p.atkT = 22; p.comboT = 60;
+  p.face = inp.dx !== 0 ? sgn(inp.dx) : p.face;
+}
 function mkPlayer() {
-  return { wx: 130, y: 470, jy: 0, vy: 0, face: 1, atkT: 0, combo: 0, comboT: 0, charging: false, charge: 0, hurtT: 0, invT: 0, kvx: 0, dive: false, bob: 0 };
+  return { wx: 130, y: 470, jy: 0, vy: 0, face: 1, atkT: 0, combo: 0, comboT: 0, charging: false, charge: 0, hurtT: 0, invT: 0, kvx: 0, dive: false, bob: 0, bufN: 0 };
 }
 function mkFoe(t, wx, y) {
   const d = FOE_DEF[t];
@@ -224,6 +230,7 @@ function shockRing(x, y) { fx.push({ k: 'ring', x, y, r: 14, hit: false }); }
 function swingHit(c) {
   const reach = c === 2 ? 92 : 66, dmg = c === 2 ? 3 : 2;
   const x0 = P.wx + P.face * 14, x1 = P.wx + P.face * reach;
+  if (c === 2) { shakeT = 5; spark(P.wx + P.face * 56, P.y - 46); spark(P.wx + P.face * 74, P.y - 34); }   /* ★ 第三刀有气势：轻震+火星（勿用 shockRing，其伤害判定会误伤玩家自己） */
   let hitAny = false;
   for (const f of foes) {
     if (f.dead || f.hurtT > 0) continue;
@@ -236,6 +243,7 @@ function swingHit(c) {
     const dx = boss.wx - P.wx;
     if (dx * P.face > 4 && Math.abs(dx) < reach + boss.size * 14 && Math.abs(boss.y - P.y) < 52) { damageBoss(dmg, P.face * (c === 2 ? 4 : 1)); hitAny = true; }
   }
+  if (c === 2 && hitAny) floatTxt(P.wx, P.y - 100, '💥三连击！', '#ff8a65');  /* ★ 连招看得见 */
   if (hitAny) S.hit(); else S.atk();
 }
 function groundHit() {
@@ -321,7 +329,8 @@ function upPlayer() {
     p.atkT--;
     if (p.atkT === (p.combo === 2 ? 13 : 15)) swingHit(p.combo);
     if (p.atkT === 0) {
-      if (inp.atk) { p.charging = true; p.charge = 0; }
+      if (p.bufN > 0) { p.bufN--; startSwing(p); }   /* ★ 连招衔接：挥刀中连按的输入不丢，刀一收自动接下一招 */
+      else if (inp.atk) { p.charging = true; p.charge = 0; }
     }
   } else if (p.charging) {
     if (inp.atk) {
@@ -336,9 +345,9 @@ function upPlayer() {
   /* 出招/跳攻 */
   if (inp.atkP) {
     if (p.jy > 0) { p.dive = true; p.vy = -7; S.atk(); }
-    else if (!p.charging && p.atkT <= 0) {
-      p.combo = p.comboT > 0 ? (p.combo + 1) % 3 : 0;
-      p.atkT = 22; p.comboT = 46; p.face = inp.dx !== 0 ? sgn(inp.dx) : p.face;
+    else if (!p.charging) {
+      if (p.atkT <= 0) startSwing(p);
+      else if (p.bufN < 2) p.bufN++;                 /* ★ 挥刀中连按：缓存积压按键（最多 2 个），三连击必有第 2、3 刀 */
     }
   }
   /* 跳 */
@@ -1078,6 +1087,7 @@ loop();
 /* ============================ 测试钩子 ============================ */
 window.__T = {
   info: () => ({ state, score, lives, fabao, stage: stageIdx, cam: Math.round(camX), px: P ? Math.round(P.wx) : -1, py: P ? Math.round(P.y) : -1, foes: foes.length, boss: boss && !boss.dead ? { hp: boss.hp, ph: boss.ph, st: boss.st } : null, fxn: fx.length }),
+  combo: () => P ? { atkT: P.atkT, combo: P.combo, comboT: P.comboT, bufN: P.bufN, charging: P.charging, charge: P.charge, hurtT: P.hurtT } : null,
   key: (k, v) => { keys[k] = v; },
   touch: (n, v) => { tz[n] = v; },
   frame(n) { for (let i = 0; i < (n || 1); i++) tick(); },
