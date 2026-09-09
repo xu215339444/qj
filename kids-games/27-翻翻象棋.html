@@ -483,47 +483,11 @@ function buildDeck(){
   RED_SET.forEach(function(s){for(var i=0;i<s[1];i++)redQ.push({t:s[0],side:RED})});
   BLK_SET.forEach(function(s){for(var i=0;i<s[1];i++)blkQ.push({t:s[0],side:BLK})});
   shuffleArr(redQ);shuffleArr(blkQ);
-  /* 颜色铺位（避免翻开后同色成片，观感更随机分散）：
-     ① 按 2x2 区块铺色，每块恰 2红2黑；
-     ② 拒绝采样直至同时满足：
-        - 无任何 2x2 滑动窗口全同色
-        - 每行同色连续 ≤3（8 格一行最多 3 连）
-        - 每列同色连续 ≤2（4 格一列最多 2 连） */
-  var sideP=[],attempt=0,ok=false;
-  while(!ok&&attempt<120){
-    attempt++;sideP=[];
-    for(var bR=0;bR<ROWS/2;bR++){
-      for(var bC=0;bC<COLS/2;bC++){
-        var perm=shuffleArr([0,1,2,3]);
-        for(var q=0;q<4;q++){
-          var r=bR*2+((q/2)|0),c=bC*2+(q%2);
-          sideP[r*COLS+c]=perm[q]<2?RED:BLK;
-        }
-      }
-    }
-    ok=true;
-    outer:
-    for(var r0=0;r0<ROWS-1;r0++)for(var c0=0;c0<COLS-1;c0++){
-      var s0=sideP[r0*COLS+c0];
-      if(sideP[r0*COLS+c0+1]===s0&&sideP[(r0+1)*COLS+c0]===s0&&sideP[(r0+1)*COLS+c0+1]===s0){ok=false;break outer}
-    }
-    if(!ok)continue;
-    for(var r1=0;r1<ROWS&&ok;r1++){
-      var run=1;
-      for(var c1=1;c1<COLS;c1++){
-        if(sideP[r1*COLS+c1]===sideP[r1*COLS+c1-1]){run++;if(run>3){ok=false;break}}
-        else run=1;
-      }
-    }
-    if(!ok)continue;
-    for(var c2=0;c2<COLS&&ok;c2++){
-      var run2=1;
-      for(var r2=1;r2<ROWS;r2++){
-        if(sideP[r2*COLS+c2]===sideP[(r2-1)*COLS+c2]){run2++;if(run2>2){ok=false;break}}
-        else run2=1;
-      }
-    }
-  }
+  /* 颜色铺位：纯随机（真洗牌），只保证红 16 黑 16 的数量平衡，
+     不做任何防成片约束 —— 同色连片、运气好坏都交给洗牌，更符合翻翻棋的运气感 */
+  var sideP=[];
+  for(var k=0;k<N;k++)sideP.push(k<16?RED:BLK);
+  shuffleArr(sideP);
   cells=[];var ri=0,bi=0;
   for(var k=0;k<N;k++){
     var pc=sideP[k]===RED?redQ[ri++]:blkQ[bi++];
