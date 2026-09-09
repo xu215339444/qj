@@ -44,9 +44,10 @@
     flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:5px 8px calc(7px + env(safe-area-inset-bottom));
     position:relative;
   }
-  #tipBox{flex:1;min-width:0;background:rgba(74,44,16,.92);border-radius:12px;color:#ffe9c4;padding:7px 12px;box-shadow:0 3px 8px rgba(0,0,0,.25)}
-  #tipBox .t1{font-size:15px;font-weight:900}
-  #tipBox .t2{font-size:11px;opacity:.85;margin-top:1px}
+  /* ★ 固定高度：提示文字长短变化不再改变本条高度 → 棋盘位置稳定不移位 */
+  #tipBox{flex:1;min-width:0;background:rgba(74,44,16,.92);border-radius:12px;color:#ffe9c4;padding:7px 12px;box-shadow:0 3px 8px rgba(0,0,0,.25);height:56px;display:flex;flex-direction:column;justify-content:center;overflow:hidden}
+  #tipBox .t1{font-size:15px;font-weight:900;line-height:1.35}
+  #tipBox .t2{font-size:11px;opacity:.85;margin-top:1px;line-height:1.35}
   #bubble{position:absolute;left:10px;right:10px;bottom:calc(100% + 8px);background:#fff;border:2.5px solid #ff9d00;color:#7a3f12;border-radius:14px;padding:8px 10px;font-size:13px;font-weight:800;line-height:1.4;box-shadow:0 6px 16px rgba(0,0,0,.3);z-index:6;display:none;animation:pop .25s}
   #bubble::after{content:"";position:absolute;left:18px;bottom:-9px;border:9px solid transparent;border-top-color:#ff9d00;border-bottom:none}
   #bubble b{color:#c62828}
@@ -650,7 +651,7 @@ function eatPiece(pc,op,from,to,isTie){
   cells[to]=pc;          /* 棋子整体搬到目标格 */
   SND.eat();
   var msg=PIECE_NM[pc.t]+'吃'+PIECE_NM[op.t]+'！';
-  tip(msg+'   '+(op.king?'🎉 吃掉'+SIDE_NM[op.side]+'帅/将，'+SIDE_NM[pc.side]+'获胜！':'吃掉一颗棋子'),'');
+  tip(msg,(op.king?'🎉 吃掉'+SIDE_NM[op.side]+'帅/将，'+SIDE_NM[pc.side]+'获胜！':'吃掉一颗棋子'));
   floatMsg(x,y-36,msg,'#ffd23e');
   shakeT=op.king?14:0;   /* 普通吃子不再晃屏（晃动影响手感），仅吃帅/将获胜时晃一下 */
   if(op.king){
