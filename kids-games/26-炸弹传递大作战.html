@@ -255,7 +255,9 @@ function layout(){
   cv.width=Math.round(bw*DPR);cv.height=Math.round(bh*DPR);
   cv.style.width=bw+'px';cv.style.height=bh+'px';
   const portrait=H>W;
-  const barH=TOUCH?parseFloat(getComputedStyle(document.getElementById('ctrl')).height)||0:0;
+  /* ★ 只要操作栏可见就预留高度：此前仅 TOUCH 时才算，电脑上操作栏照样显示却没留空间 → 底部大按钮压住画布 */
+  const ce=document.getElementById('ctrl');
+  const barH=(ce&&ce.classList.contains('show'))?(parseFloat(getComputedStyle(ce).height)||0):0;
   const availH=H-barH;
   const cw=W,ch=availH;
   const groundY=ch*0.94, topY=ch*0.12;
@@ -400,6 +402,10 @@ function mkP(side){
   const c=chars[side];
   return{side,ch:c,id:c.id,
     cy:LAY.groundY-80,cyTarget:LAY.groundY-80,vy:0,
+    /* ★ y = 角色头顶 y（飘字基准）。此前 mkP 从未定义 y，所有 floatTxt(p.x,p.y-60,...) 的 y 都是 NaN，
+       canvas 对 NaN 坐标静默跳过不绘制 —— 实测 36598 次 fillText 中 3259 次是 NaN：
+       「炸弹来了！」「⏰ 快扔！」「💥 -1 心」「+1 分」「防护罩抵挡！」等提示全部一个都看不见。 */
+    y:LAY.groundY-80-LAY.charH*.5,
     face:side===0?1:-1,x:side===0?LAY.c1:LAY.c2,
     hearts:3,score:0,alive:true,state:'idle',stateT:0,
     invuln:0,frozen:0,shield:0,shieldItem:0,shieldInt:0,shoes:0,magnet:0,board:0,
@@ -428,13 +434,19 @@ function newBomb(kind,holder,side){
   return o;
 }
 function throwBomb(p){
-  const b=p.hold;if(!b||b.holder!==p||p.frozen>0||p.invuln>999)return;
+  const b=p.hold;if(!b||b.holder!==p)return;
+  /* 被冰冻/倒地时按“扔”此前静默失败，小朋友会以为按钮坏了 —— 给出明确提示 */
+  if(p.frozen>0){floatTxt(p.x,p.y-60,'❄️ 被冻住啦！','#4fc3f7');return}
+  if(p.state==='x'&&p.stateT>0){floatTxt(p.x,p.y-60,'😵 缓一下…','#cfd8dc');return}
   p.face=faceOf(p);
   const other=P[1-p.side];
-  const spMul=b.d.fspd*(arena.id==='space'?1.18:1)*(timeStop>0?0.001:1);
+  /* ★ 速度倍率越大 = 飞得越快 = 用时越短，必须"除"而不是"乘"。
+     此前写成 0.8*spMul：加速炸弹(fspd1.5)飞 1.20s 全场最慢、慢速炸弹(0.65)只飞 0.52s 全场最快 —— 完全反了。
+     另：不再让 timeStop 参与（原 *0.001 会让炸弹一帧内瞬移到对方脸上）。 */
+  const spMul=b.d.fspd*(arena.id==='space'?1.18:1);
   b.state='fly';b.holder=null;b.threw=p.side;
   b.side=other.side;   // 飞向谁，就威胁谁半场
-  b.dur=0.8*spMul;
+  b.dur=clamp(0.8/(spMul||1),.22,1.8);
   b.sx=p.x+p.face*LAY.bombD*.4;b.sy=p.cy-LAY.bombD*.2;
   b.tx=other.x-other.face*LAY.bombD*.4;
   b.ty=other.cy;
@@ -473,7 +485,8 @@ function explodeBomb(b){
   }else{
     if(victim){hitPlayer(victim,dd,b)}
     if(kind==='split'){
-      setTimeout(()=>{P.forEach(p=>{if(p.alive)miniTo(p)})},300);
+      /* 用 setTimeout 会在暂停/结束面板后照样触发 → 加 st==='play' 守卫 */
+      setTimeout(()=>{if(st==='play')P.forEach(p=>{if(p.alive)miniTo(p)})},300);
     }
     if(dd.smoke){smokeScreen(dd.smoke)}
   }
@@ -620,11 +633,13 @@ function drawBombVis(b){
   const R=d*.5,fuseFrac=(b.d&&b.fuse!==undefined)?clamp(b.fuse/(b.d.fuse[1]||4),0,1):0;
   cx.save();cx.translate(x,y);
   const panic=b.fuse<=1&&b.fuse>0;
-  /* ★ 引信（细黑线 + 末端实心点） */
+  /* ★ 引信（细黑线 + 末端实心点）：此前用 rnd(-4,4) 每帧取随机值 → 火花每帧瞬移乱跳像噪点，
+     改成按帧数正弦摆动（快炸时抖得更快更大），既生动又稳定 */
+  const fw=Math.sin(frame*(panic?.9:.32))*(panic?5.5:3.2);
   cx.strokeStyle='#222';cx.lineWidth=3;cx.lineCap='round';
-  cx.beginPath();cx.moveTo(0,-R+4);cx.lineTo(rnd(-4,4),-R-12);cx.stroke();
+  cx.beginPath();cx.moveTo(0,-R+4);cx.lineTo(fw,-R-12);cx.stroke();
   cx.fillStyle=panic?'#e53935':'#ffa';
-  cx.beginPath();cx.arc(rnd(-4,4),-R-12,3.6,0,TAU);cx.fill();
+  cx.beginPath();cx.arc(fw,-R-12,3.6,0,TAU);cx.fill();
   /* ★ 主圆（白底+黑描边，永远一眼可见） */
   cx.fillStyle='#ffffff';
   cx.strokeStyle='#222';cx.lineWidth=Math.max(2.5,R*.12);
@@ -739,7 +754,7 @@ function drawHUD(){
     cx.fillStyle=timeLeft<=10?'#ff1744':'#fff';cx.fillText(Math.ceil(timeLeft),pw/2,26)}
   else if(mode.id==='score'){cx.font='900 17px Arial';
     cx.strokeText(P[0].score+' : '+P[1].score,pw/2,26);cx.fillStyle='#ffd166';cx.fillText(P[0].score+' : '+P[1].score,pw/2,26)}
-  else{cx.font='13px Arial';cx.fillStyle='#ffe9c0';cx.fillText('先被炸 3 次输',pw/2,18)}
+  else{cx.font='13px Arial';cx.fillStyle='#ffe9c0';cx.fillText('先被炸 3 次输',pw/2,34)}
   cx.textAlign='left';
   /* 道具激活状态角标（放角色上方，由 chDraw.effIcons 已负责） */
 }
@@ -795,29 +810,29 @@ function clampY2(p,y){const bb=pBounds(p);return clamp(y,bb[0],bb[1])}
    想自己控制时按住 W/S 或 ↑/↓（触屏上下滑）会临时接管，松开后恢复自动。 */
 function humanAssist(p){
   if(!p||!p.alive)return;
-  if(p.frozen>0||p.state==='x')return;
+  if(p.frozen>0||p.state==='x'){p.assist=0;return}
   if(p.hold){ /* 手里有球：回地面站台，稳稳拿住等按“扔” */
     const bbase=LAY.groundY-LAY.charH*.5;
-    p.cyTarget=clampY2(p,bbase);
+    p.cyTarget=clampY2(p,bbase);p.assist=0;
     return;
   }
   const inc=bombs.find(b=>!b.gone&&b.state==='fly'&&b.side===p.side&&!b.caught);
-  if(inc){ /* 球飞过来了：自动站到接球点 */
-    p.cyTarget=clampY2(p,inc.ty);
+  if(inc){ /* 球飞过来了：自动站到接球点（并临时提速，否则从场底冲到场顶来不及 → 明明是"自动接球"却老漏接） */
+    p.cyTarget=clampY2(p,inc.ty);p.assist=1;
     return;
   }
   const rs=bombs.find(b=>!b.gone&&b.state==='rest'&&b.side===p.side);
   if(rs&&Math.abs(rs.x-p.x)<LAY.bombD*2.2){ /* 掉在脚下的球自动捡起 */
-    p.cyTarget=clampY2(p,rs.y-LAY.charH*.35);
+    p.cyTarget=clampY2(p,rs.y-LAY.charH*.35);p.assist=1;
     return;
   }
   if(arena.eff==='volcano'){ /* 火山火柱来了自动抬升躲开 */
     const warn=pillars.find(pl=>pl.w>0&&Math.abs(pl.x-p.x)<30);
-    if(warn){p.cyTarget=clampY2(p,p.cy-LAY.charH*.9);return}
+    if(warn){p.cyTarget=clampY2(p,p.cy-LAY.charH*.9);p.assist=1;return}
   }
   /* 空闲：回地面站台 */
   const base=LAY.groundY-LAY.charH*.5;
-  p.cyTarget=clampY2(p,base);
+  p.cyTarget=clampY2(p,base);p.assist=0;
 }
 function movePlayer(p){
   if(!p.alive)return;
@@ -825,7 +840,8 @@ function movePlayer(p){
   if(p.state==='x'&&p.stateT>0){p.cyTarget=p.cy;return}
   if(p.ai)aiThink(p);
   const dt=1/60;
-  const mvMax=(p.shoes>0?560:310)*(p.ch.spdMul||1)*(arena.id==='space'?1.18:1);
+  /* 自动接球冲刺：辅助生效时提速，保证从场底也能赶到落点 */
+  const mvMax=(p.shoes>0?560:310)*(p.ch.spdMul||1)*(arena.id==='space'?1.18:1)*((p.assist&&!p.ai)?1.9:1);
   const want=p.cyTarget-p.cy;
   let step=clamp(want,-mvMax*dt,mvMax*dt);
   p.cy+=step;
@@ -836,6 +852,8 @@ function movePlayer(p){
   p.cy=clampY2(p,p.cy);
 }
 function updatePose(p){
+  if(!isFinite(p.x))p.x=(p.side===0?LAY.c1:LAY.c2);
+  if(!isFinite(p.cy)){p.cy=LAY.botY-30;p.cyTarget=p.cy;p.hold=null;p.state='idle';p.stateT=0}
   if(p.stateT>0)p.stateT--;
   if(p.throwCd>0)p.throwCd--;
   if(p.invuln>0)p.invuln--;
@@ -851,18 +869,24 @@ function updatePose(p){
     p.hold.x=p.x;
     p.hold.y=p.cy-LAY.charH*.5-LAY.bombD*.5-6;
   }
+  /* ★ 每帧同步头顶 y，供所有 floatTxt(p.x,p.y-N) 飘字定位 */
+  p.y=p.cy-LAY.charH*.5;
 }
 function sendBack(b,to){
   b.state='fly';b.holder=null;b.side=to.side;b.hitCloud=0;
   b.sx=b.x;b.sy=b.y;b.tx=to.x-to.face*(LAY.bombD*.45);b.ty=to.cy;
-  b.dur=Math.max(.3,.6*(b.d?b.d.fspd:1)*(arena.id==='space'?1.18:1));
+  /* 同上：反弹/云台弹回也用"除"，快弹回得快 */
+  const spMul2=(b.d?b.d.fspd:1)*(arena.id==='space'?1.18:1);
+  b.dur=clamp(.6/(spMul2||1),.22,1.4);
   b.arc=Math.max(70,Math.abs(to.cy-b.sy)+LAY.bombD*.9+Math.abs(b.sx-to.x)*.2);
   b.t=0;b.threw=to.side;
 }
 function updateBombs(){
   const out=[];
-  bombs.forEach(b=>{
+  /* 遍历快照：explodeBomb→removeBomb 会 splice 原数组，直接 forEach 会漏掉紧随其后的一颗（该帧不更新） */
+  bombs.slice().forEach(b=>{
     if(b.gone)return;
+    if(bombs.indexOf(b)<0)return;   /* 已被同帧其它炸弹的爆炸连带移除 */
     /* ★ 自愈：坐标或关键路径点坏掉的炸弹直接标记消失，避免污染后续帧让画面"看不见炸弹" */
     if(!isFinite(b.x)||!isFinite(b.y)){
       b.gone=1;return;
@@ -956,8 +980,10 @@ function doCatch(b,p,fromGround){
   p.hold=b;if(p.ai)p.think=0;
   SND.catch();p.state='catch';p.stateT=20;
   if(p.ch.catchAdd){b.fuse+=p.ch.catchAdd;floatTxt(p.x,p.y-60,'+0.8s 引信','#8ef')}
-  /* ★ 儿童引导：接到快爆的球时大字提醒赶紧按“扔” */
-  if(!p.ai&&b.fuse<2.6&&b.fuse>0)floatTxt(p.x,p.y-84,'⏰ 快扔！','#ff5252');
+  /* 礼物弹：明确告诉小朋友"这个是加分的，不用怕"，否则他只会当成要赶紧扔掉的炸弹 */
+  if(b.k==='gift')floatTxt(p.x,p.y-LAY.bombD-28,'🎁 礼物弹 +1 分！','#ffb74d');
+  /* ★ 儿童引导：接到快爆的球时大字提醒赶紧按“扔”（放在炸弹上方，避免穿过弹体） */
+  else if(!p.ai&&b.fuse<2.6&&b.fuse>0)floatTxt(p.x,p.y-LAY.bombD-28,'⏰ 快扔！','#ff5252');
   updateItemsBar();
 }
 function miniHit(b,tar){
@@ -1032,15 +1058,21 @@ function aiThink(p){
   p.think=(p.think||0)-1;
   if(p.hold){
     const fr=p.hold.fuse;
-    /* ★ 儿童友好规则：绝不“捂到最后一秒才丢”。
-       旧逻辑 wait=fr-0.6：AI 等引信烧到 0.6s 才出手 → 球飞到玩家手上引信≈0 → 玩家必炸、必输。
-       现在接到球按难度固定停顿就扔回；引信不足 1.4s 时干脆不扔(抱着自爆)，不把烫手弹丢给小朋友。 */
-    if(fr<=1.8){p.think=9999;return}         /* 太烫：不扔，自己抱住 → 公平（杜绝把只剩 1 秒的球塞给小朋友） */
+    /* ★ 儿童友好规则：绝不“捂到最后一秒才丢”，也绝不当“抱着自爆的傻电脑”。
+       旧逻辑 wait=fr-0.6：等引信烧到 0.6s 才出手 → 球飞到玩家手上引信≈0 → 玩家必炸必输。
+       上一版改成 fr<=1.8 就不扔 → AI 一发呆就抱着自爆，玩家什么都不用干就赢了，同样没意思。
+       现在：按难度停顿后出手，但最多等到"还能给对方留 SAFE 秒"为止 —— 保证扔出去时引信充足，
+       小朋友接到后还有 ≥(SAFE-飞行) 秒反应；只有引信真的只剩一点点(≤1.2s)才自己扛下来。 */
+    const SAFE=3.3;                                  /* 出手时至少还剩这么多秒 */
+    if(fr<=1.2){p.think=9999;return}                 /* 真烫手：自己抱住，不塞给小朋友 */
     if(p.think<=0){
       let idle=0;
-      if(Math.random()<d.stare)idle=irnd(80,200);   /* 简单 AI 偶尔抱着发呆，给小玩家喘息/机会 */
-      p.think=Math.round(Math.max(12,(d.react*60+idle)*rnd(.85,1.3)));
-    }else if(p.think<=10&&p.throwCd<=0){
+      if(Math.random()<d.stare)idle=irnd(60,150);    /* 简单 AI 偶尔抱着发呆，给小玩家喘息 */
+      let wait=Math.round(Math.max(10,(d.react*60+idle)*rnd(.85,1.3)));
+      const maxWait=Math.max(8,Math.round((fr-SAFE)*60));   /* 别捂过头：到点必须出手 */
+      if(wait>maxWait)wait=maxWait;
+      p.think=wait;
+    }else if(p.think<=8&&p.throwCd<=0){
       throwBomb(p);p.think=0;
     }
     return;
@@ -1080,13 +1112,15 @@ function needBombs(){
 function updateSpawn(){
   const n=needBombs();
   if(n>0&&spawnT<=0&&P[0]&&P[1]&&(P[0].alive||P[1].alive)){
-    const cands=P.filter(p=>p.alive&&p.frozen<=0&&!p.hold);
-    const pool=cands.length?cands:P.filter(p=>p.alive);
+    /* ★ 只发给手上没炸弹的人。此前 pool 会退化成"所有活着的玩家"，若对方正持弹会被新弹顶掉：
+       旧炸弹仍留在 bombs 数组里以 state='held' 继续烧引信，烧完照样判定持有者被炸 → 玩家莫名其妙掉心。
+       没人空手就本帧不生成（下一帧再试），绝不覆盖。 */
+    const pool=P.filter(p=>p.alive&&p.frozen<=0&&!p.hold);
     if(pool.length){
       const holder=pool[irnd(0,pool.length-1)];
       const b=newBomb(spawnK||pickKind(),holder);
       bombs.push(b);holder.hold=b;
-      SND.catch();floatTxt(holder.x,holder.y-70,'炸弹来了！','#ff8a65');
+      SND.catch();floatTxt(holder.x,holder.y-LAY.bombD-22,'炸弹来了！','#ff8a65');
       updateItemsBar();
       spawnK=null;
     }
