@@ -652,7 +652,7 @@ function eatPiece(pc,op,from,to,isTie){
   var msg=PIECE_NM[pc.t]+'吃'+PIECE_NM[op.t]+'！';
   tip(msg+'   '+(op.king?'🎉 吃掉'+SIDE_NM[op.side]+'帅/将，'+SIDE_NM[pc.side]+'获胜！':'吃掉一颗棋子'),'');
   floatMsg(x,y-36,msg,'#ffd23e');
-  shakeT=op.king?14:6;
+  shakeT=op.king?14:0;   /* 普通吃子不再晃屏（晃动影响手感），仅吃帅/将获胜时晃一下 */
   if(op.king){
     gameOver(pc.side);
   }else{
