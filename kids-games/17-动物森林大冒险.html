@@ -6,8 +6,8 @@
 <title>17-动物森林大冒险</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-body{font-family:'YouYuan','幼圆','PingFang SC','Microsoft YaHei',sans-serif;background:linear-gradient(165deg,#ffe3f1,#fff6e6 42%,#dcf2ff);min-height:100vh;color:#4a3b3b;user-select:none}
-#app{max-width:520px;margin:0 auto;padding:8px 8px 20px}
+body{font-family:'YouYuan','幼圆','PingFang SC','Microsoft YaHei',sans-serif;background:linear-gradient(165deg,#ffe3f1,#fff6e6 42%,#dcf2ff);min-height:100vh;padding:10px 0;color:#4a3b3b;user-select:none}
+#app{max-width:520px;margin:0 auto;padding:8px 8px 20px;display:none}   /* 开始游戏后由脚本显示；避免和设置面板同时占位把页面撑长 */
 /* 顶栏 */
 #top{display:flex;align-items:center;gap:8px;padding:6px 4px}
 #top h1{font-size:19px;font-weight:900;flex:1;letter-spacing:1px;background:linear-gradient(90deg,#ff5e8a,#ffa03d,#f4b400);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 1px 0 #fff)}
@@ -15,7 +15,8 @@ body{font-family:'YouYuan','幼圆','PingFang SC','Microsoft YaHei',sans-serif;b
 #sndBtn{width:34px;height:34px;border:none;border-radius:50%;background:#fff;font-size:16px;box-shadow:0 1px 4px #0002}
 /* 棋盘 */
 #boardWrap{position:relative}
-#board{display:grid;grid-template-columns:repeat(7,1fr);grid-template-rows:repeat(7,1fr);aspect-ratio:1/1;gap:3px;background:linear-gradient(145deg,#7fd35f,#4fc3a0);border:5px solid #fff;border-radius:24px;padding:6px;box-shadow:0 6px 20px rgba(255,130,170,.22),0 4px 14px #00000020}
+/* 棋盘随屏幕高度自适应：平板/笔记本上不溢出，竖屏手机仍是满宽 */
+#board{display:grid;grid-template-columns:repeat(7,1fr);grid-template-rows:repeat(7,1fr);width:min(100%,calc(100dvh - 330px));min-width:264px;margin:0 auto;aspect-ratio:1/1;gap:3px;background:linear-gradient(145deg,#7fd35f,#4fc3a0);border:5px solid #fff;border-radius:24px;padding:6px;box-shadow:0 6px 20px rgba(255,130,170,.22),0 4px 14px #00000020}
 .cell{position:relative;border-radius:15px;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;background:#fffef8;box-shadow:inset 0 0 0 2px #ffffffd9,0 2px 6px #0000001c;transition:transform .15s}
 .cell:active{transform:scale(.95)}
 .cell.land{outline:3px solid #ffb300;outline-offset:-1px;z-index:2;animation:land .55s}
@@ -55,7 +56,7 @@ body{font-family:'YouYuan','幼圆','PingFang SC','Microsoft YaHei',sans-serif;b
 .pcard .pn{font-size:clamp(9px,3vw,12px);font-weight:900;color:#5a4545;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pcard .st{font-size:clamp(10px,3.2vw,13px);font-weight:900}
 .pcard .st .c{color:#e8830c}.pcard .st .s{color:#e0a100}
-.pcard .owns{font-size:clamp(8px,2.6vw,10.5px);font-weight:700;color:#8a6a4a;margin-top:2px;line-height:1.4;word-break:break-all}
+.pcard .owns{font-size:clamp(8px,2.6vw,10.5px);font-weight:700;color:#8a6a4a;margin-top:2px;line-height:1.4;word-break:break-all;max-height:4.2em;overflow:hidden}
 .pcard.own0{border-color:#ffcdc2}.pcard.own1{border-color:#c4ddff}.pcard.own2{border-color:#e9c6ff}.pcard.own3{border-color:#c2f0e8}
 .pcard .owns b{color:#e8830c}
 .pcard .zzz{position:absolute;top:-7px;right:-3px;font-size:15px}
@@ -77,7 +78,7 @@ body.pm #dlg .dp{display:block}
 .b-buy{background:linear-gradient(#ffb74d,#fb8c00);box-shadow:0 3px 0 #c96400}
 .b-up{background:linear-gradient(#4fc3f7,#0288d1);box-shadow:0 3px 0 #01579b}
 /* 设置页 */
-#setup{max-width:360px;margin:24px auto;background:#fffdf5;border-radius:18px;padding:20px;box-shadow:0 6px 24px #0003;text-align:center}
+#setup{max-width:360px;margin:0 auto;background:#fffdf5;border-radius:18px;padding:20px;box-shadow:0 6px 24px #0003;text-align:center}
 #setup h2{color:#2e7d32;font-size:20px;margin-bottom:4px}
 #setup .sub{font-size:12px;color:#888;margin-bottom:14px}
 .srow{display:flex;align-items:center;gap:8px;background:#f4f8ec;border-radius:12px;padding:8px 10px;margin-bottom:8px}
