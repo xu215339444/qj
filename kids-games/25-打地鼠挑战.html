@@ -100,6 +100,45 @@ body{font-family:"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;backgroun
 'use strict';
 /* ================= 工具 ================= */
 var $=function(id){return document.getElementById(id);};
+/* ★ 触摸优先、click 兜底的绑定（iPad 上页面若设过 touch-action，浏览器可能不合成 click，
+   表现为"点了没反应"。touchend 先响应并阻止默认以避免与 click 重复触发）。 */
+function bindTap(el,fn){
+  if(!el)return;
+  var last=0;
+  function fire(ev){
+    var now=Date.now();
+    if(now-last<350)return;
+    last=now;
+    try{ fn(ev); }catch(e){}
+  }
+  el.addEventListener('touchend',function(e){ if(e.cancelable)e.preventDefault(); fire(e); },{passive:false});
+  el.addEventListener('pointerup',function(e){ if(e.pointerType==='touch')return; fire(e); });
+  el.addEventListener('click',fire);
+}
+/* 全页触摸兜底：本游戏大量元素用 el.onclick=fn 绑定，这里让它们在没有合成 click 时
+   也能被手指点中（touchend → 向上找带 onclick 的元素并直接调用）。 */
+(function(){
+  var sx=0,sy=0,moved=false;
+  document.addEventListener('touchstart',function(e){
+    var t=e.touches&&e.touches[0]; if(t){ sx=t.clientX; sy=t.clientY; moved=false; }
+  },{passive:true});
+  document.addEventListener('touchmove',function(e){
+    var t=e.touches&&e.touches[0];
+    if(t&&(Math.abs(t.clientX-sx)>12||Math.abs(t.clientY-sy)>12))moved=true;
+  },{passive:true});
+  document.addEventListener('touchend',function(e){
+    if(moved)return;                       /* 滑动不算点击，避免误触 */
+    var n=e.target;
+    for(var g=0;n&&g<8;g++){
+      if(typeof n.onclick==='function'){
+        if(e.cancelable)e.preventDefault();
+        n.onclick(e);
+        return;
+      }
+      n=n.parentNode;
+    }
+  },{passive:false});
+})();
 function goHome(){try{ if(window.parent&&window.parent.goHome){ window.parent.goHome(); return; } }catch(e){} location.href='游戏大厅.html'; }
 /* ================= 图标 ================= */
 var IC={
@@ -202,7 +241,7 @@ function buildPlay(li,newly){
  // 洞
  var g=$('grass');
  for(var i=0;i<9;i++){ g.appendChild(el('<div class="hole" data-i="'+i+'"><div class="pit"></div><div class="creature" id="cr'+i+'"></div><div class="fx" id="fx'+i+'"></div></div>')); }
- g.querySelectorAll('.hole').forEach(function(h){ h.addEventListener('click',function(){ hitHole(parseInt(h.getAttribute('data-i'),10)); }); });
+ g.querySelectorAll('.hole').forEach(function(h){ bindTap(h,function(){ hitHole(parseInt(h.getAttribute('data-i'),10)); }); });
  // 爱心初始渲染
  updateHearts();
  // 工具
