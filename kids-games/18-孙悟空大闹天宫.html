@@ -6,7 +6,7 @@
 <title>大闹天宫</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-html,body{height:100%;background:#1a1a2e;overflow:hidden;font-family:'PingFang SC','Microsoft YaHei',sans-serif;user-select:none;touch-action:none}
+html,body{height:100%;background:#1a1a2e;overflow:hidden;font-family:'PingFang SC','Microsoft YaHei',sans-serif;user-select:none;}
 #stage{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#1a1a2e}
 #cv{background:#000;touch-action:none}
 /* DOM 覆盖层 */
@@ -1199,6 +1199,35 @@ showTitle();
 
 /* 阻止触屏滚动 */
 document.addEventListener('touchmove',e=>e.preventDefault(),{passive:false});
+</script>
+
+<script>
+/* ★ 平板触摸兜底（2026-10-01 加）
+   iPad 上若浏览器未合成 click（常见于页面设过 touch-action 的情况），
+   手指点这些用 el.onclick=fn 绑定的元素时直接用 touchend 触发。 */
+(function(){
+  if(window.__touchFallback)return; window.__touchFallback=1;
+  var sx=0,sy=0,moved=false;
+  document.addEventListener('touchstart',function(e){
+    var t=e.touches&&e.touches[0]; if(t){ sx=t.clientX; sy=t.clientY; moved=false; }
+  },{passive:true});
+  document.addEventListener('touchmove',function(e){
+    var t=e.touches&&e.touches[0];
+    if(t&&(Math.abs(t.clientX-sx)>12||Math.abs(t.clientY-sy)>12))moved=true;
+  },{passive:true});
+  document.addEventListener('touchend',function(e){
+    if(moved)return;                       /* 滑动不算点击 */
+    var n=e.target,g=0;
+    for(;n&&g<8;g++){
+      if(typeof n.onclick==='function'){
+        if(e.cancelable)e.preventDefault();
+        n.onclick(e);
+        return;
+      }
+      n=n.parentNode;
+    }
+  },{passive:false});
+})();
 </script>
 </body>
 </html>
