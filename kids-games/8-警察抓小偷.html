@@ -8,7 +8,7 @@
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 html,body{height:100%;overflow:hidden;}
-body{font-family:"PingFang SC","Microsoft YaHei","Noto Sans CJK SC",sans-serif;background:#12304a;color:#fff;user-select:none;-webkit-user-select:none;touch-action:none;overscroll-behavior:none;}
+body{font-family:"PingFang SC","Microsoft YaHei","Noto Sans CJK SC",sans-serif;background:#12304a;color:#fff;user-select:none;-webkit-user-select:none;overscroll-behavior:none;}
 .screen{position:fixed;top:0;left:0;right:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:16px;background:linear-gradient(180deg,#2f6ea8 0%,#12304a 100%);overflow:hidden;}
 .hidden{display:none!important;}
 .mtitle{font-size:clamp(26px,5.5vw,40px);font-weight:900;color:#ffd23f;text-shadow:0 3px 0 rgba(0,0,0,.25);letter-spacing:2px;}
@@ -794,6 +794,35 @@ window.__game={
   set lastEvent(v){window.__lastEvent=v;},
   get evt(){return window.__lastEvent;}
 };
+})();
+</script>
+
+<script>
+/* ★ 平板触摸兜底（2026-10-01 加）
+   iPad 上若浏览器未合成 click（常见于页面设过 touch-action 的情况），
+   手指点这些用 el.onclick=fn 绑定的元素时直接用 touchend 触发。 */
+(function(){
+  if(window.__touchFallback)return; window.__touchFallback=1;
+  var sx=0,sy=0,moved=false;
+  document.addEventListener('touchstart',function(e){
+    var t=e.touches&&e.touches[0]; if(t){ sx=t.clientX; sy=t.clientY; moved=false; }
+  },{passive:true});
+  document.addEventListener('touchmove',function(e){
+    var t=e.touches&&e.touches[0];
+    if(t&&(Math.abs(t.clientX-sx)>12||Math.abs(t.clientY-sy)>12))moved=true;
+  },{passive:true});
+  document.addEventListener('touchend',function(e){
+    if(moved)return;                       /* 滑动不算点击 */
+    var n=e.target,g=0;
+    for(;n&&g<8;g++){
+      if(typeof n.onclick==='function'){
+        if(e.cancelable)e.preventDefault();
+        n.onclick(e);
+        return;
+      }
+      n=n.parentNode;
+    }
+  },{passive:false});
 })();
 </script>
 </body>
