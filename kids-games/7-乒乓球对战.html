@@ -8,24 +8,28 @@
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
   html,body{margin:0;padding:0;height:100%;background:#0f1a2b;color:#fff;
     font-family:"PingFang SC","Microsoft YaHei","Heiti SC",sans-serif;
-    user-select:none;-webkit-user-select:none;touch-action:none;overscroll-behavior:none;}
-  #wrap{max-width:840px;margin:0 auto;padding:12px 10px 0;}
+    user-select:none;-webkit-user-select:none;overscroll-behavior:none;}
+  #wrap{max-width:840px;margin:0 auto;padding:12px 10px 12px;}
   #stage{position:relative;}
   #game{width:100%;height:auto;display:block;aspect-ratio:800/520;
     border-radius:16px;box-shadow:0 8px 26px rgba(0,0,0,.5);
     touch-action:none;cursor:pointer;background:#101b2e;}
   .screen{position:absolute;inset:0;z-index:5;display:flex;flex-direction:column;
     align-items:center;justify-content:center;gap:16px;text-align:center;
-    background:rgba(10,20,35,.74);border-radius:16px;padding:20px;overflow:auto;}
+    background:rgba(10,20,35,.74);border-radius:16px;padding:20px;
+    overflow:auto;-webkit-overflow-scrolling:touch;touch-action:pan-y;}
   .hidden{display:none !important;}
   .game-title{font-size:42px;font-weight:bold;letter-spacing:4px;
     color:#ffd54a;text-shadow:0 3px 0 #8a5a00,0 0 18px rgba(255,213,74,.35);}
   .rule{font-size:19px;line-height:1.75;color:#dce9fb;margin:2px 0;}
   .rule p{margin:5px 0;}
-  .bigbtn{font-size:28px;padding:16px 52px;border-radius:44px;border:none;
+  .bigbtn{display:inline-block;font-size:28px;padding:16px 52px;border-radius:44px;border:none;
     background:#ff8c2e;color:#fff;font-weight:bold;cursor:pointer;
-    box-shadow:0 6px 0 #b8560f;letter-spacing:2px;font-family:inherit;}
+    box-shadow:0 6px 0 #b8560f;letter-spacing:2px;font-family:inherit;
+    -webkit-appearance:none;appearance:none;touch-action:manipulation;
+    position:relative;z-index:6;min-width:220px;}
   .bigbtn:active{transform:translateY(5px);box-shadow:0 1px 0 #b8560f;}
+  .bigbtn:focus{outline:none;}
   #endTitle{font-size:44px;font-weight:bold;color:#ffd54a;text-shadow:0 3px 0 #8a5a00;}
   #finalScore{font-size:38px;font-weight:bold;letter-spacing:6px;}
   .stars{font-size:52px;color:#ffd54a;letter-spacing:10px;text-shadow:0 0 18px rgba(255,213,74,.7);}
@@ -181,14 +185,39 @@ function startGame(){
   state='play';pause=0.5;
   serve('cpu');
 }
-document.getElementById('btnStart').addEventListener('click',startGame);
-document.getElementById('btnAgain').addEventListener('click',startGame);
-
-/* ---------- 球拍拖拽（鼠标 + 触摸） ---------- */
-function pointerY(e){ var r=canvas.getBoundingClientRect(); return (e.clientY-r.top)/r.height*H; }
-function movePlayer(e){
-  player.y=clamp(pointerY(e),player.h/2,H-player.h/2);
+/* ★ 触摸优先、click 兜底的按钮绑定
+   iPad 上某些情况（页面设了 touch-action 等）浏览器不会合成 click，
+   导致 button 的 click 完全不触发 → 表现为"点了开始没反应"。
+   这里 touchend 先响应并阻止默认，避免与 click 重复触发；桌面无触摸时走 click。 */
+function bindTap(el,fn){
+  if(!el)return;
+  var last=0;
+  function fire(ev){
+    var now=Date.now();
+    if(now-last<400)return;              /* 去重：touchend 与合成 click 太近只算一次 */
+    last=now;
+    try{ fn(ev); }catch(err){}
+  }
+  el.addEventListener('touchend',function(e){
+    if(e.cancelable)e.preventDefault();  /* 阻止后续合成 click，防双触发 */
+    fire(e);
+  },{passive:false});
+  el.addEventListener('pointerup',function(e){
+    if(e.pointerType==='touch')return;   /* 触摸已由 touchend 处理 */
+    fire(e);
+  });
+  el.addEventListener('click',fire);
 }
+bindTap(document.getElementById('btnStart'),startGame);
+bindTap(document.getElementById('btnAgain'),startGame);
+
+/* ---------- 球拍拖拽（鼠标 + 触摸 + 指针三通道） ---------- */
+function yFromClient(clientY){ var r=canvas.getBoundingClientRect(); return (clientY-r.top)/r.height*H; }
+function setPlayerY(clientY){ player.y=clamp(yFromClient(clientY),player.h/2,H-player.h/2); }
+function pointerY(e){ return yFromClient(e.clientY); }
+function movePlayer(e){ setPlayerY(e.clientY); }
+
+/* 指针通道（桌面鼠标 / 支持的浏览器） */
 canvas.addEventListener('pointerdown',function(e){
   dragging=true;movePlayer(e);
   try{ canvas.setPointerCapture(e.pointerId); }catch(err){}
@@ -196,6 +225,22 @@ canvas.addEventListener('pointerdown',function(e){
 canvas.addEventListener('pointermove',function(e){ if(dragging) movePlayer(e); });
 canvas.addEventListener('pointerup',function(){ dragging=false; });
 canvas.addEventListener('pointercancel',function(){ dragging=false; });
+
+/* 触摸通道（iPad/手机保底：即使 pointer 事件被吞，手指拖拽也能玩） */
+canvas.addEventListener('touchstart',function(e){
+  dragging=true;
+  if(e.touches&&e.touches[0])setPlayerY(e.touches[0].clientY);
+  if(e.cancelable)e.preventDefault();
+},{passive:false});
+canvas.addEventListener('touchmove',function(e){
+  if(dragging&&e.touches&&e.touches[0])setPlayerY(e.touches[0].clientY);
+  if(e.cancelable)e.preventDefault();     /* 防止拖动时页面跟着滚 */
+},{passive:false});
+canvas.addEventListener('touchend',function(e){
+  dragging=false;
+  if(e.cancelable)e.preventDefault();
+},{passive:false});
+canvas.addEventListener('touchcancel',function(){ dragging=false; });
 
 /* ---------- 电脑 AI：预测落点 + 延迟 + 速度上限 + 随档位失误 ---------- */
 function updateAI(dt){
