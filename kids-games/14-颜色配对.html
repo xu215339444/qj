@@ -10,8 +10,7 @@
     margin: 0; padding: 0; height: 100%; overflow: hidden;
     font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
     background: linear-gradient(175deg, #bcd9ff 0%, #e8dcff 60%, #ffd9e8 100%);
-    color: #5b4b8a; user-select: none; -webkit-user-select: none;
-    touch-action: none; overscroll-behavior: none;
+    color: #5b4b8a; user-select: none; -webkit-user-select: none; overscroll-behavior: none;
   }
   #app { display: flex; flex-direction: column; height: 100%; }
   #hud {
@@ -642,6 +641,35 @@ resize();
 genLevel();   // 先垫一关，保证首帧有图案
 showMenu();
 requestAnimationFrame(loop);
+})();
+</script>
+
+<script>
+/* ★ 平板触摸兜底（2026-10-01 加）
+   iPad 上若浏览器未合成 click（常见于页面设过 touch-action 的情况），
+   手指点这些用 el.onclick=fn 绑定的元素时直接用 touchend 触发。 */
+(function(){
+  if(window.__touchFallback)return; window.__touchFallback=1;
+  var sx=0,sy=0,moved=false;
+  document.addEventListener('touchstart',function(e){
+    var t=e.touches&&e.touches[0]; if(t){ sx=t.clientX; sy=t.clientY; moved=false; }
+  },{passive:true});
+  document.addEventListener('touchmove',function(e){
+    var t=e.touches&&e.touches[0];
+    if(t&&(Math.abs(t.clientX-sx)>12||Math.abs(t.clientY-sy)>12))moved=true;
+  },{passive:true});
+  document.addEventListener('touchend',function(e){
+    if(moved)return;                       /* 滑动不算点击 */
+    var n=e.target,g=0;
+    for(;n&&g<8;g++){
+      if(typeof n.onclick==='function'){
+        if(e.cancelable)e.preventDefault();
+        n.onclick(e);
+        return;
+      }
+      n=n.parentNode;
+    }
+  },{passive:false});
 })();
 </script>
 </body>
