@@ -12,7 +12,17 @@ body{background:#123059;font-family:"Microsoft YaHei","PingFang SC",sans-serif;d
 #ttl{font-size:20px;font-weight:bold;flex:1;text-align:center;text-shadow:0 2px 3px rgba(0,0,0,.4)}
 #topbar button{background:#ffd34d;border:none;border-radius:10px;padding:6px 14px;font-size:15px;font-weight:bold;cursor:pointer;font-family:inherit}
 #topbar button:active{transform:scale(.94)}
-#cv{display:block;width:100%;background:#8ed0f0;border-radius:0 0 14px 14px}
+#cv{display:block;width:100%;height:auto;aspect-ratio:960/540;background:#8ed0f0;border-radius:0 0 14px 14px}
+/* ---- 触屏虚拟按键（平板/手机显示；键盘玩家不占地方） ---- */
+#pad{display:none;justify-content:space-between;align-items:center;padding:6px 18px calc(10px + env(safe-area-inset-bottom,0px));background:linear-gradient(#1d3a6e,#16305c);border-radius:0 0 14px 14px;touch-action:none;-webkit-user-select:none;user-select:none}
+body.touch #pad{display:flex}
+body.touch #cv{border-radius:0}
+#pad .grp{display:flex;gap:16px;align-items:center}
+.pbtn{width:76px;height:76px;border-radius:50%;border:none;font-family:inherit;font-size:30px;font-weight:900;line-height:1;color:#fff;background:linear-gradient(#5fa8ec,#2f6fc0);box-shadow:0 4px 0 #1c4a86;touch-action:none;-webkit-user-select:none;user-select:none;cursor:pointer}
+.pbtn.on{transform:translateY(3px);box-shadow:0 1px 0 #1c4a86;filter:brightness(1.18)}
+.pbtn.jump{width:94px;height:94px;font-size:25px;background:linear-gradient(#ffd34d,#ff9d3c);color:#7a3c00;box-shadow:0 4px 0 #c96f12}
+.pbtn.jump.on{box-shadow:0 1px 0 #c96f12}
+@media(max-width:700px){.pbtn{width:62px;height:62px;font-size:25px}#pad .grp{gap:11px}.pbtn.jump{width:78px;height:78px;font-size:21px}}
 /* ---- 答题浮层 ---- */
 #quizWrap{position:absolute;left:50%;top:56px;transform:translateX(-50%);width:560px;max-width:94%;background:linear-gradient(#fffef5,#fff3cf);border:4px solid #ffb63c;border-radius:18px;box-shadow:0 10px 28px rgba(0,0,0,.45);padding:14px 16px;z-index:9;display:none}
 #quizWrap.show{display:block;animation:pop .22s}
@@ -46,6 +56,7 @@ body{background:#123059;font-family:"Microsoft YaHei","PingFang SC",sans-serif;d
 </style>
 </head>
 <body>
+<script>if(('ontouchstart' in window)||navigator.maxTouchPoints>0)document.body.classList.add('touch');</script>
 <div id="app">
   <div id="topbar">
     <button id="homeBtn">🏠 大厅</button>
@@ -53,6 +64,15 @@ body{background:#123059;font-family:"Microsoft YaHei","PingFang SC",sans-serif;d
     <button id="muteBtn">🔊</button>
   </div>
   <canvas id="cv" width="960" height="540"></canvas>
+  <div id="pad">
+    <div class="grp">
+      <button class="pbtn" id="pLeft" aria-label="向左">◀</button>
+      <button class="pbtn" id="pRight" aria-label="向右">▶</button>
+    </div>
+    <div class="grp">
+      <button class="pbtn jump" id="pJump" aria-label="跳跃">跳</button>
+    </div>
+  </div>
   <div id="quizWrap">
     <span id="qTag">题目</span>
     <div id="qPrompt"></div>
@@ -600,7 +620,7 @@ function menuScreen(){
     '<div style="display:flex;gap:18px;margin-bottom:6px">'+
     '<div class="charCard'+(charSel===0?' sel':'')+'" id="cBoy"><svg viewBox="0 0 96 96"><circle cx="48" cy="52" r="22" fill="#ffd0a8"/><path d="M28 34 Q48 14 68 34 L70 40 L26 40 Z" fill="#c9a45a"/><rect x="24" y="36" width="48" height="7" rx="3" fill="#a8813c"/><circle cx="40" cy="52" r="3" fill="#222"/><circle cx="56" cy="52" r="3" fill="#222"/><path d="M42 62 Q48 66 54 62" stroke="#c98a5a" stroke-width="2.4" fill="none" stroke-linecap="round"/><rect x="34" y="74" width="28" height="18" rx="6" fill="#3a8fd8"/></svg><div>👦 小探险家</div></div>'+
     '<div class="charCard'+(charSel===1?' sel':'')+'" id="cGirl"><svg viewBox="0 0 96 96"><circle cx="48" cy="52" r="22" fill="#ffddb8"/><path d="M30 30 Q48 44 66 30 Q70 52 62 48 Q66 34 48 30 Q30 34 34 48 Q26 52 30 30 Z" fill="#8a5a2a"/><circle cx="40" cy="52" r="3" fill="#222"/><circle cx="56" cy="52" r="3" fill="#222"/><path d="M42 62 Q48 66 54 62" stroke="#d98a6a" stroke-width="2.4" fill="none" stroke-linecap="round"/><path d="M34 76 L62 76 L64 92 L32 92 Z" fill="#e86a9a"/></svg><div>👧 小探险家</div></div></div>'+
-    '方向键/AD 移动 · ↑/W/空格 跳跃 · 收集字母宝石和星星<br>碰到门和小怪要<b>答题</b>，答对才能通过！集齐 20 颗⭐解锁金色服装',
+    (document.body.classList.contains('touch')?'屏幕下方 ◀ ▶ 移动 · 点「跳」按钮跳跃：':'方向键/AD 移动 · ↑/W/空格 跳跃：')+'收集字母宝石和星星<br>碰到门和小怪要<b>答题</b>，答对才能通过！集齐 20 颗⭐解锁金色服装',
     [['开始冒险',startRun]]);
   var b1=document.getElementById('cBoy'),b2=document.getElementById('cGirl');
   if(b1)b1.onclick=function(){charSel=0;b1.classList.add('sel');b2.classList.remove('sel');};
@@ -699,7 +719,7 @@ function frame(ts){
   drawHUD();
   if(state==='play'&&!quiz){
     ctx.fillStyle='rgba(0,0,0,.25)';rr(W/2-150,H-36,300,26,13);ctx.fill();
-    ctx.fillStyle='#fff';ctx.font='13px sans-serif';ctx.textAlign='center';ctx.fillText('← → 移动 · ↑ 跳跃 · 碰到门/小怪要答题',W/2,H-18);
+    ctx.fillStyle='#fff';ctx.font='13px sans-serif';ctx.textAlign='center';ctx.fillText((document.body.classList.contains('touch')?'◀ ▶ 移动 · 「跳」按钮跳跃':'← → 移动 · ↑ 跳跃')+' · 碰到门/小怪要答题',W/2,H-18);
   }
 }
 requestAnimationFrame(frame);
@@ -722,6 +742,29 @@ document.addEventListener('keyup',function(ev){
   if(k==='ArrowRight'||k==='d'||k==='D')KEYS.right=false;
   if(k==='ArrowUp'||k==='w'||k==='W'||k===' ')KEYS.up=false;
 });
+
+/* ================= 触屏虚拟按键（平板/手机） ================= */
+(function(){
+  var isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (navigator.msMaxTouchPoints > 0);
+  if(isTouch) document.body.classList.add('touch');
+  function hold(id,down,up){
+    var el=document.getElementById(id); if(!el) return;
+    function press(e){ if(e&&e.cancelable)e.preventDefault(); el.classList.add('on'); down(); }
+    function release(e){ if(e&&e.cancelable)e.preventDefault(); el.classList.remove('on'); up(); }
+    el.addEventListener('pointerdown',press);
+    el.addEventListener('pointerup',release);
+    el.addEventListener('pointercancel',release);
+    el.addEventListener('pointerleave',release);
+    el.addEventListener('contextmenu',function(e){e.preventDefault();});
+  }
+  hold('pLeft', function(){ KEYS.left=true;  KEYS.right=false; }, function(){ KEYS.left=false; });
+  hold('pRight',function(){ KEYS.right=true; KEYS.left=false;  }, function(){ KEYS.right=false; });
+  hold('pJump', function(){ KEYS.up=true; }, function(){ KEYS.up=false; });
+  /* 触屏拖动按键时不要把画面带跑 */
+  document.addEventListener('touchmove',function(e){
+    if(e.target&&e.target.closest&&e.target.closest('#pad')&&e.cancelable)e.preventDefault();
+  },{passive:false});
+})();
 
 /* ================= 测试钩子 ================= */
 if(window.__TEST__){
