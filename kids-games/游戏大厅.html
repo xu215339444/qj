@@ -403,15 +403,50 @@ function goHome() {
   const f = $('frame');
   f.src = 'about:blank';
 }
-$('home').addEventListener('click', e => {
-  const b = e.target.closest('.tile, .card');
-  if (b) play(+b.dataset.i);
-});
-$('quick').addEventListener('click', e => {
-  const b = e.target.closest('.chip');
-  if (b) play(+b.dataset.i);
-});
+const pick = (root, sel) => e => {
+  const b = e.target && e.target.closest ? e.target.closest(sel) : null;
+  if (b && root.contains(b)) play(+b.dataset.i);
+};
+/* 双通道绑定：iPad 上若浏览器不合成 click，手指点也能选中游戏 */
+function bindPick(root, sel) {
+  const act = pick(root, sel);
+  let last = 0;
+  const fire = e => { const n = Date.now(); if (n - last < 350) return; last = n; act(e); };
+  root.addEventListener('touchend', e => {
+    const b = e.target && e.target.closest ? e.target.closest(sel) : null;
+    if (b && root.contains(b)) { if (e.cancelable) e.preventDefault(); fire(e); }
+  }, { passive: false });
+  root.addEventListener('pointerup', e => { if (e.pointerType === 'touch') return; fire(e); });
+  root.addEventListener('click', fire);
+}
+bindPick($('home'), '.tile, .card');
+bindPick($('quick'), '.chip');
 $('btnHome').onclick = goHome;
+
+/* 全页触摸兜底：顶部按钮等用 el.onclick=fn 绑定的元素，在无合成 click 时也能点中 */
+(function () {
+  let sx = 0, sy = 0, moved = false;
+  document.addEventListener('touchstart', e => {
+    const t = e.touches && e.touches[0];
+    if (t) { sx = t.clientX; sy = t.clientY; moved = false; }
+  }, { passive: true });
+  document.addEventListener('touchmove', e => {
+    const t = e.touches && e.touches[0];
+    if (t && (Math.abs(t.clientX - sx) > 12 || Math.abs(t.clientY - sy) > 12)) moved = true;
+  }, { passive: true });
+  document.addEventListener('touchend', e => {
+    if (moved) return;
+    let n = e.target;
+    for (let g = 0; n && g < 8; g++) {
+      if (typeof n.onclick === 'function') {
+        if (e.cancelable) e.preventDefault();
+        n.onclick(e);
+        return;
+      }
+      n = n.parentNode;
+    }
+  }, { passive: false });
+})();
 renderHome();
 
 // 地址栏带 #2 可直接进第二个游戏
