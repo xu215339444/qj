@@ -1675,5 +1675,77 @@ setInterval(() => { if (state === 'playing') syncHud(); }, 400);
 </script>
 
 <a class="homelink" href="%E6%B8%B8%E6%88%8F%E5%A4%A7%E5%8E%85.html" target="_top">← 游戏大厅</a>
+
+
+<style id="__bgGuardCss">html,body{overscroll-behavior:none;}</style>
+<script id="__bgGuard">
+/*__BG_GUARD_v1__ 防误触返回（左滑/侧滑返回拦截） */
+(function(){
+  if (window.__backGuard) return;
+  window.__backGuard = 1;
+  /* 在 iframe 里不接管：外层大厅统一处理，否则两层抢同一个后退会互相锁死 */
+  if (window.top !== window.self) return;
+
+  var armed = false, pushed = false, lastBlock = 0, offCb = null;
+
+  function push(){
+    try { history.pushState({ __bg: 1 }, '', location.href); pushed = true; } catch (e) {}
+  }
+  function tip(msg){
+    var el = document.getElementById('__bgTip');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = '__bgTip';
+      el.style.cssText = 'position:fixed;left:50%;top:calc(10px + env(safe-area-inset-top));' +
+        'transform:translateX(-50%);max-width:86vw;padding:9px 16px;border-radius:999px;' +
+        'background:rgba(20,20,32,.82);color:#fff;z-index:2147483647;pointer-events:none;' +
+        'font:700 15px/1.4 -apple-system,"PingFang SC","Microsoft YaHei",sans-serif;' +
+        'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:0;transition:opacity .2s';
+      (document.body || document.documentElement).appendChild(el);
+    }
+    el.textContent = msg;
+    el.style.opacity = '1';
+    clearTimeout(el.__t);
+    el.__t = setTimeout(function(){ el.style.opacity = '0'; }, 1900);
+  }
+  function onPop(){
+    var now = Date.now();
+    if (armed) {
+      if (lastBlock && now - lastBlock < 2500) {   /* 连续第二次 = 真想退出 */
+        lastBlock = 0; armed = false; pushed = false;
+        tip('已退出防误触');
+        setTimeout(function(){ try { history.back(); } catch(e){} }, 0);
+        return;
+      }
+      lastBlock = now;
+      push();
+      tip('已挡住误触返回 · 再滑一次退出');
+      return;
+    }
+    if (offCb) { var c = offCb; offCb = null; c(); return; }   /* 这次回程是撤哨兵，通知调用方 */
+    if (pushed) { pushed = false; history.back(); }            /* 没在玩：放行 */
+  }
+  window.addEventListener('popstate', onPop);
+
+  window.__bgArm = function(){ armed = true; lastBlock = 0; if (!pushed) push(); };
+  /* 撤哨兵。cb 在回程落地后触发（最多等 700ms 兜底）。
+     ★ 必须在动 iframe 之前撤哨兵，否则后退一步会把 iframe 还原成上一个历史条目里的旧文档。 */
+  window.__bgOff = function(cb){
+    armed = false; lastBlock = 0;
+    if (!pushed) { if (cb) setTimeout(cb, 0); return; }
+    pushed = false;
+    var fired = false;
+    var once = function(){ if (fired) return; fired = true; offCb = null; if (cb) cb(); };
+    offCb = once;
+    setTimeout(function(){ try { history.back(); } catch (e) { once(); } }, 0);
+    setTimeout(once, 700);
+  };
+  window.__bgState = function(){ return { armed: armed, pushed: pushed }; };
+
+  /* 独立打开的游戏页自动开启；大厅改用 __bgWantArm 按需开 */
+  if (window.__bgNoAutoArm) { if (window.__bgWantArm) window.__bgArm(); }
+  else window.__bgArm();
+})();
+</script>
 </body>
 </html>
