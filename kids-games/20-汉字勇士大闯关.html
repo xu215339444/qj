@@ -1188,20 +1188,57 @@ else init();
 </script>
 
 
+
+
+
 <style id="__bgGuardCss">html,body{overscroll-behavior:none;}</style>
 <script id="__bgGuard">
-/*__BG_GUARD_v1__ 防误触返回（左滑/侧滑返回拦截） */
+/*__BG_GUARD_v1__ 防误触返回 v2（左滑/侧滑返回） */
 (function(){
   if (window.__backGuard) return;
   window.__backGuard = 1;
-  /* 在 iframe 里不接管：外层大厅统一处理，否则两层抢同一个后退会互相锁死 */
-  if (window.top !== window.self) return;
 
-  var armed = false, pushed = false, lastBlock = 0, offCb = null;
+  var inFrame = window.top !== window.self;
+  var armed = false;
+
+  /* ===== ① 边缘防误触：所有文档都挂（手指是落在 iframe 上的，iframe 里更要挂）===== */
+  function isControl(el){
+    for (var i = 0; el && i < 4; i++, el = el.parentNode) {
+      var t = el.tagName ? el.tagName.toLowerCase() : '';
+      if (t === 'button' || t === 'a' || t === 'input' || t === 'select' || t === 'textarea') return true;
+      if (el.getAttribute && (el.getAttribute('role') === 'button' || typeof el.onclick === 'function')) return true;
+    }
+    return false;
+  }
+  var EDGE = 24;
+  document.addEventListener('touchstart', function(e){
+    if (!(inFrame || armed)) return;                 /* 大厅首页不拦，免得挡住列表滚动 */
+    if (!e.touches || e.touches.length !== 1) return;
+    var t = e.touches[0], w = window.innerWidth || 99999;
+    if (t.clientX > EDGE && t.clientX < w - EDGE) return;
+    if (isControl(e.target)) return;                 /* 正好压在边缘按钮上的照常点 */
+    if (e.cancelable) e.preventDefault();
+  }, { passive: false, capture: true });
+
+  if (inFrame) return;                               /* iframe 内不做历史哨兵：外层大厅统一处理 */
+
+  /* ===== ② 历史哨兵（只有顶层文档）===== */
+  var pushed = false, lastBlock = 0, offCb = null, lastGesture = 0, pendingPush = false;
 
   function push(){
-    try { history.pushState({ __bg: 1 }, '', location.href); pushed = true; } catch (e) {}
+    /* 无手势压入的条目会被当 dummy 跳过 → 挂起，等下一次真实手势再压 */
+    if (Date.now() - lastGesture > 4000) { pendingPush = true; return false; }
+    try { history.pushState({ __bg: 1 }, '', location.href); pushed = true; pendingPush = false; return true; }
+    catch (e) { return false; }
   }
+  function markGesture(){
+    lastGesture = Date.now();
+    if (pendingPush && !pushed) { pendingPush = false; push(); }
+  }
+  ['touchstart', 'touchend', 'pointerup', 'click', 'keydown'].forEach(function(t){
+    window.addEventListener(t, markGesture, { capture: true, passive: true });
+  });
+
   function tip(msg){
     var el = document.getElementById('__bgTip');
     if (!el) {
@@ -1223,13 +1260,14 @@ else init();
     var now = Date.now();
     if (armed) {
       if (lastBlock && now - lastBlock < 2500) {   /* 连续第二次 = 真想退出 */
-        lastBlock = 0; armed = false; pushed = false;
+        lastBlock = 0; armed = false; pushed = false; pendingPush = false;
         tip('已退出防误触');
         setTimeout(function(){ try { history.back(); } catch(e){} }, 0);
         return;
       }
       lastBlock = now;
-      push();
+      pushed = false;        /* 这条哨兵已经被这次回程吃掉了，必须置回 false */
+      push();                /* 有手势就立刻补一条；没有则挂起到下一次手势 */
       tip('已挡住误触返回 · 再滑一次退出');
       return;
     }
@@ -1242,7 +1280,7 @@ else init();
   /* 撤哨兵。cb 在回程落地后触发（最多等 700ms 兜底）。
      ★ 必须在动 iframe 之前撤哨兵，否则后退一步会把 iframe 还原成上一个历史条目里的旧文档。 */
   window.__bgOff = function(cb){
-    armed = false; lastBlock = 0;
+    armed = false; lastBlock = 0; pendingPush = false;
     if (!pushed) { if (cb) setTimeout(cb, 0); return; }
     pushed = false;
     var fired = false;
@@ -1251,9 +1289,9 @@ else init();
     setTimeout(function(){ try { history.back(); } catch (e) { once(); } }, 0);
     setTimeout(once, 700);
   };
-  window.__bgState = function(){ return { armed: armed, pushed: pushed }; };
+  window.__bgState = function(){ return { armed: armed, pushed: pushed, pend: pendingPush, frame: inFrame }; };
 
-  /* 独立打开的游戏页自动开启；大厅改用 __bgWantArm 按需开 */
+  /* 独立打开的游戏页自动开启；大厅这类宿主页改用 __bgWantArm 按需开 */
   if (window.__bgNoAutoArm) { if (window.__bgWantArm) window.__bgArm(); }
   else window.__bgArm();
 })();
